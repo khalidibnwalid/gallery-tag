@@ -26,7 +26,7 @@ export function Sidebar() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-background/80 backdrop-blur-sm border rounded-xl shadow-lg">
+    <nav className="z-50 fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-background/80 backdrop-blur-sm border rounded-xl shadow-lg">
       {navigationItems.map((item) => {
         const isActive = pathname === item.route;
 
