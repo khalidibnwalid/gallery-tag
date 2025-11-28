@@ -1,8 +1,14 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { Sidebar } from "@/routes/-components/Sidebar";
+import SearchBox from "./-components/SearchBox";
 
 const RootLayout = () => (
   <>
-    <Outlet />
+    <Sidebar />
+    <SearchBox />
+    <main className="ps-20">
+      <Outlet />
+    </main>
   </>
 );
 
