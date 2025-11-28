@@ -1,12 +1,13 @@
+import "@/style.css";
 import {
-    RouterProvider,
-    createHashHistory,
-    createRouter,
+  RouterProvider,
+  createHashHistory,
+  createRouter,
 } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "./style.css";
 
+import { ThemeProvider } from "./components/features/ThemeProvider";
 import { routeTree } from "./routeTree.gen";
 
 // wails go docs recommend using hash history
@@ -20,12 +21,20 @@ declare module "@tanstack/react-router" {
   }
 }
 
+function App() {
+  return (
+    <ThemeProvider>
+      <RouterProvider router={router} />
+    </ThemeProvider>
+  );
+}
+
 const rootElement = document.getElementById("root")!;
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <RouterProvider router={router} />
+      <App />
     </React.StrictMode>
   );
 }
