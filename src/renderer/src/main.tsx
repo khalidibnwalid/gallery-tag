@@ -1,4 +1,6 @@
 import '@/style.css'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import {
   RouterProvider,
   createHashHistory,
@@ -12,8 +14,9 @@ import { routeTree } from './routeTree.gen'
 
 // wails go docs recommend using hash history
 const hashHistory = createHashHistory()
-
 const router = createRouter({ routeTree, history: hashHistory })
+
+const queryClient = new QueryClient()
 
 declare module '@tanstack/react-router' {
   interface Register {
@@ -23,9 +26,12 @@ declare module '@tanstack/react-router' {
 
 function App() {
   return (
-    <ThemeProvider>
-      <RouterProvider router={router} />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <RouterProvider router={router} />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }
 

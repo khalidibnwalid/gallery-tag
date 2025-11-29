@@ -1,91 +1,47 @@
+import { useFolder } from '@/components/features/FolderProvider'
 import { Button } from '@/components/ui/button'
+import { FolderOpenIcon } from '@phosphor-icons/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-
-interface ImageItem {
-  title: string
-  imagePath: string
-}
 
 export const Route = createFileRoute('/')({
   component: Index,
 })
 
 function Index() {
-  const [images, setImages] = useState<ImageItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null)
+  const { openFolderDialog, folderImagesQuery } = useFolder()
+  const { data: imagePaths, isLoading, isFetching } = folderImagesQuery
 
-  const handleOpenFolder = async () => {
-    setLoading(true)
-    try {
-      // Check if the API is available
-      if (!window.api || !window.api.openFolderDialog) {
-        console.error('API not available')
-        alert('API not available. Make sure the app is running in Electron.')
-        return
-      }
-
-      console.log('Opening folder dialog...')
-      const folderPath = await window.api.openFolderDialog()
-      console.log('Selected folder:', folderPath)
-
-      if (folderPath) {
-        setCurrentFolder(folderPath)
-        console.log('Getting image files from:', folderPath)
-        const imageFiles = await window.api.getImageFiles(folderPath)
-        console.log('Found image files:', imageFiles)
-
-        const imageItems: ImageItem[] = imageFiles.map(filePath => {
-          const fileName =
-            filePath.split('/').pop() || filePath.split('\\').pop() || 'Unknown'
-          const title = fileName.replace(/\.[^/.]+$/, '') // Remove file extension
-          console.log('Adding image:', title, filePath)
-          return {
-            title,
-            imagePath: filePath,
-          }
-        })
-
-        setImages(imageItems)
-      }
-    } catch (error) {
-      console.error('Error opening folder:', error)
-      alert(`Error opening folder: ${error}`)
-    } finally {
-      setLoading(false)
-    }
+  if (isLoading || isFetching) {
+    return (
+      <div className="p-6 min-h-screen flex items-center justify-center">
+        <p className="text-foreground text-lg">Loading images...</p>
+      </div>
+    )
   }
 
   return (
     <div className="p-6 min-h-screen">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Image Gallery</h1>
-          {currentFolder && (
-            <p className="text-gray-600 text-sm">
-              Folder: {currentFolder} ({images.length} images)
-            </p>
-          )}
-        </div>
-        <Button onClick={handleOpenFolder} disabled={loading}>
-          {loading ? 'Loading...' : 'Open Folder'}
-        </Button>
-      </div>
-
-      {images.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">
-            No images loaded. Click "Open Folder" to select a folder containing
-            images.
-          </p>
+      {imagePaths === undefined && (
+        <div className="text-center py-12 space-y-4">
+          <p className="text-foreground text-3xl font-bold">No Folder Opened</p>
+          <Button size="lg" className="text-xl" onClick={openFolderDialog}>
+            <FolderOpenIcon className="size-6" weight="fill" />
+            Open Folder
+          </Button>
         </div>
       )}
 
-      {images.length > 0 && (
+      {imagePaths && imagePaths?.length === 0 && (
         <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 space-y-4 pb-20">
-          {images.map((image, index) => (
-            <Card key={index} title={image.title} imagePath={image.imagePath} />
+          <p className="text-foreground text-lg">Empty Folder</p>
+        </div>
+      )}
+
+      {imagePaths && imagePaths.length > 0 && (
+        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 space-y-4 pb-20">
+          {imagePaths?.map((path, index) => (
+            <Card key={index} imagePath={path} />
           ))}
         </div>
       )}
@@ -93,7 +49,7 @@ function Index() {
   )
 }
 
-function Card({ title, imagePath }: ImageItem) {
+function Card({ title, imagePath }: { title?: string; imagePath: string }) {
   const [imageError, setImageError] = useState(false)
 
   return (
@@ -111,7 +67,9 @@ function Card({ title, imagePath }: ImageItem) {
       ) : (
         <div className="w-full h-48 flex items-center justify-center bg-muted">
           <div className="text-center">
-            <p className="text-muted-foreground text-sm">Failed to load image</p>
+            <p className="text-muted-foreground text-sm">
+              Failed to load image
+            </p>
             <p className="text-foreground text-xs mt-1">{title}</p>
           </div>
         </div>

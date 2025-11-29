@@ -1,11 +1,5 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  shell
-} from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { readdir, stat } from 'fs/promises'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
@@ -29,6 +23,7 @@ function createWindow(): void {
     width: 900,
     height: 670,
     show: false,
+    frame: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
@@ -38,8 +33,6 @@ function createWindow(): void {
       allowRunningInsecureContent: true,
     },
   })
-
-  mainWindow.webContents.openDevTools()
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -99,6 +92,10 @@ app.whenReady().then(() => {
       console.error('Error getting image files:', error)
       return []
     }
+  })
+
+  ipcMain.handle('close-app', () => {
+    app.quit()
   })
 
   createWindow()

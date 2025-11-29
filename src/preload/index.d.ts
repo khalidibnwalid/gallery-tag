@@ -6,6 +6,7 @@ declare global {
     api: {
       openFolderDialog: () => Promise<string | null>
       getImageFiles: (folderPath: string) => Promise<string[]>
+      closeApp: () => void
     }
   }
 }

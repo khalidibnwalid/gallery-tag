@@ -6,6 +6,7 @@ const api = {
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
   getImageFiles: (folderPath: string) =>
     ipcRenderer.invoke('get-image-files', folderPath),
+  closeApp: () => ipcRenderer.invoke('close-app'),
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
