@@ -1,7 +1,27 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  shell
+} from 'electron'
+import { readdir, stat } from 'fs/promises'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+
+// supported images types
+const IMAGE_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.bmp',
+  '.webp',
+  '.svg',
+  '.tiff',
+  '.ico',
+]
 
 function createWindow(): void {
   // Create the browser window.
@@ -13,15 +33,19 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
+      sandbox: false,
+      webSecurity: false, // Allow loading local files
+      allowRunningInsecureContent: true,
+    },
   })
+
+  mainWindow.webContents.openDevTools()
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  mainWindow.webContents.setWindowOpenHandler(details => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -52,6 +76,31 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  // IPC handler for opening folder dialog
+  ipcMain.handle('open-folder-dialog', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select Image Folder',
+    })
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      return result.filePaths[0]
+    }
+
+    return null
+  })
+
+  // IPC handler for getting image files from a folder
+  ipcMain.handle('get-image-files', async (_, folderPath: string) => {
+    try {
+      const imageFiles = await getImageFiles(folderPath)
+      return imageFiles
+    } catch (error) {
+      console.error('Error getting image files:', error)
+      return []
+    }
+  })
+
   createWindow()
 
   app.on('activate', function () {
@@ -72,3 +121,35 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+// get all image files recursively from a directory
+async function getImageFiles(dirPath: string): Promise<string[]> {
+  const imageFiles: string[] = []
+
+  async function traverse(currentPath: string) {
+    try {
+      const items = await readdir(currentPath)
+
+      for (const item of items) {
+        const fullPath = join(currentPath, item)
+        const stats = await stat(fullPath)
+
+        if (stats.isDirectory()) {
+          await traverse(fullPath)
+        } else if (stats.isFile()) {
+          const ext = join('', item)
+            .toLowerCase()
+            .substring(item.lastIndexOf('.'))
+          if (IMAGE_EXTENSIONS.includes(ext)) {
+            imageFiles.push(fullPath)
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error reading directory ${currentPath}:`, error)
+    }
+  }
+
+  await traverse(dirPath)
+  return imageFiles
+}
