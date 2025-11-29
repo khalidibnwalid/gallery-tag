@@ -93,12 +93,14 @@ function TopTitle() {
   if (!folderPath) return null
 
   return (
-    <div className='flex items-center gap-1 max-w-1/3'>
+    <div className="flex items-center gap-1 max-w-1/3" title={folderPath}>
       <Button
         variant="outline"
         className="cursor-default bg-background/70! backdrop-blur-3xl"
       >
-        <span className="w-full overflow-hidden font-bold ">{folderPath}</span>
+        <span className="w-full overflow-hidden font-bold ">
+          /{folderPath.split('/').pop()}
+        </span>
       </Button>
       <Button
         variant="outline"
