@@ -1,4 +1,4 @@
-import { useFolder } from '@/components/features/FolderProvider'
+import { useFolder } from '@/components/providers/FolderProvider'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import {

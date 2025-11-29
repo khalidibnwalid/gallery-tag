@@ -1,5 +1,5 @@
 import ImageCard from '@/components/cards/ImageCard'
-import { useFolder } from '@/components/features/FolderProvider'
+import { useFolder } from '@/components/providers/FolderProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { FolderOpenIcon } from '@phosphor-icons/react'

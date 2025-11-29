@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useFolder } from '../providers/FolderProvider'
+import { useLighthouse } from '../providers/LighthouseProvider'
 import { Spinner } from '../ui/spinner'
 
 export default function ImageCard({
@@ -8,6 +10,11 @@ export default function ImageCard({
   title?: string
   imagePath: string
 }) {
+  const {
+    folderImagesQuery: { data: allImages },
+  } = useFolder()
+  const { openLighthouse } = useLighthouse()
+
   const [imageError, setImageError] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [imageDimensions, setImageDimensions] = useState<{
@@ -44,6 +51,15 @@ export default function ImageCard({
     }
   }
 
+  const openImage = () => {
+    if (allImages && allImages.length > 0) {
+      const startIndex = allImages.indexOf(imagePath)
+      openLighthouse(allImages, startIndex >= 0 ? startIndex : 0)
+    } else {
+      openLighthouse([imagePath], 0)
+    }
+  }
+
   const style = {
     height: `${imageDimensions?.height || 500}px`,
     width: '100%',
@@ -53,14 +69,15 @@ export default function ImageCard({
     <div
       ref={cardRef}
       style={style}
-      className="border-2 rounded-lg overflow-hidden shadow-md relative group animate-fade-in hover:outline-4 hover:outline-primary"
+      className="border-2 rounded-lg overflow-hidden shadow-md relative group animate-fade-in hover:outline-4 hover:outline-primary cursor-pointer"
+      onClick={openImage}
     >
       {isVisible && !imageError ? (
         <img
           ref={imgRef}
           src={`file://${imagePath}`}
           alt={title}
-          className="w-full object-cover inset-0 animate-fade-in"
+          className="w-full object-cover inset-0 animate-fade-in hover:opacity-95 transition-opacity"
           onLoad={onImageLoad}
           onError={() => {
             console.error('Error loading image:', imagePath)

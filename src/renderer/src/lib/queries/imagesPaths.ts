@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import QUERIES from './constants'
-import { useFolder } from '@/components/features/FolderProvider'
+import { useFolder } from '@/components/providers/FolderProvider'
 
 
 // TODO: pagination or lazy loading for folders larger than a threshold

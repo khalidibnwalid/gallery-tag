@@ -8,8 +8,8 @@ import {
 } from '@tanstack/react-router'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-
-import { ThemeProvider } from './components/features/ThemeProvider'
+import { LighthouseProvider } from './components/providers/LighthouseProvider'
+import { ThemeProvider } from './components/providers/ThemeProvider'
 import { routeTree } from './routeTree.gen'
 
 // wails go docs recommend using hash history
@@ -28,8 +28,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <RouterProvider router={router} />
-        <ReactQueryDevtools initialIsOpen={false} />
+        <LighthouseProvider>
+          <RouterProvider router={router} />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </LighthouseProvider>
       </ThemeProvider>
     </QueryClientProvider>
   )
