@@ -6,24 +6,36 @@ import { resolve } from 'path'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()]
+    resolve: {
+      alias: {
+        '@main': resolve('src/main'),
+        '@preload': resolve('src/preload'),
+      },
+    },
+    plugins: [externalizeDepsPlugin()],
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    resolve: {
+      alias: {
+        '@main': resolve('src/main'),
+        '@preload': resolve('src/preload'),
+      },
+    },
+    plugins: [externalizeDepsPlugin()],
   },
   renderer: {
     resolve: {
       alias: {
-        '@': resolve('src/renderer/src')
-      }
+        '@': resolve('src/renderer/src'),
+      },
     },
     plugins: [
       tanstackRouter({
         target: 'react',
-        autoCodeSplitting: true
+        autoCodeSplitting: true,
       }),
       react(),
-      tailwindcss()
-    ]
-  }
+      tailwindcss(),
+    ],
+  },
 })

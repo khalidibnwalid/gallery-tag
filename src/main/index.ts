@@ -1,21 +1,9 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { readdir, stat } from 'fs/promises'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
-
-// supported images types
-const IMAGE_EXTENSIONS = [
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.gif',
-  '.bmp',
-  '.webp',
-  '.svg',
-  '.tiff',
-  '.ico',
-]
+import getImageFilesHandler from './handlers/getImageFiles'
+import openFolderDialogHandler from './handlers/openFolderDialog'
 
 function createWindow(): void {
   // Create the browser window.
@@ -66,37 +54,10 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
-  // IPC handler for opening folder dialog
-  ipcMain.handle('open-folder-dialog', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory'],
-      title: 'Select Image Folder',
-    })
-
-    if (!result.canceled && result.filePaths.length > 0) {
-      return result.filePaths[0]
-    }
-
-    return null
-  })
-
-  // IPC handler for getting image files from a folder
-  ipcMain.handle('get-image-files', async (_, folderPath: string) => {
-    try {
-      const imageFiles = await getImageFiles(folderPath)
-      return imageFiles
-    } catch (error) {
-      console.error('Error getting image files:', error)
-      return []
-    }
-  })
-
-  ipcMain.handle('close-app', () => {
-    app.quit()
-  })
+  // IPC Handlers
+  ipcMain.handle('open-folder-dialog', openFolderDialogHandler)
+  ipcMain.handle('get-image-files', getImageFilesHandler)
+  ipcMain.handle('close-app', () => app.quit())
 
   createWindow()
 
@@ -118,35 +79,3 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
-
-// get all image files recursively from a directory
-async function getImageFiles(dirPath: string): Promise<string[]> {
-  const imageFiles: string[] = []
-
-  async function traverse(currentPath: string) {
-    try {
-      const items = await readdir(currentPath)
-
-      for (const item of items) {
-        const fullPath = join(currentPath, item)
-        const stats = await stat(fullPath)
-
-        if (stats.isDirectory()) {
-          await traverse(fullPath)
-        } else if (stats.isFile()) {
-          const ext = join('', item)
-            .toLowerCase()
-            .substring(item.lastIndexOf('.'))
-          if (IMAGE_EXTENSIONS.includes(ext)) {
-            imageFiles.push(fullPath)
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`Error reading directory ${currentPath}:`, error)
-    }
-  }
-
-  await traverse(dirPath)
-  return imageFiles
-}
