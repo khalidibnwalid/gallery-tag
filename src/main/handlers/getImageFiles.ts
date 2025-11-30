@@ -1,7 +1,8 @@
+import { ImageModel } from '@main/types/models.shared'
 import { getConfig } from '@main/utils/config'
 import {
   deleteDiffImagesByPath,
-  getImagePathsFromDb,
+  getAllImagesFromDb,
   getPathsNotInImagesTable,
   insertImages,
 } from '@main/utils/db/Image'
@@ -10,7 +11,7 @@ import { EXTENSIONS, getFilesByExtension } from '@main/utils/getFiles'
 export default async function getImageFilesHandler(
   _: Electron.IpcMainInvokeEvent,
   folderPath: string,
-): Promise<string[]> {
+): Promise<ImageModel[]> {
   try {
     console.log(`Scanning folder: ${folderPath}`)
 
@@ -35,15 +36,15 @@ export default async function getImageFilesHandler(
       console.log(`Inserted ${newFiles.length} new images into database`)
     }
     // get all image paths from database (after update and delete)
-    const imagePaths = getImagePathsFromDb(db)
+    const images = getAllImagesFromDb(db)
 
     // Get database statistics
     // const stats = getImageStats(db)
 
     db.close()
 
-    console.log(`Returning ${imagePaths.length} image paths`)
-    return imagePaths
+    console.log(`Returning ${images.length} image paths`)
+    return images
   } catch (error) {
     console.error('Error getting image files:', error)
     return []

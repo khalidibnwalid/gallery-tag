@@ -41,8 +41,8 @@ function Index() {
 
       {imagePaths && imagePaths.length > 0 && (
         <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 space-y-4 pb-20">
-          {imagePaths?.map((path, index) => (
-            <ImageCard key={index} imagePath={path} />
+          {imagePaths?.map((image, index) => (
+            <ImageCard key={index} image={image} />
           ))}
         </div>
       )}

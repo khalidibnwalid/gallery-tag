@@ -1,16 +1,6 @@
 import { FileInfo } from '@main/types/global'
+import { ImageModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
-
-export interface ImageModel {
-  id: number
-  file_path: string
-  file_name: string
-  extension: string
-  size: number
-  created_at: string
-  modified_at: string
-  last_scanned: string
-}
 
 export function insertImages(
   db: Database.Database,
@@ -45,6 +35,24 @@ export function getImagePathsFromDb(db: Database.Database): string[] {
   const stmt = db.prepare('SELECT file_path FROM images ORDER BY file_name')
   const rows = stmt.all() as { file_path: string }[]
   return rows.map(row => row.file_path)
+}
+
+export function getAllImagesFromDb(db: Database.Database): ImageModel[] {
+  const stmt = db.prepare(`
+    SELECT 
+      id,
+      file_path as filePath,
+      file_name as fileName,
+      extension,
+      size,
+      created_at as createdAt,
+      modified_at as modifiedAt,
+      last_scanned as lastScanned
+    FROM images 
+    ORDER BY file_name
+  `)
+  const rows = stmt.all() as ImageModel[]
+  return rows
 }
 
 /**

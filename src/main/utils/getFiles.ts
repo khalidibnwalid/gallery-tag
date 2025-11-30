@@ -36,13 +36,24 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / BYTES_IN_GB).toFixed(2)} GB`
 }
 
-// get all files with detailed information recursively from a directory
+/**
+ * get all files with detailed information recursively from a directory
+ */
 export async function getFilesByExtension(
   dirPath: string,
   extensions: string[] | ReadonlyArray<string>,
+  skipDirs: string[] = [],
 ): Promise<FileInfo[]> {
   const files: FileInfo[] = []
   const basePath = resolve(dirPath)
+
+  const shouldSkipDirectory = (dirName: string, fullPath: string) =>
+    skipDirs.some(
+      skipPattern =>
+        dirName === skipPattern ||
+        fullPath.includes(skipPattern) ||
+        dirName.includes(skipPattern),
+    )
 
   async function traverse(currentPath: string, depth: number = 0) {
     try {
@@ -53,7 +64,13 @@ export async function getFilesByExtension(
         const stats = await stat(fullPath)
 
         if (stats.isDirectory()) {
-          await traverse(fullPath, depth + 1)
+          const dirName = basename(fullPath)
+          if (
+            skipDirs.length === 0 ||
+            !shouldSkipDirectory(dirName, fullPath)
+          ) {
+            await traverse(fullPath, depth + 1)
+          }
         } else if (stats.isFile()) {
           const extension = extname(item).toLowerCase()
 

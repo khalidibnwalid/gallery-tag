@@ -1,11 +1,11 @@
-import useImagesPaths from '@/lib/queries/imagesPaths'
+import useImages from '@/lib/queries/images'
 import React, { createContext, useContext, useState } from 'react'
 
 interface FolderProvider {
   folderPath: string | null
   setFolderPath: React.Dispatch<React.SetStateAction<string | null>>
   openFolderDialog: () => Promise<string | null>
-  folderImagesQuery: ReturnType<typeof useImagesPaths>
+  folderImagesQuery: ReturnType<typeof useImages>
 }
 
 const FolderContext = createContext({} as FolderProvider)
@@ -13,7 +13,7 @@ const FolderContext = createContext({} as FolderProvider)
 export function FolderProvider({ children }: { children: React.ReactNode }) {
   const [folderPath, setFolderPath] = useState<string | null>(null)
 
-  const folderImagesQuery = useImagesPaths(folderPath!)
+  const folderImagesQuery = useImages(folderPath!)
 
   async function openFolderDialog(): Promise<string | null> {
     try {

@@ -1,14 +1,13 @@
+import { ImageData } from '@/lib/types/image'
 import { useEffect, useRef, useState } from 'react'
 import { useFolder } from '../providers/FolderProvider'
 import { useLighthouse } from '../providers/LighthouseProvider'
 import { Spinner } from '../ui/spinner'
 
 export default function ImageCard({
-  title,
-  imagePath,
+  image,
 }: {
-  title?: string
-  imagePath: string
+  image: Pick<ImageData, 'fileName' | 'filePath'>
 }) {
   const {
     folderImagesQuery: { data: allImages },
@@ -53,10 +52,15 @@ export default function ImageCard({
 
   const openImage = () => {
     if (allImages && allImages.length > 0) {
-      const startIndex = allImages.indexOf(imagePath)
-      openLighthouse(allImages, startIndex >= 0 ? startIndex : 0)
+      const startIndex = allImages.findIndex(
+        img => img.filePath === image.filePath,
+      )
+      openLighthouse(
+        allImages.map(img => img.filePath),
+        startIndex >= 0 ? startIndex : 0,
+      )
     } else {
-      openLighthouse([imagePath], 0)
+      openLighthouse([image.filePath], 0)
     }
   }
 
@@ -75,12 +79,12 @@ export default function ImageCard({
       {isVisible && !imageError ? (
         <img
           ref={imgRef}
-          src={`file://${imagePath}`}
-          alt={title}
+          src={`file://${image.filePath}`}
+          alt={image.fileName}
           className="w-full object-cover inset-0 animate-fade-in hover:opacity-95 transition-opacity"
           onLoad={onImageLoad}
           onError={() => {
-            console.error('Error loading image:', imagePath)
+            console.error('Error loading image:', image.filePath)
             setImageError(true)
           }}
         />
@@ -90,7 +94,7 @@ export default function ImageCard({
             <p className="text-muted-foreground text-sm">
               Failed to load image
             </p>
-            <p className="text-foreground text-xs mt-1">{title}</p>
+            <p className="text-foreground text-xs mt-1">{image.fileName}</p>
           </div>
         </div>
       ) : (
@@ -99,7 +103,7 @@ export default function ImageCard({
         </div>
       )}
       <div className="p-4 bg-linear-to-t from-background to-transparent absolute bottom-0 w-full opacity-0 group-hover:opacity-100 transition-opacity">
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-xl font-semibold">{image.fileName}</h2>
       </div>
     </div>
   )
