@@ -5,6 +5,8 @@ import icon from '../../resources/icon.png?asset'
 import getImageFilesHandler from './handlers/getImageFiles'
 import openFolderDialogHandler from './handlers/openFolderDialog'
 
+app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
