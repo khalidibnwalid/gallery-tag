@@ -42,10 +42,11 @@ function formatFileSize(bytes: number): string {
 export async function getFilesByExtension(
   dirPath: string,
   extensions: string[] | ReadonlyArray<string>,
-  skipDirs: string[] = [],
+  skipDirs: string[] | string = [],
 ): Promise<FileInfo[]> {
   const files: FileInfo[] = []
   const basePath = resolve(dirPath)
+  skipDirs = Array.isArray(skipDirs) ? skipDirs : [skipDirs]
 
   const shouldSkipDirectory = (dirName: string, fullPath: string) =>
     skipDirs.some(

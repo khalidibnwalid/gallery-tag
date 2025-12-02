@@ -2,10 +2,11 @@ import Database from 'better-sqlite3'
 import { constants } from 'fs'
 import { access, mkdir } from 'fs/promises'
 import { join } from 'path'
-import { initDB } from './db/db'
+import { db } from './db/db'
 
-export const CONFIG_FOLDER = '.gallery'
-export const CONFIG_FILE = 'gallery.sqlite'
+export const CONFIG_DIR = '.gallery'
+export const CONFIG_DB_FILE = 'gallery.sqlite'
+export const THUMBNAILS_DIR = join(CONFIG_DIR, 'thumbnails')
 
 interface ConfigPaths {
   configDir: string
@@ -15,7 +16,7 @@ interface ConfigPaths {
 /**
  * get or create config folder and database
  */
-export async function getConfig(baseDir: string): Promise<{
+export async function getAndInitConfig(baseDir: string): Promise<{
   configDir: string
   dbPath: string
   db: Database.Database
@@ -23,14 +24,16 @@ export async function getConfig(baseDir: string): Promise<{
   const { configDir, dbPath } = getConfigPaths(baseDir)
 
   if (!(await configExists(configDir))) await createConfigFolder(configDir)
-  const db = initDB(dbPath)
+  if (!(await thumbnailsFolderExists(join(baseDir, THUMBNAILS_DIR))))
+    await createConfigFolder(join(baseDir, THUMBNAILS_DIR))
+  const database = db.getDatabase(dbPath)
 
-  return { configDir, dbPath, db }
+  return { configDir, dbPath, db: database }
 }
 
 function getConfigPaths(baseDir: string): ConfigPaths {
-  const configDir = join(baseDir, CONFIG_FOLDER)
-  const dbPath = join(configDir, CONFIG_FILE)
+  const configDir = join(baseDir, CONFIG_DIR)
+  const dbPath = join(configDir, CONFIG_DB_FILE)
 
   return { configDir, dbPath }
 }
@@ -38,6 +41,15 @@ function getConfigPaths(baseDir: string): ConfigPaths {
 async function configExists(configDir: string): Promise<boolean> {
   try {
     await access(configDir, constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function thumbnailsFolderExists(thumbnailsDir: string): Promise<boolean> {
+  try {
+    await access(thumbnailsDir, constants.F_OK)
     return true
   } catch {
     return false

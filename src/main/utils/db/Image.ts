@@ -47,7 +47,8 @@ export function getAllImagesFromDb(db: Database.Database): ImageModel[] {
       size,
       created_at as createdAt,
       modified_at as modifiedAt,
-      last_scanned as lastScanned
+      last_scanned as lastScanned,
+      thumbnail_path as thumbnailPath
     FROM images 
     ORDER BY file_name
   `)
@@ -170,4 +171,38 @@ export function getImageStats(db: Database.Database): {
     totalSize: countResult.total_size || 0,
     lastScanTime: scanResult.last_scan,
   }
+}
+
+export function updateThumbnailPath(
+  db: Database.Database,
+  imagePath: string,
+  thumbnailPath: string,
+): void {
+  const stmt = db.prepare(`
+    UPDATE images 
+    SET thumbnail_path = ? 
+    WHERE file_path = ?
+  `)
+  stmt.run(thumbnailPath, imagePath)
+}
+
+export function updateThumbnailPaths(
+  db: Database.Database,
+  updates: { imagePath: string; thumbnailPath: string }[],
+): void {
+  if (updates.length === 0) return
+
+  const stmt = db.prepare(`
+    UPDATE images 
+    SET thumbnail_path = ? 
+    WHERE file_path = ?
+  `)
+
+  const transaction = db.transaction((updateList: typeof updates) => {
+    for (const update of updateList) {
+      stmt.run(update.thumbnailPath, update.imagePath)
+    }
+  })
+
+  transaction(updates)
 }

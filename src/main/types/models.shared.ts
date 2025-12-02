@@ -7,4 +7,5 @@ export interface ImageModel {
   createdAt: string
   modifiedAt: string
   lastScanned: string
+  thumbnailPath?: string
 }
