@@ -75,9 +75,11 @@ export type ThumbnailWorkerImageResult =
       imagePath: string
       outputPath: string
       success: true
+      error?: undefined
     }
   | {
       imagePath: string
+      outputPath?: undefined
       success: false
       error: string
     }

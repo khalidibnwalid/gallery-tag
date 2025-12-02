@@ -10,6 +10,7 @@ import type {
 } from './thumbnail.worker'
 
 interface Options {
+  tasks: ThumbnailWorkerTask[]
   onComplete?: (result: ThumbnailWorkerResult) => void
   onProgress?: (
     currentResult: ThumbnailWorkerImageResult,
@@ -26,15 +27,15 @@ const MIN_BATCH_SIZE = 10
 const coreCount = os.availableParallelism()
 
 export function createThumbnailsInWorkers(
-  tasks: ThumbnailWorkerTask[],
   options: Options = {
+    tasks: [],
     thumbnailOptions: { width: 512 },
   },
 ) {
   // number of workers based on tasks length, then we take it if it is less than core count
-  const taskBasedCount = Math.ceil(tasks.length / MIN_BATCH_SIZE)
+  const taskBasedCount = Math.ceil(options.tasks.length / MIN_BATCH_SIZE)
   const workersNumber = Math.max(1, Math.min(coreCount, taskBasedCount))
-  const chunks = chunkify(tasks, workersNumber)
+  const chunks = chunkify(options.tasks, workersNumber)
   chunks.forEach(chunk => {
     processThumbnailsWorker(chunk, options)
   })

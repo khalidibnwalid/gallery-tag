@@ -1,10 +1,16 @@
 import { ImageModel } from '@main/types/models.shared'
-import { CONFIG_DIR, getAndInitConfig, THUMBNAILS_DIR } from '@main/utils/config'
+import Batcher from '@main/utils/batcher'
+import {
+  CONFIG_DIR,
+  getAndInitConfig,
+  THUMBNAILS_DIR,
+} from '@main/utils/config'
 import {
   deleteDiffImagesByPath,
   getAllImagesFromDb,
   getPathsNotInImagesTable,
   insertImages,
+  updateThumbnailPaths,
 } from '@main/utils/db/Image'
 import { EXTENSIONS, getFilesByExtension } from '@main/utils/getFiles'
 import { createThumbnailsInWorkers } from '@main/workers/thumbnail.service'
@@ -40,10 +46,18 @@ export default async function getImageFilesHandler(
       insertImages(db, newFiles)
       console.log(`Inserted ${newFiles.length} new images into database`)
 
+      const batcher = new Batcher<{ imagePath: string; thumbnailPath: string }>(
+        {
+          batchSize: 50,
+          debounceTime: 500,
+          callbackFn: paths => updateThumbnailPaths(db, paths),
+        },
+      )
+
       let count = 0
       const timeStamp = Date.now()
-      createThumbnailsInWorkers(
-        newFiles.map(file => ({
+      createThumbnailsInWorkers({
+        tasks: newFiles.map(file => ({
           imagePath: file.fullPath,
           outputPath: join(
             folderPath,
@@ -51,23 +65,25 @@ export default async function getImageFilesHandler(
             file.fileName + '_' + timeStamp + '_' + count++ + '_.webp',
           ),
         })),
-        {
-          onComplete: result => {
-            console.log(
-              `Thumbnail generation complete: ${result.totalProcessed} processed, ${result.totalFailed} failed`,
-            )
-          },
-          onProgress(currentResult, completed, total) {
-            console.log(
-              `Thumbnail progress: ${completed}/${total} - ${currentResult.imagePath}`,
-            )
-          },
-          onError: error => {
-            console.error('Error generating thumbnails:', error)
-          },
-          thumbnailOptions: { width: 512 },
+        onComplete: result => {
+          console.log(
+            `Thumbnail generation complete: ${result.totalProcessed} processed, ${result.totalFailed} failed`,
+          )
+          batcher.flush()
         },
-      )
+        onProgress(currentResult) {
+          if (currentResult.error !== undefined) return
+
+          batcher.add({
+            imagePath: currentResult.imagePath,
+            thumbnailPath: currentResult.outputPath,
+          })
+        },
+        onError: error => {
+          console.error('Error generating thumbnails:', error)
+        },
+        thumbnailOptions: { width: 512 },
+      })
     }
     // get all image paths from database (after update and delete)
     const images = getAllImagesFromDb(db)
