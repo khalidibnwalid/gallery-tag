@@ -13,17 +13,6 @@ export default defineConfig({
       },
     },
     plugins: [externalizeDepsPlugin()],
-    build: {
-      rollupOptions: {
-        input: {
-          index: resolve(__dirname, 'src/main/index.ts'),
-          'thumbnail.worker': resolve(__dirname, 'src/main/workers/thumbnail.worker.ts')
-        },
-        output: {
-          format: 'cjs'
-        }
-      }
-    }
   },
   preload: {
     resolve: {

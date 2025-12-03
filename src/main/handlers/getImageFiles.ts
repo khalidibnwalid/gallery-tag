@@ -1,3 +1,4 @@
+import { createThumbnails } from '@main/services/thumbnails.service'
 import { ImageModel } from '@main/types/models.shared'
 import Batcher from '@main/utils/batcher'
 import {
@@ -13,8 +14,9 @@ import {
   updateThumbnailPaths,
 } from '@main/utils/db/Image'
 import { EXTENSIONS, getFilesByExtension } from '@main/utils/getFiles'
-import { createThumbnailsInWorkers } from '@main/workers/thumbnail.service'
 import { join } from 'path'
+
+const THUMBNAIL_WIDTH = 512
 
 export default async function getImageFilesHandler(
   _: Electron.IpcMainInvokeEvent,
@@ -56,7 +58,7 @@ export default async function getImageFilesHandler(
 
       let count = 0
       const timeStamp = Date.now()
-      createThumbnailsInWorkers({
+      createThumbnails({
         tasks: newFiles.map(file => ({
           imagePath: file.fullPath,
           outputPath: join(
@@ -82,7 +84,7 @@ export default async function getImageFilesHandler(
         onError: error => {
           console.error('Error generating thumbnails:', error)
         },
-        thumbnailOptions: { width: 512 },
+        thumbnailOptions: { width: THUMBNAIL_WIDTH },
       })
     }
     // get all image paths from database (after update and delete)

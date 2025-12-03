@@ -7,7 +7,7 @@ import { Spinner } from '../ui/spinner'
 export default function ImageCard({
   image,
 }: {
-  image: Pick<ImageData, 'fileName' | 'filePath'>
+  image: Pick<ImageData, 'fileName' | 'filePath' | 'thumbnailPath'>
 }) {
   const {
     folderImagesQuery: { data: allImages },
@@ -79,7 +79,7 @@ export default function ImageCard({
       {isVisible && !imageError ? (
         <img
           ref={imgRef}
-          src={`file://${image.filePath}`}
+          src={`file://${image.thumbnailPath}`}
           alt={image.fileName}
           className="w-full object-cover inset-0 animate-fade-in hover:opacity-95 transition-opacity"
           onLoad={onImageLoad}
