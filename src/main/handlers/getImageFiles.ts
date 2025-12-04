@@ -1,4 +1,6 @@
 import { createThumbnails } from '@main/services/thumbnails.service'
+import { ImageUpdatePayload } from '@main/types/api.shared'
+import { EVENTS } from '@main/types/constants.shared'
 import { ImageModel } from '@main/types/models.shared'
 import Batcher from '@main/utils/batcher'
 import {
@@ -19,10 +21,11 @@ import { join } from 'path'
 const THUMBNAIL_WIDTH = 512
 
 export default async function getImageFilesHandler(
-  _: Electron.IpcMainInvokeEvent,
+  event: Electron.IpcMainInvokeEvent,
   folderPath: string,
 ): Promise<ImageModel[]> {
   try {
+    const sender = event.sender
     console.log(`Scanning folder: ${folderPath}`)
 
     const { db } = await getAndInitConfig(folderPath)
@@ -48,13 +51,20 @@ export default async function getImageFilesHandler(
       insertImages(db, newFiles)
       console.log(`Inserted ${newFiles.length} new images into database`)
 
-      const batcher = new Batcher<{ imagePath: string; thumbnailPath: string }>(
-        {
-          batchSize: 50,
-          debounceTime: 500,
-          callbackFn: paths => updateThumbnailPaths(db, paths),
+      const imageUpdateBatcher = new Batcher<{
+        filePath: string
+        thumbnailPath: string
+      }>({
+        batchSize: 50,
+        debounceTime: 500,
+        callbackFn: images => {
+          sender.send(EVENTS.UPDATE_IMAGE, {
+            type: 'update',
+            payload: { images } satisfies ImageUpdatePayload,
+          })
+          updateThumbnailPaths(db, images)
         },
-      )
+      })
 
       let count = 0
       const timeStamp = Date.now()
@@ -71,15 +81,16 @@ export default async function getImageFilesHandler(
           console.log(
             `Thumbnail generation complete: ${result.totalProcessed} processed, ${result.totalFailed} failed`,
           )
-          batcher.flush()
+          imageUpdateBatcher.flush()
         },
         onProgress(currentResult) {
           if (currentResult.error !== undefined) return
 
-          batcher.add({
-            imagePath: currentResult.imagePath,
+          const payload = {
+            filePath: currentResult.imagePath,
             thumbnailPath: currentResult.outputPath,
-          })
+          }
+          imageUpdateBatcher.add(payload)
         },
         onError: error => {
           console.error('Error generating thumbnails:', error)

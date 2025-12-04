@@ -188,7 +188,7 @@ export function updateThumbnailPath(
 
 export function updateThumbnailPaths(
   db: Database.Database,
-  updates: { imagePath: string; thumbnailPath: string }[],
+  updates: { filePath: string; thumbnailPath: string }[],
 ): void {
   if (updates.length === 0) return
 
@@ -200,7 +200,7 @@ export function updateThumbnailPaths(
 
   const transaction = db.transaction((updateList: typeof updates) => {
     for (const update of updateList) {
-      stmt.run(update.thumbnailPath, update.imagePath)
+      stmt.run(update.thumbnailPath, update.filePath)
     }
   })
 

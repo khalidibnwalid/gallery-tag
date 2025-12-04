@@ -1,11 +1,19 @@
 import { electronAPI } from '@electron-toolkit/preload'
-import { contextBridge, ipcRenderer } from 'electron'
+import { ImageUpdatePayload } from '@main/types/api.shared'
+import { EVENTS } from '@main/types/constants.shared'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 
 // Custom APIs for renderer
 const api = {
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
   getImageFiles: (folderPath: string) =>
     ipcRenderer.invoke('get-image-files', folderPath),
+  onImageUpdate: (callback: (data: ImageUpdatePayload) => void) => {
+    const sub = (_: IpcRendererEvent, data: { payload: ImageUpdatePayload }) =>
+      callback(data.payload)
+    ipcRenderer.on(EVENTS.UPDATE_IMAGE, sub)
+    return () => ipcRenderer.removeListener(EVENTS.UPDATE_IMAGE, sub)
+  },
   closeApp: () => ipcRenderer.invoke('close-app'),
 }
 
