@@ -2,6 +2,8 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
+import addTagsHandler from './handlers/addTags'
+import getAllTagsHandler from './handlers/getAllTags'
 import getImageFilesHandler from './handlers/getImageFiles'
 import openFolderDialogHandler from './handlers/openFolderDialog'
 
@@ -59,6 +61,8 @@ app.whenReady().then(() => {
   // IPC Handlers
   ipcMain.handle('open-folder-dialog', openFolderDialogHandler)
   ipcMain.handle('get-image-files', getImageFilesHandler)
+  ipcMain.handle('add-tags', addTagsHandler)
+  ipcMain.handle('get-all-tags', getAllTagsHandler)
   ipcMain.handle('close-app', () => app.quit())
 
   createWindow()

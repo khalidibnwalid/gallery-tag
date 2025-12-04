@@ -31,6 +31,13 @@ class DBSingleton {
     return db
   }
 
+  getFirstDatabase(): Database.Database | null {
+    const firstPath = this.connections.keys().next().value
+    if (firstPath) return this.connections.get(firstPath)!
+
+    return null
+  }
+
   closeDatabase(dbPath?: string): void {
     if (dbPath) {
       // close specific database
@@ -86,9 +93,12 @@ class DBSingleton {
     db.exec(`
       CREATE TABLE IF NOT EXISTS tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
         color TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+        parent_id INTEGER,
+        FOREIGN KEY (parent_id) REFERENCES tags (id)
       )
     `)
 
