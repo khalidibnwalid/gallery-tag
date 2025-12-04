@@ -1,18 +1,23 @@
 import { ImageData } from '@/lib/types/image'
-import { useEffect, useRef, useState } from 'react'
+import { CheckIcon } from '@phosphor-icons/react'
+import clsx from 'clsx'
+import { MouseEvent, useEffect, useRef, useState } from 'react'
 import { useFolder } from '../providers/FolderProvider'
 import { useLighthouse } from '../providers/LighthouseProvider'
+import { useSelection } from '../providers/SelectionProvider'
 import { Spinner } from '../ui/spinner'
 
 export default function ImageCard({
   image,
 }: {
-  image: Pick<ImageData, 'fileName' | 'filePath' | 'thumbnailPath'>
+  image: Pick<ImageData, 'id' | 'fileName' | 'filePath' | 'thumbnailPath'>
 }) {
   const {
     folderImagesQuery: { data: allImages },
   } = useFolder()
   const { openLighthouse } = useLighthouse()
+  const { isSelectionMode, isSelected, toggleSelection, toggleSelectionMode } =
+    useSelection<typeof image.id>()
 
   const [imageError, setImageError] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -50,7 +55,16 @@ export default function ImageCard({
     }
   }
 
-  const openImage = () => {
+  const openImage = (e: MouseEvent) => {
+    if (isSelectionMode) {
+      toggleSelection(image.id)
+      return
+    } else if (e.ctrlKey || e.metaKey) {
+      toggleSelectionMode(true)
+      toggleSelection(image.id)
+      return
+    }
+
     if (allImages && allImages.length > 0) {
       const startIndex = allImages.findIndex(
         img => img.filePath === image.filePath,
@@ -73,9 +87,30 @@ export default function ImageCard({
     <div
       ref={cardRef}
       style={style}
-      className="border-2 rounded-lg overflow-hidden shadow-md relative group animate-fade-in hover:outline-4 hover:outline-primary cursor-pointer"
+      className={clsx(
+        'border-2 rounded-lg overflow-hidden shadow-md relative group animate-fade-in hover:outline-4 hover:outline-primary cursor-pointer duration-100',
+        isSelectionMode &&
+          'hover:after:bg-primary/20 after:inset-0 after:absolute after:z-0 ',
+        isSelectionMode &&
+          isSelected(image.id) &&
+          'outline-6 outline-primary/80 hover:outline-8 after:bg-primary/10',
+      )}
       onClick={openImage}
     >
+      {isSelectionMode && (
+        <div className="absolute top-2 right-2 z-10 duration-100">
+          <div
+            className={clsx(
+              'size-6 rounded-md border-2 flex items-center justify-center',
+              isSelected(image.id) ? 'bg-primary-blue' : 'bg-foreground/80',
+            )}
+          >
+            {isSelected(image.id) && (
+              <CheckIcon weight="bold" className="size-4" />
+            )}
+          </div>
+        </div>
+      )}
       {isVisible && !imageError ? (
         <img
           ref={imgRef}

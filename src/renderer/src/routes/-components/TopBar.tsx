@@ -16,7 +16,7 @@ import { useState } from 'react'
 export default function TopBar() {
   return (
     <div className="absolute z-50 top-3 left-3 right-3 px-4 h-12 w-auto flex items-center justify-between gap-3">
-      <ButtonGroup className="backdrop-blur-3xl  bg-background/70 rounded-md overflow-hidden">
+      <ButtonGroup className="backdrop-blur-3xl bg-background/70 rounded-md overflow-hidden">
         <FileDropDown />
         <Button variant="outline">Edit</Button>
         <Button variant="outline">View</Button>
