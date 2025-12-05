@@ -16,6 +16,8 @@ const api = {
     ipcRenderer.on(EVENTS.UPDATE_IMAGE, sub)
     return () => ipcRenderer.removeListener(EVENTS.UPDATE_IMAGE, sub)
   },
+  getItemsBySearch: (query: string) =>
+    ipcRenderer.invoke('get-items-by-search', query),
 
   addTags(tags: TagModel[], imagesIds: number[]): Promise<TagModel[]> {
     return ipcRenderer.invoke('add-tags', { tags, imagesIds })

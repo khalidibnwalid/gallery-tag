@@ -1,8 +1,10 @@
 import ImageCard from '@/components/cards/ImageCard'
 import { useFolder } from '@/components/providers/FolderProvider'
+import { useSearch } from '@/components/providers/SearchProvider'
 import { SelectionProvider } from '@/components/providers/SelectionProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { useSearchQuery } from '@/lib/queries/search'
 import { FolderOpenIcon } from '@phosphor-icons/react'
 import { createFileRoute } from '@tanstack/react-router'
 import SubBar from './-components/SubBar'
@@ -21,7 +23,16 @@ function IndexHOC() {
 
 function Index() {
   const { openFolderDialog, folderImagesQuery } = useFolder()
-  const { data: images, isLoading, isFetching } = folderImagesQuery
+  const { searchQuery, isSearching } = useSearch()
+
+  const searchResults = useSearchQuery(
+    searchQuery,
+    isSearching && searchQuery.length > 0,
+  )
+
+  const activeQuery =
+    isSearching && searchQuery.length > 0 ? searchResults : folderImagesQuery
+  const { data: images, isLoading, isFetching } = activeQuery
 
   if (isLoading || isFetching) {
     return (
@@ -33,7 +44,7 @@ function Index() {
 
   return (
     <div className="p-6 min-h-screen">
-      {images === undefined && (
+      {!isSearching && images === undefined && (
         <div className="text-center py-12 space-y-4">
           <p className="text-foreground text-3xl font-bold">No Folder Opened</p>
           <Button size="lg" className="text-xl" onClick={openFolderDialog}>
@@ -45,7 +56,9 @@ function Index() {
 
       {images && images?.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
-          <p className="text-foreground text-lg">Empty Folder</p>
+          <p className="text-foreground text-lg">
+            {isSearching ? 'No search results found' : 'Empty Folder'}
+          </p>
         </div>
       )}
 

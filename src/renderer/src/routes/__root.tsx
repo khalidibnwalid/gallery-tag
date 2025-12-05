@@ -1,4 +1,5 @@
 import { FolderProvider } from '@/components/providers/FolderProvider'
+import { SearchProvider } from '@/components/providers/SearchProvider'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sidebar } from '@/routes/-components/Sidebar'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
@@ -8,14 +9,16 @@ const RootLayout = () => (
   <div className="h-screen flex">
     <Sidebar />
     <FolderProvider>
-      <div className="flex-1 flex flex-col relative">
-        <TopBar />
-        <ScrollArea className="flex-1 overflow-auto h-100vh">
-          <main className="ps-18 pt-16 min-h-full">
-            <Outlet />
-          </main>
-        </ScrollArea>
-      </div>
+      <SearchProvider>
+        <div className="flex-1 flex flex-col relative">
+          <TopBar />
+          <ScrollArea className="flex-1 overflow-auto h-100vh">
+            <main className="ps-18 pt-16 min-h-full">
+              <Outlet />
+            </main>
+          </ScrollArea>
+        </div>
+      </SearchProvider>
     </FolderProvider>
   </div>
 )

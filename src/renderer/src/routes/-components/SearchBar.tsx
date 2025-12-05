@@ -1,57 +1,16 @@
+import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import useDebounce from '@/lib/hooks/useDebounce'
 import {
   FadersIcon,
   MagnifyingGlassIcon,
   PaletteIcon,
   TagIcon,
+  XIcon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
 import AutocompleteList from '../../components/AutocompleteList'
-
-const mockItems = [
-  {
-    id: '1',
-    type: 'recent' as const,
-    title: 'beach sunset',
-    subtitle: 'Last searched 2 hours ago',
-  },
-  {
-    id: '2',
-    type: 'tag' as const,
-    title: 'nature',
-    count: 156,
-  },
-  {
-    id: '3',
-    type: 'folder' as const,
-    title: 'Vacation Photos',
-    subtitle: '/Photos/2023/Summer',
-    count: 42,
-  },
-  {
-    id: '4',
-    type: 'image' as const,
-    title: 'IMG_5847.jpg',
-    subtitle: 'Modified today',
-    thumbnail: 'https://picsum.photos/32/32?random=1',
-  },
-  {
-    id: '4',
-    type: 'image' as const,
-    title: 'IMG_5847.jpg',
-    subtitle: 'Modified today',
-    thumbnail: 'https://picsum.photos/32/32?random=1',
-  },
-
-  {
-    id: '4',
-    type: 'image' as const,
-    title: 'IMG_5847.jpg',
-    subtitle: 'Modified today',
-    thumbnail: 'https://picsum.photos/32/32?random=1',
-  },
-]
 
 const types = {
   recent: { name: 'Recent Searches', icon: MagnifyingGlassIcon },
@@ -61,27 +20,38 @@ const types = {
 }
 
 export default function SearchBar() {
-  const [searchValue, setSearchValue] = useState('')
   const [isOpen, setIsOpen] = useState(false)
+  const { setSearchQuery, setIsSearching } = useSearch()
 
-  const onSearch = (value: string) => {
-    setSearchValue(value)
+  const debouncedSearch = useDebounce(search, 300)
+
+  function search(value: string = '') {
+    setSearchQuery(value)
+    setIsSearching(value.length > 0)
+  }
+  const [searchValue, _setSearchValue] = useState('')
+  const setSearchValue = (value: string) => {
+    _setSearchValue(value)
     setIsOpen(value.length > 0)
+    debouncedSearch(value)
   }
 
+  const onClear = () => setSearchValue('')
+
+  // TODO
   const onSelect = (item: any) => {
-    setSearchValue(item.title)
+    _setSearchValue(item.title)
     setIsOpen(false)
-
-    // selection logic
   }
+
+  const items = []
 
   return (
     <div className="relative">
       <Input
         tabIndex={1}
         value={searchValue}
-        onValueChange={onSearch}
+        onValueChange={setSearchValue}
         onFocus={() => searchValue.length > 0 && setIsOpen(true)}
         onBlur={() => setTimeout(() => setIsOpen(false), 150)}
         startContent={
@@ -89,6 +59,16 @@ export default function SearchBar() {
         }
         endContent={
           <div className="flex items-center">
+            {searchValue.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClear}
+                className="opacity-70 hover:opacity-100 backdrop-blur-none"
+              >
+                <XIcon size={20} color="currentColor" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -119,7 +99,7 @@ export default function SearchBar() {
 
       <AutocompleteList
         types={types}
-        items={mockItems}
+        items={items}
         isOpen={isOpen}
         onSelect={onSelect}
       />

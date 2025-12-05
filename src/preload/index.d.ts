@@ -9,6 +9,7 @@ declare global {
       openFolderDialog: () => Promise<string | null>
 
       getImageFiles: (folderPath: string) => Promise<ImageModel[]>
+      getItemsBySearch: (query: string) => Promise<ImageModel[]>
       onImageUpdate: (
         callback: ({ images }: ImageUpdatePayload) => void,
       ) => () => void

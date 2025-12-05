@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import addTagsHandler from './handlers/addTags'
 import getAllTagsHandler from './handlers/getAllTags'
 import getImageFilesHandler from './handlers/getImageFiles'
+import getItemsBySearchHandler from './handlers/getItemsBySearch'
 import openFolderDialogHandler from './handlers/openFolderDialog'
 
 app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
@@ -61,6 +62,7 @@ app.whenReady().then(() => {
   // IPC Handlers
   ipcMain.handle('open-folder-dialog', openFolderDialogHandler)
   ipcMain.handle('get-image-files', getImageFilesHandler)
+  ipcMain.handle('get-items-by-search', getItemsBySearchHandler)
   ipcMain.handle('add-tags', addTagsHandler)
   ipcMain.handle('get-all-tags', getAllTagsHandler)
   ipcMain.handle('close-app', () => app.quit())
