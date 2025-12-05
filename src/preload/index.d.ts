@@ -17,6 +17,7 @@ declare global {
       addTags: (tags: TagModel[], imagesIds: number[]) => Promise<TagModel[]>
 
       getAllTags: () => Promise<TagModel[]>
+      getTagsBySearch: (query: string) => Promise<TagModel[]>
 
       closeApp: () => void
     }

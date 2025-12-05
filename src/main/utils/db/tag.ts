@@ -67,6 +67,22 @@ export function getAllTags(db: Database.Database): TagModel[] {
   return stmt.all() as TagModel[]
 }
 
+export function getTagsBySearch(db: Database.Database, query: string): TagModel[] {
+  const stmt = db.prepare(`
+    SELECT 
+      id,
+      name,
+      color,
+      created_at as createdAt
+    FROM tags 
+    WHERE name LIKE ?
+    ORDER BY name
+  `)
+
+  const searchPattern = `%${query}%`
+  return stmt.all(searchPattern) as TagModel[]
+}
+
 export function addTagsToImages(
   db: Database.Database,
   tagIds: number[],

@@ -6,9 +6,9 @@ import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './ui/button'
 
-interface AutocompleteItem {
+export interface AutoCompleteItem<T = string> {
   id: string
-  type: string
+  type: T
   title: string
   subtitle?: string
   thumbnail?: string
@@ -20,37 +20,37 @@ interface ItemType {
   icon: Icon
 }
 
-interface Props {
-  items: AutocompleteItem[]
+interface Props<T> {
+  items: AutoCompleteItem<T>[]
   isOpen: boolean
-  onSelect: (item: AutocompleteItem) => void
+  onSelect: (item: AutoCompleteItem<T>) => void
   types: Record<string, ItemType>
   className?: string
 }
 
-export default function AutocompleteList({
+export default function AutocompleteList<T = string>({
   items,
   isOpen,
   onSelect,
   types,
   className,
-}: Props) {
+}: Props<T>) {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // group items by type
   const groupedItems = items.reduce(
     (acc, item) => {
-      if (!acc[item.type]) {
-        acc[item.type] = []
+      if (!acc[item.type as string]) {
+        acc[item.type as string] = []
       }
-      acc[item.type].push(item)
+      acc[item.type as string].push(item)
       return acc
     },
-    {} as Record<string, AutocompleteItem[]>,
+    {} as Record<string, AutoCompleteItem<T>[]>,
   )
 
-  const flatItems = Object.values(groupedItems).flat()
+  const flatItems = Object.values(groupedItems).flat() as AutoCompleteItem<T>[]
 
   // reset items change
   useEffect(() => {
@@ -107,12 +107,12 @@ export default function AutocompleteList({
       aria-label="Autocomplete suggestions"
       className={cn(
         'absolute top-full left-0 right-0 z-50 mt-2',
-        'bg-background/95 backdrop-blur-lg border rounded-lg shadow-lg',
+        'bg-background/85 backdrop-blur-xl border rounded-xl',
         'animate-in fade-in-0 zoom-in-95 duration-200',
         className,
       )}
     >
-      <ScrollArea className="max-h-96 flex flex-col overflow-y-auto">
+      <ScrollArea className="max-h-96 flex flex-col overflow-y-auto ">
         <div className="p-2 gap-y-1 grid">
           {Object.entries(groupedItems).map(([type, typeItems], groupIndex) => {
             const { name, icon: Icon } = types[type]

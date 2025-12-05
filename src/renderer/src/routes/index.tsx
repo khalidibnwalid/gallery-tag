@@ -4,10 +4,10 @@ import { useSearch } from '@/components/providers/SearchProvider'
 import { SelectionProvider } from '@/components/providers/SelectionProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { useSearchQuery } from '@/lib/queries/search'
 import { FolderOpenIcon } from '@phosphor-icons/react'
 import { createFileRoute } from '@tanstack/react-router'
 import SubBar from './-components/SubBar'
+import { useImagesSearchQuery } from '@/lib/queries/images'
 
 export const Route = createFileRoute('/')({
   component: IndexHOC,
@@ -25,7 +25,7 @@ function Index() {
   const { openFolderDialog, folderImagesQuery } = useFolder()
   const { searchQuery, isSearching } = useSearch()
 
-  const searchResults = useSearchQuery(
+  const searchResults = useImagesSearchQuery(
     searchQuery,
     isSearching && searchQuery.length > 0,
   )

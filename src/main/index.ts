@@ -6,6 +6,7 @@ import addTagsHandler from './handlers/addTags'
 import getAllTagsHandler from './handlers/getAllTags'
 import getImageFilesHandler from './handlers/getImageFiles'
 import getItemsBySearchHandler from './handlers/getItemsBySearch'
+import getTagsBySearchHandler from './handlers/getTagsBySearch'
 import openFolderDialogHandler from './handlers/openFolderDialog'
 
 app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
@@ -65,6 +66,7 @@ app.whenReady().then(() => {
   ipcMain.handle('get-items-by-search', getItemsBySearchHandler)
   ipcMain.handle('add-tags', addTagsHandler)
   ipcMain.handle('get-all-tags', getAllTagsHandler)
+  ipcMain.handle('get-tags-by-search', getTagsBySearchHandler)
   ipcMain.handle('close-app', () => app.quit())
 
   createWindow()

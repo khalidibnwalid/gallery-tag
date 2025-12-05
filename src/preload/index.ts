@@ -27,6 +27,10 @@ const api = {
     return ipcRenderer.invoke('get-all-tags')
   },
 
+  getTagsBySearch(query: string): Promise<TagModel[]> {
+    return ipcRenderer.invoke('get-tags-by-search', query)
+  },
+
   closeApp: () => ipcRenderer.invoke('close-app'),
 }
 
