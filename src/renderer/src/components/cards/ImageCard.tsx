@@ -32,7 +32,7 @@ export default function ImageCard({
     const observer = new IntersectionObserver(
       ([entry]) => setIsVisible(entry.isIntersecting),
       {
-        rootMargin: '200%',
+        rootMargin: '512px',
         threshold: 0.05,
       },
     )
