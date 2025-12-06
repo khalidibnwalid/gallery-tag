@@ -2,18 +2,46 @@ import { useSelectionStore } from '@/lib/store/selection'
 import { ImageData } from '@/lib/types/image'
 import { CheckIcon, TagIcon } from '@phosphor-icons/react'
 import clsx from 'clsx'
-import { MouseEvent, useEffect, useRef, useState } from 'react'
+import { MouseEvent, useRef, useState } from 'react'
 import { TagSelector } from '../features/TagsSelector'
+import { Virtualize } from '../features/Virtualize'
 import { useFolder } from '../providers/FolderProvider'
 import { useLighthouse } from '../providers/LighthouseProvider'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { ScrollArea } from '../ui/scroll-area'
-import { Spinner } from '../ui/spinner'
 
 const TAG_DISPLAY_LIMIT = 5
 
-export default function ImageCard({ image }: { image: ImageData }) {
+interface Props {
+  image: ImageData
+}
+
+export default function ImageCard(props: Props) {
+  // save image dimensions so it will preserve aspect ratio on re-scroll
+  const [imageDimensions, setImageDimensions] = useState<{
+    width: number
+    height: number
+  } | null>(null)
+
+  return (
+    <Virtualize height={`${imageDimensions?.height || 500}px`}>
+      <ImageBody image={props.image} setImageDimensions={setImageDimensions} />
+    </Virtualize>
+  )
+}
+
+function ImageBody({
+  image,
+  setImageDimensions,
+}: Props & {
+  setImageDimensions: React.Dispatch<
+    React.SetStateAction<{
+      width: number
+      height: number
+    } | null>
+  >
+}) {
   const {
     folderImagesQuery: { data: allImages },
   } = useFolder()
@@ -29,13 +57,7 @@ export default function ImageCard({ image }: { image: ImageData }) {
   )
 
   const [imageError, setImageError] = useState(false)
-  const [isVisible, setIsVisible] = useState(false)
-  const [imageDimensions, setImageDimensions] = useState<{
-    width: number
-    height: number
-  } | null>(null)
 
-  const cardRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
   const [showAllTags, setShowAllTags] = useState(false)
@@ -46,21 +68,6 @@ export default function ImageCard({ image }: { image: ImageData }) {
   const visibleTags = showAllTags
     ? allTags
     : allTags.slice(0, TAG_DISPLAY_LIMIT)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsVisible(entry.isIntersecting),
-      {
-        rootMargin: '512px',
-        threshold: 0.05,
-      },
-    )
-
-    if (cardRef.current) observer.observe(cardRef.current)
-    return () => {
-      if (cardRef.current) observer.unobserve(cardRef.current)
-    }
-  }, [])
 
   // maintain aspect ratio on unload
   const onImageLoad = () => {
@@ -97,15 +104,8 @@ export default function ImageCard({ image }: { image: ImageData }) {
     }
   }
 
-  const style = {
-    height: `${imageDimensions?.height || 500}px`,
-    width: '100%',
-  }
-
   return (
     <article
-      ref={cardRef}
-      style={style}
       className={clsx(
         'border-2 rounded-lg overflow-hidden shadow-md relative group animate-fade-in hover:outline-4 hover:outline-primary cursor-pointer duration-100',
         isSelectionMode &&
@@ -128,7 +128,7 @@ export default function ImageCard({ image }: { image: ImageData }) {
           </div>
         </div>
       )}
-      {isVisible && !imageError ? (
+      {!imageError ? (
         <img
           ref={imgRef}
           src={`file://${image.thumbnailPath}`}
@@ -140,7 +140,7 @@ export default function ImageCard({ image }: { image: ImageData }) {
             setImageError(true)
           }}
         />
-      ) : isVisible && imageError ? (
+      ) : (
         <div className="w-full min-h-48 h-full flex items-center justify-center bg-muted animate-fade-in">
           <div className="text-center">
             <p className="text-muted-foreground text-sm">
@@ -148,10 +148,6 @@ export default function ImageCard({ image }: { image: ImageData }) {
             </p>
             <p className="text-foreground text-xs mt-1">{image.fileName}</p>
           </div>
-        </div>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-muted text-foreground animate-fade-in">
-          <Spinner className="size-20 bg-pure/40 rounded-full" />
         </div>
       )}
 
