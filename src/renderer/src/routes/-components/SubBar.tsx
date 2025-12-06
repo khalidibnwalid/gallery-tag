@@ -1,7 +1,7 @@
 import { TagSelector } from '@/components/features/TagsSelector'
 import { useFolder } from '@/components/providers/FolderProvider'
-import { useSelection } from '@/components/providers/SelectionProvider'
 import { Button } from '@/components/ui/button'
+import { useSelectionStore } from '@/lib/store/selection'
 import {
   CheckSquareIcon,
   SelectionIcon,
@@ -11,9 +11,7 @@ import {
 } from '@phosphor-icons/react'
 
 export default function SubBar() {
-  const { isSelectionMode } = useSelection<number>()
-
-  const showBar = isSelectionMode
+  const showBar = useSelectionStore(state => state.isSelectionMode)
   if (!showBar) return null
 
   return (
@@ -29,13 +27,13 @@ function ImagesSelectionBar() {
   const { folderImagesQuery } = useFolder()
   const images = folderImagesQuery.data!
 
-  const {
-    isSelectionMode,
-    selectedItems: selectedImageIds,
-    toggleSelectionMode,
-    clearSelection,
-    selectAll,
-  } = useSelection<number>()
+  const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
+  const selectedImageIds = useSelectionStore(state => state.selectedItems)
+  const toggleSelectionMode = useSelectionStore(
+    state => state.toggleSelectionMode,
+  )
+  const clearSelection = useSelectionStore(state => state.clearSelection)
+  const selectAll = useSelectionStore(state => state.selectAll)
 
   if (!isSelectionMode) return null
 

@@ -1,7 +1,6 @@
 import ImageCard from '@/components/cards/ImageCard'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
-import { SelectionProvider } from '@/components/providers/SelectionProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { FolderOpenIcon } from '@phosphor-icons/react'
@@ -10,16 +9,8 @@ import SubBar from './-components/SubBar'
 import { useImagesSearchQuery } from '@/lib/queries/images'
 
 export const Route = createFileRoute('/')({
-  component: IndexHOC,
+  component: Index,
 })
-
-function IndexHOC() {
-  return (
-    <SelectionProvider>
-      <Index />
-    </SelectionProvider>
-  )
-}
 
 function Index() {
   const { openFolderDialog, folderImagesQuery } = useFolder()
