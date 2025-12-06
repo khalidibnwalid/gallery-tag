@@ -1,4 +1,6 @@
 import useImages from '@/lib/queries/images'
+import { useTags } from '@/lib/queries/tags'
+import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useContext, useState } from 'react'
 
 interface FolderProvider {
@@ -6,6 +8,7 @@ interface FolderProvider {
   setFolderPath: React.Dispatch<React.SetStateAction<string | null>>
   openFolderDialog: () => Promise<string | null>
   folderImagesQuery: ReturnType<typeof useImages>
+  tagsQuery: ReturnType<typeof useTags>
 }
 
 const FolderContext = createContext({} as FolderProvider)
@@ -14,10 +17,12 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
   const [folderPath, setFolderPath] = useState<string | null>(null)
 
   const folderImagesQuery = useImages(folderPath!)
+  const tagsQuery = useTags()
+
+  const queryClient = useQueryClient()
 
   async function openFolderDialog(): Promise<string | null> {
     try {
-      // Check if the API is available
       if (!window.api || !window.api.openFolderDialog) {
         console.error('API not available')
         alert('API not available. Make sure the app is running in Electron.')
@@ -28,12 +33,14 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
       if (folderPath) {
         setFolderPath(folderPath)
       }
+      queryClient.clear()
       return folderPath
     } catch (error) {
       console.error('Error opening folder:', error)
       alert(`Error opening folder: ${error}`)
       return null
     }
+
   }
 
   return (
@@ -43,6 +50,7 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
         setFolderPath,
         openFolderDialog,
         folderImagesQuery,
+        tagsQuery,
       }}
     >
       {children}

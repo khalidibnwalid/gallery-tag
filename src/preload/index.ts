@@ -23,6 +23,10 @@ const api = {
     return ipcRenderer.invoke('add-tags', { tags, imagesIds })
   },
 
+  removeTags(tagIds: number[], imagesIds: number[]) {
+    return ipcRenderer.invoke('remove-tags', { tagIds, imagesIds })
+  },
+
   getAllTags(): Promise<TagModel[]> {
     return ipcRenderer.invoke('get-all-tags')
   },

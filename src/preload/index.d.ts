@@ -22,6 +22,7 @@ declare global {
         tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[],
         imagesIds: number[],
       ) => Promise<TagModel[]>
+      removeTags: (tagIds: number[], imagesIds: number[]) => Promise<void>
 
       getAllTags: () => Promise<TagModel[]>
       getTagsBySearch: (query: string) => Promise<TagModel[]>

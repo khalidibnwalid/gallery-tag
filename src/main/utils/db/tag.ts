@@ -105,12 +105,30 @@ export function addTagsToImages(
     VALUES (?, ?)
   `)
 
-  // Execute within current transaction context
-  // If called from within a transaction, it will be part of that transaction
-  // If called standalone, it will auto-commit each statement
   for (const imageId of imageIds) {
     for (const tagId of tagIds) {
       insertStmt.run(imageId, tagId)
+    }
+  }
+}
+
+export function removeTagsFromImages(
+  db: Database.Database,
+  tagIds: number[],
+  imageIds: number[],
+): void {
+  if (tagIds.length === 0 || imageIds.length === 0) {
+    return
+  }
+
+  const deleteStmt = db.prepare(`
+    DELETE FROM image_tags 
+    WHERE image_id = ? AND tag_id = ?
+  `)
+
+  for (const imageId of imageIds) {
+    for (const tagId of tagIds) {
+      deleteStmt.run(imageId, tagId)
     }
   }
 }

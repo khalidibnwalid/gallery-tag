@@ -89,21 +89,99 @@ export function useAddTagsToImageMutation({
         oldData => {
           const ids = new Set(imageIds)
           if (!oldData) return []
-          return oldData.map(image =>
-            ids.has(image.id)
+          return oldData.map(image => {
+            const currentTags = image.tags
+              ? image.tags.split(',').map(t => t.trim())
+              : []
+
+            return ids.has(image.id)
               ? {
                   ...image,
                   tags: image.tags
-                    ? image.tags + ', ' + tags.map(tag => tag.name).join(', ')
+                    ? image.tags +
+                      ', ' +
+                      tags
+                        .filter(tag => !currentTags.includes(tag.name))
+                        .map(tag => tag.name)
+                        .join(', ')
                     : tags.map(tag => tag.name).join(', '),
                 }
-              : image,
-          )
+              : image
+          })
         },
       )
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       onSuccess?.(data)
+    },
+  })
+}
+
+export function useRemoveTagsFromImageMutation({
+  onSuccess,
+}: {
+  onSuccess?: ({
+    tagIds,
+    imageIds,
+  }: {
+    tagIds: TagData['id'][]
+    imageIds: ImageData['id'][]
+  }) => void
+} = {}) {
+  const queryClient = useQueryClient()
+  const { folderPath, tagsQuery } = useFolder()
+
+  if (!folderPath) {
+    throw new Error('Folder path is not available')
+  }
+
+  return useMutation({
+    mutationFn: async ({
+      tagIds,
+      imageIds,
+    }: {
+      tagIds: number[]
+      imageIds: number[]
+    }): Promise<void> => {
+      if (!window.api || !window.api.removeTags) {
+        throw new Error('Remove tags API not available')
+      }
+
+      await window.api.removeTags(tagIds, imageIds)
+    },
+    onSuccess: (_, { tagIds, imageIds }) => {
+      const imageIdsSet = new Set(imageIds)
+      const tagIdsSet = new Set(tagIds)
+
+      const tagsData =
+        tagsQuery.data?.filter(tag => tagIdsSet.has(tag.id)) || []
+
+      const tagsNamesSet = new Set<string>(tagsData.map(tag => tag.name))
+
+      queryClient.setQueryData<ImageData[]>(
+        QUERIES.IMAGES(folderPath),
+        oldData => {
+          if (!oldData) return []
+          return oldData.map(image => {
+            if (!imageIdsSet.has(image.id)) return image
+
+            const currentTags = image.tags
+              ? image.tags.split(',').map(t => t.trim())
+              : []
+
+            const updatedTags = currentTags.filter(
+              tagName => !tagsNamesSet.has(tagName),
+            )
+
+            return {
+              ...image,
+              tags: updatedTags.join(', '),
+            }
+          })
+        },
+      )
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      onSuccess?.({ tagIds, imageIds })
     },
   })
 }

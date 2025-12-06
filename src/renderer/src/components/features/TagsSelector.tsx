@@ -1,7 +1,11 @@
-import { useAddTagsToImageMutation, useTags } from '@/lib/queries/tags'
+import {
+  useAddTagsToImageMutation,
+  useRemoveTagsFromImageMutation,
+  useTags,
+} from '@/lib/queries/tags'
 import { ImageData } from '@/lib/types/image'
 import { TagData } from '@/lib/types/tag'
-import { TagIcon } from '@phosphor-icons/react'
+import { CheckIcon, TagIcon, XIcon } from '@phosphor-icons/react'
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../ui/button'
@@ -13,30 +17,36 @@ import { Spinner } from '../ui/spinner'
 interface Props {
   children: React.ReactNode
   imageIds: ImageData['id'] | ImageData['id'][]
-  currentTags?: string[]
+  currentTags?: TagData['name'][]
 }
 
 export function TagSelector({ children, currentTags = [], imageIds }: Props) {
   imageIds = Array.isArray(imageIds) ? imageIds : [imageIds]
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const [searchQuery, setSearchQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const { data: allTags = [], isLoading } = useTags()
+
+  const currentTagsData =
+    (allTags?.filter(tag => currentTags.includes(tag.name)) as TagData[]) || []
+
+  const filteredTags =
+    allTags?.filter(tag =>
+      tag.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    ) || []
+
+  // for user feedback purposes
+  // the addedTagsIds is not needed since we got currentTags, but it's easier this way using Set.has(id) method
   const [addedTagsIds, setAddedTagsIds] = useState<Set<TagData['id']>>(
+    new Set(currentTagsData.map(tag => tag.id)),
+  )
+  const [deletedTagsIds, setDeletedTagsIds] = useState<Set<TagData['id']>>(
     new Set(),
   )
 
-  const { data: allTags, isLoading } = useTags()
-
-  // filter tags based on search query and exclude existing tags
-  const filteredTags =
-    allTags?.filter(
-      tag =>
-        tag.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !currentTags.includes(tag.name),
-    ) || []
-
-  // all selectable options (filtered tags + create option)
+  // all selectable options (tags + create option)
   const allOptions = [
     ...filteredTags,
     ...(searchQuery.length > 0 &&
@@ -45,26 +55,54 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
       : []),
   ]
 
-  const { mutateAsync, isPending } = useAddTagsToImageMutation({
-    onSuccess: tags => {
-      console.log('Tags added:', tags)
-      setAddedTagsIds(prev => new Set([...prev, ...tags.map(tag => tag.id)]))
-    },
-  })
-  const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
-
-  const onTagSelect = async (tag: TagData | string) => {
-    console.log('Tag selected:', tag)
-    if (isPending || (typeof tag === 'string' && !tag.trim())) return
-
-    await mutateAsync({
-      tags: [typeof tag === 'string' ? { name: tag } : tag],
-      imageIds,
+  const { mutateAsync: addTagsAsync, isPending: isAddingPending } =
+    useAddTagsToImageMutation({
+      onSuccess: tags => {
+        setAddedTagsIds(prev => new Set([...prev, ...tags.map(tag => tag.id)]))
+        setDeletedTagsIds(prev => {
+          const next = new Set(prev)
+          tags.forEach(tag => next.delete(tag.id))
+          return next
+        })
+      },
     })
 
-    // setOpen(false)
-    // setSearchQuery('')
-    // setSelectedIndex(-1)
+  const { mutateAsync: removeTagsAsync, isPending: isRemovingPending } =
+    useRemoveTagsFromImageMutation({
+      onSuccess: ({ tagIds }) => {
+        setDeletedTagsIds(prev => new Set([...prev, ...tagIds]))
+        setAddedTagsIds(prev => {
+          const next = new Set(prev)
+          tagIds.forEach(id => next.delete(id))
+          return next
+        })
+      },
+    })
+
+  const isPending = isAddingPending || isRemovingPending
+
+  const onTagSelect = async (tag: TagData | string) => {
+    if (isPending || (typeof tag === 'string' && !tag.trim())) return
+    // Create new tag
+    if (typeof tag === 'string') {
+      await addTagsAsync({
+        tags: [{ name: tag }],
+        imageIds,
+      })
+      return
+    }
+
+    if (addedTagsIds.has(tag.id)) {
+      await removeTagsAsync({
+        tagIds: [tag.id],
+        imageIds,
+      })
+    } else {
+      await addTagsAsync({
+        tags: [tag],
+        imageIds,
+      })
+    }
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -118,6 +156,15 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
     setSelectedIndex(0)
   }, [filteredTags.length, searchQuery])
 
+  useEffect(() => {
+    if (open) return
+
+    setSearchQuery('')
+    setSelectedIndex(-1)
+    setAddedTagsIds(new Set(currentTagsData.map(tag => tag.id)))
+    setDeletedTagsIds(new Set())
+  }, [open])
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -144,7 +191,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
           <ScrollArea className="max-h-48 flex flex-col overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
-                <Spinner className="size-6" />
+                <Spinner className="size-8" />
               </div>
             ) : filteredTags.length > 0 ||
               (searchQuery.length > 0 &&
@@ -162,18 +209,23 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
                     size="sm"
                     className={clsx(
                       'w-full justify-start h-10 px-4 font-bold',
-                      {
-                        'bg-success/80! text-foreground pointer-events-none':
-                          addedTagsIds.has(tag.id),
-                      },
+                      addedTagsIds.has(tag.id) && 'bg-success! text-foreground',
+                      deletedTagsIds.has(tag.id) &&
+                        'bg-destructive! text-foreground',
                     )}
                     onClick={() => onTagSelect(tag)}
-                    disabled={addedTagsIds.has(tag.id)}
+                    disabled={isPending}
                   >
+                    {addedTagsIds.has(tag.id) && (
+                      <CheckIcon className="size-4" weight="bold" />
+                    )}
+                    {deletedTagsIds.has(tag.id) && (
+                      <XIcon className="size-4" weight="bold" />
+                    )}
                     {tag.name}
                   </Button>
                 ))}
-                {searchQuery.length > 0 &&
+                {searchQuery.trim().length > 0 &&
                   !allTags?.some(
                     tag => tag.name.toLowerCase() === searchQuery.toLowerCase(),
                   ) && (
