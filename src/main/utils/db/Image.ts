@@ -1,5 +1,5 @@
 import { FileInfo } from '@main/types/global'
-import { ImageModel } from '@main/types/models.shared'
+import { ImageModel, TagModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
 
 export function insertImages(
@@ -31,13 +31,13 @@ export function insertImages(
   transaction(images)
 }
 
-export function getImagePathsFromDb(db: Database.Database): string[] {
+export function getImagePaths(db: Database.Database): string[] {
   const stmt = db.prepare('SELECT file_path FROM images ORDER BY file_name')
   const rows = stmt.all() as { file_path: string }[]
   return rows.map(row => row.file_path)
 }
 
-export function getAllImagesFromDb(db: Database.Database): ImageModel[] {
+export function getAllImages(db: Database.Database): ImageModel[] {
   const stmt = db.prepare(`
     SELECT 
       id,
@@ -53,6 +53,32 @@ export function getAllImagesFromDb(db: Database.Database): ImageModel[] {
     ORDER BY file_name
   `)
   const rows = stmt.all() as ImageModel[]
+  return rows
+}
+
+export function getAllImagesWithTags(
+  db: Database.Database,
+): (ImageModel & { tags?: string })[] {
+  const stmt = db.prepare(`
+    SELECT 
+      i.id,
+      i.file_path as filePath,
+      i.file_name as fileName,
+      i.extension,
+      i.size,
+      i.created_at as createdAt,
+      i.modified_at as modifiedAt,
+      i.last_scanned as lastScanned,
+      i.thumbnail_path as thumbnailPath,
+
+      GROUP_CONCAT(t.name) as tags
+    FROM images i
+    LEFT JOIN image_tags it ON i.id = it.image_id
+    LEFT JOIN tags t ON it.tag_id = t.id
+    GROUP BY i.id
+    ORDER BY i.file_name
+  `)
+  const rows = stmt.all() as (ImageModel & { tags?: string })[]
   return rows
 }
 

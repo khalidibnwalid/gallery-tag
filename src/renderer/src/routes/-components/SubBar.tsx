@@ -1,3 +1,4 @@
+import { TagSelector } from '@/components/features/TagsSelector'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useSelection } from '@/components/providers/SelectionProvider'
 import { Button } from '@/components/ui/button'
@@ -5,6 +6,7 @@ import {
   CheckSquareIcon,
   SelectionIcon,
   SquareIcon,
+  TagIcon,
   XIcon,
 } from '@phosphor-icons/react'
 
@@ -53,6 +55,8 @@ function ImagesSelectionBar() {
     }
   }
 
+  const selectedImageIdsArray = Array.from(selectedImageIds)
+
   return (
     <>
       <Button
@@ -90,6 +94,12 @@ function ImagesSelectionBar() {
           Clear
         </Button>
       </div>
+      <TagSelector imageIds={selectedImageIdsArray}>
+        <Button variant="ghost" size="lg" className="animate-fade-in">
+          <TagIcon className="size-4" />
+          Add Tags
+        </Button>
+      </TagSelector>
       <Button variant="ghost" size="lg" className="animate-fade-in px-0.5">
         {selectedImageIds.size} of {images.length} selected
       </Button>

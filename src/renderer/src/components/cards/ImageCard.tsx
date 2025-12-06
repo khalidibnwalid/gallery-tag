@@ -1,17 +1,19 @@
 import { ImageData } from '@/lib/types/image'
-import { CheckIcon } from '@phosphor-icons/react'
+import { CheckIcon, TagIcon } from '@phosphor-icons/react'
 import clsx from 'clsx'
 import { MouseEvent, useEffect, useRef, useState } from 'react'
 import { useFolder } from '../providers/FolderProvider'
 import { useLighthouse } from '../providers/LighthouseProvider'
 import { useSelection } from '../providers/SelectionProvider'
+import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
+import { ScrollArea } from '../ui/scroll-area'
 import { Spinner } from '../ui/spinner'
+import { TagSelector } from '../features/TagsSelector'
 
-export default function ImageCard({
-  image,
-}: {
-  image: Pick<ImageData, 'id' | 'fileName' | 'filePath' | 'thumbnailPath'>
-}) {
+const TAG_DISPLAY_LIMIT = 5
+
+export default function ImageCard({ image }: { image: ImageData }) {
   const {
     folderImagesQuery: { data: allImages },
   } = useFolder()
@@ -25,8 +27,18 @@ export default function ImageCard({
     width: number
     height: number
   } | null>(null)
+
   const cardRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
+
+  const [showAllTags, setShowAllTags] = useState(false)
+
+  const allTags = image.tags ? image.tags.split(',').map(tag => tag.trim()) : []
+  const hasMoreTags = allTags.length > TAG_DISPLAY_LIMIT
+  const hiddenTagsCount = allTags.length - TAG_DISPLAY_LIMIT
+  const visibleTags = showAllTags
+    ? allTags
+    : allTags.slice(0, TAG_DISPLAY_LIMIT)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -84,7 +96,7 @@ export default function ImageCard({
   }
 
   return (
-    <div
+    <article
       ref={cardRef}
       style={style}
       className={clsx(
@@ -124,7 +136,7 @@ export default function ImageCard({
           }}
         />
       ) : isVisible && imageError ? (
-        <div className="w-full h-48 flex items-center justify-center bg-muted animate-fade-in">
+        <div className="w-full min-h-48 h-full flex items-center justify-center bg-muted animate-fade-in">
           <div className="text-center">
             <p className="text-muted-foreground text-sm">
               Failed to load image
@@ -137,9 +149,60 @@ export default function ImageCard({
           <Spinner className="size-20 bg-pure/40 rounded-full" />
         </div>
       )}
-      <div className="p-4 bg-linear-to-t from-background to-transparent absolute bottom-0 w-full opacity-0 group-hover:opacity-100 transition-opacity">
-        <h2 className="text-xl font-semibold">{image.fileName}</h2>
+
+      <div className="grid gap-1 p-3 bg-background/60 max-h-1/2 backdrop-blur-3xl absolute bottom-0 w-full opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-start justify-between gap-1">
+          <h2 className="text-xl font-semibold">{image.fileName}</h2>
+          <TagSelector currentTags={allTags} imageIds={image.id}>
+            <Button
+              variant="outline"
+              className=""
+              size="icon-lg"
+              onClick={e => e.stopPropagation()}
+            >
+              <TagIcon className="size-6" weight="bold" />
+            </Button>
+          </TagSelector>
+        </div>
+        <ScrollArea>
+          <div className="w-full flex flex-wrap gap-1.5">
+            {visibleTags.map(tag => (
+              <Badge
+                key={tag}
+                className="text-md bg-muted text-foreground/90 font-bold"
+              >
+                {tag}
+              </Badge>
+            ))}
+            {hasMoreTags && !showAllTags && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={e => {
+                  e.stopPropagation()
+                  setShowAllTags(true)
+                }}
+              >
+                +{hiddenTagsCount} more
+              </Button>
+            )}
+            {hasMoreTags && showAllTags && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={e => {
+                  e.stopPropagation()
+                  setShowAllTags(false)
+                }}
+              >
+                Show less
+              </Button>
+            )}
+          </div>
+        </ScrollArea>
       </div>
-    </div>
+    </article>
   )
 }

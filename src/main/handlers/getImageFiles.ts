@@ -10,7 +10,7 @@ import {
 } from '@main/utils/config'
 import {
   deleteDiffImagesByPath,
-  getAllImagesFromDb,
+  getAllImagesWithTags,
   getPathsNotInImagesTable,
   insertImages,
   updateThumbnailPaths,
@@ -23,7 +23,7 @@ const THUMBNAIL_WIDTH = 512
 export default async function getImageFilesHandler(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
-): Promise<ImageModel[]> {
+): Promise<(ImageModel & { tags?: string })[]> {
   try {
     const sender = event.sender
     console.log(`Scanning folder: ${folderPath}`)
@@ -98,10 +98,10 @@ export default async function getImageFilesHandler(
         thumbnailOptions: { width: THUMBNAIL_WIDTH },
       })
     }
+    
     // get all image paths from database (after update and delete)
-    const images = getAllImagesFromDb(db)
+    const images = getAllImagesWithTags(db)
 
-    // Get database statistics
     // const stats = getImageStats(db)
     console.log(`Returning ${images.length} image paths`)
     return images

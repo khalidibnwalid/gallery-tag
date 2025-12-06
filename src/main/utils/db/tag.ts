@@ -12,8 +12,12 @@ export function getOrCreateTags(
     const results: TagModel[] = []
 
     const insertStmt = db.prepare(`
-    INSERT INTO tags (name, color)
-    VALUES (?, ?) RETURNING *
+    INSERT OR IGNORE INTO tags (name, color)
+    SELECT ?, ?
+    WHERE NOT EXISTS (
+      SELECT 1 FROM tags WHERE LOWER(name) = LOWER(?)
+    )
+    RETURNING *
   `)
 
     for (const tagData of tagsData) {
@@ -25,6 +29,7 @@ export function getOrCreateTags(
         const newTag = insertStmt.get(
           tagData.name,
           tagData.color || null,
+          tagData.name,
         ) as TagModel
         results.push(newTag)
       }
@@ -67,7 +72,10 @@ export function getAllTags(db: Database.Database): TagModel[] {
   return stmt.all() as TagModel[]
 }
 
-export function getTagsBySearch(db: Database.Database, query: string): TagModel[] {
+export function getTagsBySearch(
+  db: Database.Database,
+  query: string,
+): TagModel[] {
   const stmt = db.prepare(`
     SELECT 
       id,

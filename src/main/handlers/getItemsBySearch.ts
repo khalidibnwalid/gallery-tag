@@ -4,7 +4,7 @@ import { db } from '@main/utils/db/db'
 export default async function getItemsBySearchHandler(
   _event: Electron.IpcMainInvokeEvent,
   query: string,
-): Promise<ImageModel[]> {
+): Promise<(ImageModel & { tags?: string })[]> {
   try {
     console.log(`Searching for: ${query}`)
 
@@ -23,13 +23,13 @@ export default async function getItemsBySearchHandler(
   }
 }
 
-function searchItems(query: string): ImageModel[] {
+function searchItems(query: string): (ImageModel & { tags?: string })[] {
   const database = db.getFirstDatabase()
   if (!database) return []
 
   // todo add tag table join
   const stmt = database.prepare(`
-      SELECT DISTINCT
+      SELECT
         i.id,
         i.file_path as filePath,
         i.file_name as fileName,
@@ -38,7 +38,9 @@ function searchItems(query: string): ImageModel[] {
         i.created_at as createdAt,
         i.modified_at as modifiedAt,
         i.last_scanned as lastScanned,
-        i.thumbnail_path as thumbnailPath
+        i.thumbnail_path as thumbnailPath,
+
+        GROUP_CONCAT(t.name) as tags
       FROM images i
       LEFT JOIN image_tags it ON i.id = it.image_id
       LEFT JOIN tags t ON it.tag_id = t.id
@@ -46,10 +48,15 @@ function searchItems(query: string): ImageModel[] {
         i.file_name LIKE ? OR 
         i.file_path LIKE ? OR
         t.name LIKE ?
+      GROUP BY i.id
       ORDER BY i.file_name
     `)
 
   const searchPattern = `%${query}%`
-  const results = stmt.all(searchPattern, searchPattern, searchPattern) as ImageModel[]
+  const results = stmt.all(
+    searchPattern,
+    searchPattern,
+    searchPattern,
+  ) as (ImageModel & { tags?: string })[]
   return results
 }

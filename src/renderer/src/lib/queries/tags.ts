@@ -1,4 +1,6 @@
+import { useFolder } from '@/components/providers/FolderProvider'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ImageData } from '../types/image'
 import { TagData } from '../types/tag'
 import QUERIES from './constants'
 
@@ -35,21 +37,73 @@ export function useCreateTagMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (tagName: string): Promise<TagData[]> => {
+    mutationFn: async ({
+      name,
+      color,
+    }: {
+      name: string
+      color?: string
+    }): Promise<TagData[]> => {
       if (!window.api || !window.api.addTags) {
         throw new Error('Add tags API not available')
       }
 
-      // Create tag without associating with any images (empty array)
-      // The addTags function accepts tags without id for creation
-      const tagToCreate = { name: tagName } as TagData
-      const newTags = await window.api.addTags([tagToCreate], [])
+      const newTags = await window.api.addTags([{ name, color }], [])
       return newTags
     },
     onSuccess: () => {
-      // Invalidate and refetch tags to get the updated list
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
-      queryClient.invalidateQueries({ queryKey: ['tag-search'] })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+    },
+  })
+}
+
+export function useAddTagsToImageMutation({
+  onSuccess,
+}: { onSuccess?: (tags: TagData[]) => void } = {}) {
+  const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
+
+  if (!folderPath) {
+    throw new Error('Folder path is not available')
+  }
+
+  return useMutation({
+    mutationFn: async ({
+      tags,
+      imageIds,
+    }: {
+      tags: (TagData | Pick<TagData, 'name' | 'color'>)[]
+      imageIds: number[]
+    }): Promise<TagData[]> => {
+      if (!window.api || !window.api.addTags) {
+        throw new Error('Add tags API not available')
+      }
+
+      const result = await window.api.addTags(tags, imageIds)
+      return result
+    },
+    onSuccess: (data, { tags, imageIds }) => {
+      queryClient.setQueryData<ImageData[]>(
+        QUERIES.IMAGES(folderPath),
+        oldData => {
+          const ids = new Set(imageIds)
+          if (!oldData) return []
+          return oldData.map(image =>
+            ids.has(image.id)
+              ? {
+                  ...image,
+                  tags: image.tags
+                    ? image.tags + ', ' + tags.map(tag => tag.name).join(', ')
+                    : tags.map(tag => tag.name).join(', '),
+                }
+              : image,
+          )
+        },
+      )
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      onSuccess?.(data)
     },
   })
 }

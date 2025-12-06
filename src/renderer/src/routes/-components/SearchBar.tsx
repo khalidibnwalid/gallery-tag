@@ -2,11 +2,13 @@ import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import useDebounce from '@/lib/hooks/useDebounce'
 import {
   useCreateTagMutation,
   useTags,
   useTagsSearchQuery,
 } from '@/lib/queries/tags'
+import { TagData } from '@/lib/types/tag'
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -17,8 +19,6 @@ import { useState } from 'react'
 import AutocompleteList, {
   AutoCompleteItem,
 } from '../../components/AutoCompleteList'
-import { TagData } from '@/lib/types/tag'
-import useDebounce from '@/lib/hooks/useDebounce'
 
 const autoCompleteTypes = {
   tag: { name: 'Tags', icon: TagIcon },
@@ -61,7 +61,7 @@ export default function SearchBar() {
     switch (item.type) {
       case 'create-tag':
         try {
-          await createTagMutation.mutateAsync(searchValue)
+          await createTagMutation.mutateAsync({ name: searchValue })
           // after creation, search for the new tag
           _setSearchValue(searchValue)
           search(searchValue)

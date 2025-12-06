@@ -8,13 +8,20 @@ declare global {
     api: {
       openFolderDialog: () => Promise<string | null>
 
-      getImageFiles: (folderPath: string) => Promise<ImageModel[]>
-      getItemsBySearch: (query: string) => Promise<ImageModel[]>
+      getImageFiles: (
+        folderPath: string,
+      ) => Promise<(ImageModel & { tags?: string })[]>
+      getItemsBySearch: (
+        query: string,
+      ) => Promise<(ImageModel & { tags?: string })[]>
       onImageUpdate: (
         callback: ({ images }: ImageUpdatePayload) => void,
       ) => () => void
 
-      addTags: (tags: TagModel[], imagesIds: number[]) => Promise<TagModel[]>
+      addTags: (
+        tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[],
+        imagesIds: number[],
+      ) => Promise<TagModel[]>
 
       getAllTags: () => Promise<TagModel[]>
       getTagsBySearch: (query: string) => Promise<TagModel[]>

@@ -12,6 +12,7 @@ export default async function addTagsHandler(
     imagesIds?: number[]
   },
 ): Promise<TagModel[]> {
+  if (!tags || tags.length === 0 || tags.some(tag => !tag.name)) return []
   try {
     console.log(`Adding tags to ${imagesIds?.length || 0} images`)
 
@@ -51,7 +52,7 @@ export default async function addTagsHandler(
       `Successfully added ${tagIds.length} tags to ${imagesIds?.length || 0} images`,
     )
 
-    return insertedTags
+    return processedTags
   } catch (error) {
     console.error('Error adding tags:', error)
     throw error
