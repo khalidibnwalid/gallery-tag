@@ -32,6 +32,7 @@ const TAG_DISPLAY_LIMIT = 5
 
 interface Props {
   image: ImageData
+  index: number
 }
 
 export default function ImageCard(props: Props) {
@@ -43,13 +44,18 @@ export default function ImageCard(props: Props) {
 
   return (
     <Virtualize height={`${imageDimensions?.height || 500}px`}>
-      <ImageBody image={props.image} setImageDimensions={setImageDimensions} />
+      <ImageBody
+        image={props.image}
+        index={props.index}
+        setImageDimensions={setImageDimensions}
+      />
     </Virtualize>
   )
 }
 
 function ImageBody({
   image,
+  index,
   setImageDimensions,
 }: Props & {
   setImageDimensions: React.Dispatch<
@@ -72,6 +78,8 @@ function ImageBody({
   const toggleSelectionMode = useSelectionStore(
     state => state.toggleSelectionMode,
   )
+  const selectRange = useSelectionStore(state => state.selectRange)
+  const lastSelectedIndex = useSelectionStore(state => state.lastSelectedIndex)
 
   const [imageError, setImageError] = useState(false)
 
@@ -100,11 +108,24 @@ function ImageBody({
 
   const openImage = (e: MouseEvent) => {
     if (isSelectionMode) {
-      toggleSelection(image.id)
+      // shift-click for range selection
+      if (e.shiftKey && lastSelectedIndex !== null && allImages) {
+        const imageIds = allImages.map(img => img.id)
+        selectRange(imageIds, lastSelectedIndex, index)
+        return
+      }
+
+      toggleSelection(image.id, index)
       return
     } else if (e.ctrlKey || e.metaKey) {
       toggleSelectionMode(true)
-      toggleSelection(image.id)
+      toggleSelection(image.id, index)
+      return
+    } else if (e.shiftKey && allImages) {
+      // enter selection mode and select range from 0 to current
+      toggleSelectionMode(true)
+      const imageIds = allImages.map(img => img.id)
+      selectRange(imageIds, 0, index)
       return
     }
 
@@ -230,7 +251,10 @@ function ImageBody({
 function ImageContextMenu({
   children,
   image,
-}: { children: React.ReactNode } & Props) {
+}: {
+  children: React.ReactNode
+  image: ImageData
+}) {
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
   const selectedItems = useSelectionStore(state => state.selectedItems)
 

@@ -3,10 +3,10 @@ import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { useImagesSearchQuery } from '@/lib/queries/images'
 import { FolderOpenIcon } from '@phosphor-icons/react'
 import { createFileRoute } from '@tanstack/react-router'
 import SubBar from './-components/SubBar'
-import { useImagesSearchQuery } from '@/lib/queries/images'
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -58,7 +58,7 @@ function Index() {
           <SubBar />
           <div className="pb-20 gap-4 masonry">
             {images?.map((image, index) => (
-              <ImageCard key={index} image={image} />
+              <ImageCard key={image.id || index} image={image} index={index} />
             ))}
           </div>
         </>
