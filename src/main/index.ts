@@ -8,7 +8,9 @@ import getImageFilesHandler from './handlers/getImageFiles'
 import getItemsBySearchHandler from './handlers/getItemsBySearch'
 import getTagsBySearchHandler from './handlers/getTagsBySearch'
 import openFolderDialogHandler from './handlers/openFolderDialog'
+import openPathInDefaultAppHandler from './handlers/openPathInDefaultApp'
 import removeTagsHandler from './handlers/removeTags'
+import revealInFileExplorerHandler from './handlers/revealInFileExplorer'
 
 app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
 
@@ -69,6 +71,8 @@ app.whenReady().then(() => {
   ipcMain.handle('remove-tags', removeTagsHandler)
   ipcMain.handle('get-all-tags', getAllTagsHandler)
   ipcMain.handle('get-tags-by-search', getTagsBySearchHandler)
+  ipcMain.handle('reveal-in-file-explorer', revealInFileExplorerHandler)
+  ipcMain.handle('open-path-in-default-app', openPathInDefaultAppHandler)
   ipcMain.handle('close-app', () => app.quit())
 
   createWindow()

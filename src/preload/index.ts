@@ -7,6 +7,10 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 // Custom APIs for renderer
 const api = {
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
+  revealInFileExplorer: (filePath: string) => 
+    ipcRenderer.invoke('reveal-in-file-explorer', filePath),
+  openPathInDefaultApp: (filePath: string) => 
+    ipcRenderer.invoke('open-path-in-default-app', filePath),
 
   getImageFiles: (folderPath: string) =>
     ipcRenderer.invoke('get-image-files', folderPath),

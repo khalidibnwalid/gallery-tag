@@ -33,7 +33,7 @@ export default async function addTagsHandler(
       if ('id' in tag) {
         processedTags.push(tag as TagModel)
       } else {
-        newTags.push({ name: tag.name, color: tag.color })
+        newTags.push({ name: tag.name.trim(), color: tag.color })
       }
     }
 

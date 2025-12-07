@@ -7,6 +7,8 @@ declare global {
     electron: ElectronAPI
     api: {
       openFolderDialog: () => Promise<string | null>
+      revealInFileExplorer: (filePath: string) => void
+      openPathInDefaultApp: (filePath: string) => void
 
       getImageFiles: (
         folderPath: string,
