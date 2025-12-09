@@ -1,7 +1,7 @@
 import { createThumbnails } from '@main/services/thumbnails.service'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
-import { ImageModel } from '@main/types/models.shared'
+import { ImageModel, PaginatedResult } from '@main/types/models.shared'
 import Batcher from '@main/utils/batcher'
 import {
   CONFIG_DIR,
@@ -11,6 +11,7 @@ import {
 import {
   deleteDiffImagesByPath,
   getAllImagesWithTags,
+  getAllImagesWithTagsPaginated,
   getPathsNotInImagesTable,
   insertImages,
   updateThumbnailPaths,
@@ -20,13 +21,24 @@ import { join } from 'path'
 
 const THUMBNAIL_WIDTH = 512
 
-export default async function getImageFilesHandler(
+async function getImageFilesBase(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
-): Promise<(ImageModel & { tags?: string })[]> {
+  offset?: number,
+  size?: number,
+): Promise<
+  | PaginatedResult<ImageModel & { tags?: string }>
+  | (ImageModel & { tags?: string })[]
+> {
   try {
     const sender = event.sender
-    console.log(`Scanning folder: ${folderPath}`)
+    const isPaginated = offset !== undefined && size !== undefined
+
+    console.log(
+      isPaginated
+        ? `Getting paginated images for folder: ${folderPath}, offset: ${offset}, size: ${size}`
+        : `Scanning folder: ${folderPath}`,
+    )
 
     const { db } = await getAndInitConfig(folderPath)
 
@@ -98,15 +110,73 @@ export default async function getImageFilesHandler(
         thumbnailOptions: { width: THUMBNAIL_WIDTH },
       })
     }
-    
-    // get all image paths from database (after update and delete)
-    const images = getAllImagesWithTags(db)
 
-    // const stats = getImageStats(db)
-    console.log(`Returning ${images.length} image paths`)
-    return images
+    if (isPaginated) {
+      const { data: images, total } = getAllImagesWithTagsPaginated(
+        db,
+        offset!,
+        size!,
+      )
+      const hasMore = offset! + size! < total
+
+      console.log(
+        `Returning ${images.length} image paths (${offset}-${offset! + size! - 1} of ${total})`,
+      )
+
+      return {
+        data: images,
+        pagination: {
+          offset: offset!,
+          size: size!,
+          total,
+          hasMore,
+        },
+      }
+    } else {
+      // get all image paths from database (after update and delete)
+      const images = getAllImagesWithTags(db)
+
+      console.log(`Returning ${images.length} image paths`)
+      return images
+    }
   } catch (error) {
     console.error('Error getting image files:', error)
-    return []
+
+    if (offset !== undefined && size !== undefined) {
+      return {
+        data: [],
+        pagination: {
+          offset,
+          size,
+          total: 0,
+          hasMore: false,
+        },
+      }
+    } else {
+      return []
+    }
   }
+}
+
+export default async function getImageFilesHandler(
+  event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
+): Promise<(ImageModel & { tags?: string })[]> {
+  return (await getImageFilesBase(event, folderPath)) as (ImageModel & {
+    tags?: string
+  })[]
+}
+
+export async function getImageFilesPaginatedHandler(
+  event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
+  offset: number = 0,
+  size: number = 50,
+): Promise<PaginatedResult<ImageModel & { tags?: string }>> {
+  return (await getImageFilesBase(
+    event,
+    folderPath,
+    offset,
+    size,
+  )) as PaginatedResult<ImageModel & { tags?: string }>
 }

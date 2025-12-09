@@ -17,3 +17,13 @@ export interface TagModel {
   createdAt: string
   parentId?: number
 }
+
+export interface PaginatedResult<T> {
+  data: T[]
+  pagination: {
+    offset: number
+    size: number
+    total: number
+    hasMore: boolean
+  }
+}

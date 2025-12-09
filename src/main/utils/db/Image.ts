@@ -82,6 +82,49 @@ export function getAllImagesWithTags(
   return rows
 }
 
+export function getAllImagesWithTagsPaginated(
+  db: Database.Database,
+  offset: number = 0,
+  size: number = 50,
+): {
+  data: (ImageModel & { tags?: string })[]
+  total: number
+} {
+  const countStmt = db.prepare(`
+    SELECT COUNT(*) as total
+    FROM images
+  `)
+  const countResult = countStmt.get() as { total: number }
+  const total = countResult.total
+
+  const stmt = db.prepare(`
+    SELECT 
+      i.id,
+      i.file_path as filePath,
+      i.file_name as fileName,
+      i.extension,
+      i.size,
+      i.created_at as createdAt,
+      i.modified_at as modifiedAt,
+      i.last_scanned as lastScanned,
+      i.thumbnail_path as thumbnailPath,
+
+      GROUP_CONCAT(t.name) as tags
+    FROM images i
+    LEFT JOIN image_tags it ON i.id = it.image_id
+    LEFT JOIN tags t ON it.tag_id = t.id
+    GROUP BY i.id
+    ORDER BY i.file_name
+    LIMIT ? OFFSET ?
+  `)
+  const rows = stmt.all(size, offset) as (ImageModel & { tags?: string })[]
+
+  return {
+    data: rows,
+    total,
+  }
+}
+
 /**
  * returns paths that are not in the database from a set of current paths
  */
@@ -231,4 +274,69 @@ export function updateThumbnailPaths(
   })
 
   transaction(updates)
+}
+
+export function searchImagesPaginated(
+  db: Database.Database,
+  query: string,
+  offset: number = 0,
+  size: number = 50,
+): {
+  data: (ImageModel & { tags?: string })[]
+  total: number
+} {
+  const searchPattern = `%${query}%`
+  
+  // Get total count for search results
+  const countStmt = db.prepare(`
+    SELECT COUNT(DISTINCT i.id) as total
+    FROM images i
+    LEFT JOIN image_tags it ON i.id = it.image_id
+    LEFT JOIN tags t ON it.tag_id = t.id
+    WHERE 
+      i.file_name LIKE ? OR 
+      i.file_path LIKE ? OR
+      t.name LIKE ?
+  `)
+  const countResult = countStmt.get(searchPattern, searchPattern, searchPattern) as { total: number }
+  const total = countResult.total
+
+  // Get paginated search results
+  const stmt = db.prepare(`
+    SELECT
+      i.id,
+      i.file_path as filePath,
+      i.file_name as fileName,
+      i.extension,
+      i.size,
+      i.created_at as createdAt,
+      i.modified_at as modifiedAt,
+      i.last_scanned as lastScanned,
+      i.thumbnail_path as thumbnailPath,
+
+      GROUP_CONCAT(t.name) as tags
+    FROM images i
+    LEFT JOIN image_tags it ON i.id = it.image_id
+    LEFT JOIN tags t ON it.tag_id = t.id
+    WHERE 
+      i.file_name LIKE ? OR 
+      i.file_path LIKE ? OR
+      t.name LIKE ?
+    GROUP BY i.id
+    ORDER BY i.file_name
+    LIMIT ? OFFSET ?
+  `)
+
+  const results = stmt.all(
+    searchPattern,
+    searchPattern,
+    searchPattern,
+    size,
+    offset
+  ) as (ImageModel & { tags?: string })[]
+  
+  return {
+    data: results,
+    total
+  }
 }

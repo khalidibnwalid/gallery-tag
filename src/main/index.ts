@@ -4,8 +4,8 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import addTagsHandler from './handlers/addTags'
 import getAllTagsHandler from './handlers/getAllTags'
-import getImageFilesHandler from './handlers/getImageFiles'
-import getItemsBySearchHandler from './handlers/getItemsBySearch'
+import getImageFilesHandler, { getImageFilesPaginatedHandler } from './handlers/getImageFiles'
+import getItemsBySearchHandler, { getItemsBySearchPaginatedHandler } from './handlers/getItemsBySearch'
 import getTagsBySearchHandler from './handlers/getTagsBySearch'
 import openFolderDialogHandler from './handlers/openFolderDialog'
 import openPathInDefaultAppHandler from './handlers/openPathInDefaultApp'
@@ -66,7 +66,9 @@ app.whenReady().then(() => {
   // IPC Handlers
   ipcMain.handle('open-folder-dialog', openFolderDialogHandler)
   ipcMain.handle('get-image-files', getImageFilesHandler)
+  ipcMain.handle('get-image-files-paginated', getImageFilesPaginatedHandler)
   ipcMain.handle('get-items-by-search', getItemsBySearchHandler)
+  ipcMain.handle('get-items-by-search-paginated', getItemsBySearchPaginatedHandler)
   ipcMain.handle('add-tags', addTagsHandler)
   ipcMain.handle('remove-tags', removeTagsHandler)
   ipcMain.handle('get-all-tags', getAllTagsHandler)
