@@ -1,3 +1,5 @@
+import { NOTIFIER_EVENT_TYPES, NOTIFIER_EVENTS } from './constants.shared'
+
 export interface ImageModel {
   id: number
   filePath: string
@@ -27,3 +29,23 @@ export interface PaginatedResult<T> {
     hasMore: boolean
   }
 }
+
+type ExtractNestedValues<T> = T extends string
+  ? T
+  : T extends object
+    ? { [K in keyof T]: ExtractNestedValues<T[K]> }[keyof T]
+    : never
+
+export interface Notifier<T> {
+  id: ExtractNestedValues<
+    (typeof NOTIFIER_EVENTS)[keyof typeof NOTIFIER_EVENTS]
+  >
+  type: ExtractNestedValues<
+    (typeof NOTIFIER_EVENT_TYPES)[keyof typeof NOTIFIER_EVENT_TYPES]
+  >
+  payload: T
+}
+
+export type NotifierEventValues = ExtractNestedValues<
+  (typeof NOTIFIER_EVENTS)[keyof typeof NOTIFIER_EVENTS]
+>

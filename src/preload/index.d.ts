@@ -1,6 +1,11 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import { ImageUpdatePayload } from '@main/types/api.shared'
-import { ImageModel, TagModel, PaginatedResult } from '@main/types/models.shared'
+import {
+  ImageModel,
+  Notifier,
+  PaginatedResult,
+  TagModel,
+} from '@main/types/models.shared'
 
 declare global {
   interface Window {
@@ -38,6 +43,8 @@ declare global {
 
       getAllTags: () => Promise<TagModel[]>
       getTagsBySearch: (query: string) => Promise<TagModel[]>
+
+      onNotify: (callback: (notifier: Notifier<unknown>) => void) => () => void
 
       closeApp: () => void
     }

@@ -1,7 +1,12 @@
+import { notifier } from '@main/services/notifier.service'
 import { createThumbnails } from '@main/services/thumbnails.service'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageModel, PaginatedResult } from '@main/types/models.shared'
+import {
+  NotifyImageThumbnailGeneratedPartPayload,
+  NotifyImageThumbnailGenerationCompletePayload,
+} from '@main/types/notifier.shared'
 import Batcher from '@main/utils/batcher'
 import {
   CONFIG_DIR,
@@ -62,7 +67,6 @@ async function getImageFilesBase(
     if (newPaths.length > 0) {
       insertImages(db, newFiles)
       console.log(`Inserted ${newFiles.length} new images into database`)
-
       const imageUpdateBatcher = new Batcher<{
         filePath: string
         thumbnailPath: string
@@ -75,10 +79,22 @@ async function getImageFilesBase(
             payload: { images } satisfies ImageUpdatePayload,
           })
           updateThumbnailPaths(db, images)
+
+          notifier.notify<NotifyImageThumbnailGeneratedPartPayload>({
+            id: 'image-thumbnail-generated',
+            type: 'progress.part',
+            payload: {
+              data: images[images.length - 1],
+              total: newFiles.length,
+              sessionId: timeStamp.toString(),
+              order: processedCount,
+            },
+          })
         },
       })
 
       let count = 0
+      let processedCount = 0
       const timeStamp = Date.now()
       createThumbnails({
         tasks: newFiles.map(file => ({
@@ -94,13 +110,26 @@ async function getImageFilesBase(
             `Thumbnail generation complete: ${result.totalProcessed} processed, ${result.totalFailed} failed`,
           )
           imageUpdateBatcher.flush()
+
+          notifier.notify<NotifyImageThumbnailGenerationCompletePayload>({
+            id: 'image-thumbnail-generated',
+            type: 'progress.complete',
+            payload: {
+              totalProcessed: result.totalProcessed,
+              totalFailed: result.totalFailed,
+              sessionId: timeStamp.toString(),
+            },
+          })
         },
         onProgress(currentResult) {
           if (currentResult.error !== undefined) return
 
+          processedCount++
           const payload = {
             filePath: currentResult.imagePath,
             thumbnailPath: currentResult.outputPath,
+            order: processedCount,
+            total: newFiles.length,
           }
           imageUpdateBatcher.add(payload)
         },

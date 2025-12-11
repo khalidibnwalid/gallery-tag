@@ -4,13 +4,18 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import addTagsHandler from './handlers/addTags'
 import getAllTagsHandler from './handlers/getAllTags'
-import getImageFilesHandler, { getImageFilesPaginatedHandler } from './handlers/getImageFiles'
-import getItemsBySearchHandler, { getItemsBySearchPaginatedHandler } from './handlers/getItemsBySearch'
+import getImageFilesHandler, {
+  getImageFilesPaginatedHandler,
+} from './handlers/getImageFiles'
+import getItemsBySearchHandler, {
+  getItemsBySearchPaginatedHandler,
+} from './handlers/getItemsBySearch'
 import getTagsBySearchHandler from './handlers/getTagsBySearch'
 import openFolderDialogHandler from './handlers/openFolderDialog'
 import openPathInDefaultAppHandler from './handlers/openPathInDefaultApp'
 import removeTagsHandler from './handlers/removeTags'
 import revealInFileExplorerHandler from './handlers/revealInFileExplorer'
+import { notifier } from './services/notifier.service'
 
 app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
 
@@ -47,6 +52,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  notifier.setMainWindow(mainWindow)
 }
 
 // This method will be called when Electron has finished
@@ -68,7 +75,10 @@ app.whenReady().then(() => {
   ipcMain.handle('get-image-files', getImageFilesHandler)
   ipcMain.handle('get-image-files-paginated', getImageFilesPaginatedHandler)
   ipcMain.handle('get-items-by-search', getItemsBySearchHandler)
-  ipcMain.handle('get-items-by-search-paginated', getItemsBySearchPaginatedHandler)
+  ipcMain.handle(
+    'get-items-by-search-paginated',
+    getItemsBySearchPaginatedHandler,
+  )
   ipcMain.handle('add-tags', addTagsHandler)
   ipcMain.handle('remove-tags', removeTagsHandler)
   ipcMain.handle('get-all-tags', getAllTagsHandler)

@@ -1,23 +1,28 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
-import { TagModel, PaginatedResult, ImageModel } from '@main/types/models.shared'
+import {
+  ImageModel,
+  Notifier,
+  PaginatedResult,
+  TagModel,
+} from '@main/types/models.shared'
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 
 // Custom APIs for renderer
 const api = {
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
-  revealInFileExplorer: (filePath: string) => 
+  revealInFileExplorer: (filePath: string) =>
     ipcRenderer.invoke('reveal-in-file-explorer', filePath),
-  openPathInDefaultApp: (filePath: string) => 
+  openPathInDefaultApp: (filePath: string) =>
     ipcRenderer.invoke('open-path-in-default-app', filePath),
 
   getImageFiles: (folderPath: string) =>
     ipcRenderer.invoke('get-image-files', folderPath),
   getImageFilesPaginated: (
-    folderPath: string, 
-    offset: number = 0, 
-    size: number = 50
+    folderPath: string,
+    offset: number = 0,
+    size: number = 50,
   ): Promise<PaginatedResult<ImageModel & { tags?: string }>> =>
     ipcRenderer.invoke('get-image-files-paginated', folderPath, offset, size),
   onImageUpdate: (callback: (data: ImageUpdatePayload) => void) => {
@@ -31,7 +36,7 @@ const api = {
   getItemsBySearchPaginated: (
     query: string,
     offset: number = 0,
-    size: number = 50
+    size: number = 50,
   ): Promise<PaginatedResult<ImageModel & { tags?: string }>> =>
     ipcRenderer.invoke('get-items-by-search-paginated', query, offset, size),
 
@@ -49,6 +54,13 @@ const api = {
 
   getTagsBySearch(query: string): Promise<TagModel[]> {
     return ipcRenderer.invoke('get-tags-by-search', query)
+  },
+
+  onNotify: (callback: (notifier: Notifier<unknown>) => void) => {
+    const sub = (_: IpcRendererEvent, data: { payload: Notifier<unknown> }) =>
+      callback(data.payload)
+    ipcRenderer.on(EVENTS.NOTIFY, sub)
+    return () => ipcRenderer.removeListener(EVENTS.NOTIFY, sub)
   },
 
   closeApp: () => ipcRenderer.invoke('close-app'),
