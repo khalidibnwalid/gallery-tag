@@ -9,9 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  XIcon
-} from '@phosphor-icons/react'
+import { XIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import SearchBar from './SearchBar'
 
@@ -73,12 +71,15 @@ function FileDropDown() {
 }
 
 function TopTitle() {
-  const { folderPath, folderImagesQuery } = useFolder()
-  const { data: imagePaths, isLoading } = folderImagesQuery
+  const { folderPath, paginatedImagesQuery } = useFolder()
+  const { isLoading, data } = paginatedImagesQuery
   if (!folderPath) return null
 
   return (
-    <div className="flex items-center gap-1 max-w-1/3" title={folderPath}>
+    <div
+      className="items-center gap-1 max-w-1/3 xl:flex hidden"
+      title={folderPath}
+    >
       <Button
         variant="outline"
         className="cursor-default bg-background/70! backdrop-blur-3xl"
@@ -95,7 +96,8 @@ function TopTitle() {
           <Spinner />
         ) : (
           <span className="w-full overflow-hidden font-bold ">
-            {imagePaths?.length}
+            {data?.pages.flat().length.toLocaleString() || 0} {" "}
+            Loaded
           </span>
         )}
       </Button>

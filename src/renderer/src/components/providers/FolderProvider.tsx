@@ -1,4 +1,4 @@
-import useImages from '@/lib/queries/images'
+import useImages, { useInfiniteImages } from '@/lib/queries/images'
 import { useTags } from '@/lib/queries/tags'
 import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useContext, useState } from 'react'
@@ -8,6 +8,7 @@ interface FolderProvider {
   setFolderPath: React.Dispatch<React.SetStateAction<string | null>>
   openFolderDialog: () => Promise<string | null>
   folderImagesQuery: ReturnType<typeof useImages>
+  paginatedImagesQuery: ReturnType<typeof useInfiniteImages>
   tagsQuery: ReturnType<typeof useTags>
 }
 
@@ -17,6 +18,7 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
   const [folderPath, setFolderPath] = useState<string | null>(null)
 
   const folderImagesQuery = useImages(folderPath!)
+  const paginatedImagesQuery = useInfiniteImages(folderPath!)
   const tagsQuery = useTags()
 
   const queryClient = useQueryClient()
@@ -50,6 +52,7 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
         setFolderPath,
         openFolderDialog,
         folderImagesQuery,
+        paginatedImagesQuery,
         tagsQuery,
       }}
     >
