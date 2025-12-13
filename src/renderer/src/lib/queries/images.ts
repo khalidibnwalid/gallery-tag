@@ -1,6 +1,7 @@
 import { useFolder } from '@/components/providers/FolderProvider'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import {
+  QueryClient,
   useInfiniteQuery,
   useQuery,
   useQueryClient,
@@ -9,36 +10,78 @@ import { useEffect } from 'react'
 import { ImageData } from '../types/image'
 import QUERIES from './constants'
 
+// don't want two of the same subscriptions active at once
+let globalSubscriptionCount = 0
+let globalImageUpdateUnsubscribe: (() => void) | null = null
+
+function subscribeToImageUpdates(
+  queryClient: QueryClient,
+  folderPath: string,
+  isInfinite: boolean = false,
+) {
+  if (!window.api || !window.api.onImageUpdate) return
+
+  // create subscriptions if none exist
+  if (globalSubscriptionCount++ === 0) {
+    globalImageUpdateUnsubscribe = window.api.onImageUpdate(
+      ({ images }: ImageUpdatePayload) => {
+        images.forEach(image => {
+          if (isInfinite) {
+            queryClient.setQueryData<{
+              pages: ImageData[][]
+              pageParams: unknown[]
+            }>(QUERIES.IMAGES_PAGINATED(folderPath), oldData => {
+              if (!oldData) return oldData
+              return {
+                ...oldData,
+                pages: oldData.pages.map(page =>
+                  page.map(old =>
+                    image?.filePath === old.filePath || image?.id === old.id
+                      ? { ...old, ...image }
+                      : old,
+                  ),
+                ),
+              }
+            })
+          } else {
+            queryClient.setQueryData<ImageData[]>(
+              QUERIES.IMAGES(folderPath),
+              oldData => {
+                if (!oldData) return oldData
+                return oldData.map(old =>
+                  image?.filePath === old.filePath || image?.id === old.id
+                    ? { ...old, ...image }
+                    : old,
+                )
+              },
+            )
+          }
+        })
+      },
+    )
+  }
+
+  return () => {
+    if (--globalSubscriptionCount === 0) {
+      globalImageUpdateUnsubscribe?.()
+      globalImageUpdateUnsubscribe = null
+    }
+  }
+}
+
 export default function useImages(folderPath?: string) {
   const { folderPath: contextFolderPath } = useFolder()
   folderPath ||= contextFolderPath || ''
 
   const queryClient = useQueryClient()
+
+  // Subscribe to image updates
   useEffect(() => {
-    if (!window.api || !window.api.onImageUpdate) {
-      return
-    }
-    const unsubscribe = window.api.onImageUpdate(
-      ({ images }: ImageUpdatePayload) => {
-        images.forEach(image => {
-          queryClient.setQueryData<ImageData[]>(
-            QUERIES.IMAGES(folderPath),
-            oldData => {
-              if (!oldData) return oldData
-              return oldData.map(old =>
-                image?.filePath === old.filePath || image?.id === old.id
-                  ? { ...old, ...image }
-                  : old,
-              )
-            },
-          )
-        })
-      },
-    )
+    const unsubscribe = subscribeToImageUpdates(queryClient, folderPath, false)
     return () => {
-      unsubscribe()
+      unsubscribe?.()
     }
-  }, [folderPath])
+  }, [folderPath, queryClient])
 
   return useQuery<ImageData[]>({
     queryKey: QUERIES.IMAGES(folderPath),
@@ -59,39 +102,17 @@ export function useInfiniteImages(folderPath?: string, pageSize: number = 50) {
   folderPath ||= contextFolderPath || ''
 
   const queryClient = useQueryClient()
+
+  // Subscribe to image updates
   useEffect(() => {
-    if (!window.api || !window.api.onImageUpdate) {
-      return
-    }
-    const unsubscribe = window.api.onImageUpdate(
-      ({ images }: ImageUpdatePayload) => {
-        images.forEach(image => {
-          queryClient.setQueryData<{
-            pages: ImageData[][]
-            pageParams: unknown[]
-          }>(QUERIES.IMAGES(folderPath), oldData => {
-            if (!oldData) return oldData
-            return {
-              ...oldData,
-              pages: oldData.pages.map(page =>
-                page.map(old =>
-                  image?.filePath === old.filePath || image?.id === old.id
-                    ? { ...old, ...image }
-                    : old,
-                ),
-              ),
-            }
-          })
-        })
-      },
-    )
+    const unsubscribe = subscribeToImageUpdates(queryClient, folderPath, true)
     return () => {
-      unsubscribe()
+      unsubscribe?.()
     }
-  }, [folderPath])
+  }, [folderPath, queryClient])
 
   return useInfiniteQuery<ImageData[], Error>({
-    queryKey: QUERIES.IMAGES(folderPath),
+    queryKey: QUERIES.IMAGES_PAGINATED(folderPath),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       if (!window.api || !window.api.getImageFilesPaginated) {

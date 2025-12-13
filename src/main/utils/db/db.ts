@@ -75,6 +75,7 @@ class DBSingleton {
     const db = new Database(dbPath)
 
     // TODO: INDEXES for performance
+    db.pragma('journal_mode = WAL') 
 
     db.exec(`
       CREATE TABLE IF NOT EXISTS images (

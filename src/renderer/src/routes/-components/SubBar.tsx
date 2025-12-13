@@ -24,8 +24,8 @@ export default function SubBar() {
 }
 
 function ImagesSelectionBar() {
-  const { folderImagesQuery } = useFolder()
-  const images = folderImagesQuery.data!
+  const { paginatedImagesQuery } = useFolder()
+  const images = paginatedImagesQuery.data!.pages.flat()
 
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
   const selectedImageIds = useSelectionStore(state => state.selectedItems)

@@ -1,6 +1,10 @@
 const QUERIES = {
   IMAGES: (folderPath?: string) =>
     folderPath ? (['images', folderPath] as const) : (['images'] as const),
+  IMAGES_PAGINATED: (folderPath?: string) =>
+    folderPath
+      ? (['images', 'paginated', folderPath] as const)
+      : (['images', 'paginated'] as const),
   IMAGES_SEARCH: (query?: string) =>
     query
       ? (['images', 'search', query] as const)

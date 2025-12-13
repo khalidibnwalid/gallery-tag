@@ -158,6 +158,34 @@ export function useRemoveTagsFromImageMutation({
 
       const tagsNamesSet = new Set<string>(tagsData.map(tag => tag.name))
 
+      queryClient.setQueryData<{
+        pages: ImageData[][]
+        pageParams: unknown[]
+      }>(QUERIES.IMAGES_PAGINATED(folderPath), oldData => {
+        if (!oldData) return { pages: [], pageParams: [] }
+        return {
+          ...oldData,
+          pages: oldData.pages.map(page =>
+            page.map(image => {
+              if (!imageIdsSet.has(image.id)) return image
+
+              const currentTags = image.tags
+                ? image.tags.split(',').map(t => t.trim())
+                : []
+
+              const updatedTags = currentTags.filter(
+                tagName => !tagsNamesSet.has(tagName),
+              )
+
+              return {
+                ...image,
+                tags: updatedTags.join(', '),
+              }
+            }),
+          ),
+        }
+      })
+
       queryClient.setQueryData<ImageData[]>(
         QUERIES.IMAGES(folderPath),
         oldData => {
@@ -180,7 +208,7 @@ export function useRemoveTagsFromImageMutation({
           })
         },
       )
-      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       onSuccess?.({ tagIds, imageIds })
     },
   })

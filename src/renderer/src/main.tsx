@@ -6,10 +6,12 @@ import {
   createHashHistory,
   createRouter,
 } from '@tanstack/react-router'
-import React from 'react'
+import React, { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import { LighthouseProvider } from './components/providers/LighthouseProvider'
 import { ThemeProvider } from './components/providers/ThemeProvider'
+import { Toaster } from './components/ui/toast'
+import { setupGlobalNotifier } from './lib/notifier'
 import { routeTree } from './routeTree.gen'
 
 // wails go docs recommend using hash history
@@ -25,14 +27,17 @@ declare module '@tanstack/react-router' {
 }
 
 function App() {
+  useEffect(setupGlobalNotifier, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+        <Toaster />
         <LighthouseProvider>
           <RouterProvider router={router} />
-          <ReactQueryDevtools initialIsOpen={false} />
         </LighthouseProvider>
       </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   )
 }
