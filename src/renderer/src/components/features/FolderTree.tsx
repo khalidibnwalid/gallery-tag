@@ -1,52 +1,30 @@
 import { cn } from '@/lib/utils'
+import { FolderModel } from '@main/types/models.shared'
 import {
   CaretDownIcon,
   CaretRightIcon,
   FolderIcon,
 } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { memo, useState } from 'react'
+import { useFolders } from '@/lib/queries/folders'
+import { useFolder } from '@/components/providers/FolderProvider'
 
-type FileNode = {
-  id: string
-  name: string
-  type: 'folder' | 'file'
-  children?: FileNode[]
+interface FolderTreeProps {
+  className?: string
+  onSelect?: (path: string | null) => void
+  selectedPath?: string | null
 }
 
-const mockData: FileNode = {
-  id: 'root',
-  name: 'Projects',
-  type: 'folder',
-  children: [
-    {
-      id: '1',
-      name: 'gallery',
-      type: 'folder',
-      children: [
-        { id: '1-1', name: 'src', type: 'folder' },
-        { id: '1-2', name: 'public', type: 'folder' },
-        { id: '1-3', name: 'package.json', type: 'file' },
-      ],
-    },
-    {
-      id: '2',
-      name: 'documents',
-      type: 'folder',
-      children: [
-        { id: '2-1', name: 'resume.pdf', type: 'file' },
-        { id: '2-2', name: 'notes.txt', type: 'file' },
-      ],
-    },
-    {
-      id: '3',
-      name: 'photos',
-      type: 'folder',
-      children: [{ id: '3-1', name: 'vacation', type: 'folder' }],
-    },
-  ],
-}
+export const FolderTree = memo(function FolderTree({
+  className,
+  onSelect,
+  selectedPath,
+}: FolderTreeProps) {
+  const { folderPath: rootPath } = useFolder()
+  const { data: folders, isLoading } = useFolders()
 
-export function FolderTree({ className }: { className?: string }) {
+  if (!rootPath) return null
+
   return (
     <div
       className={cn(
@@ -58,22 +36,52 @@ export function FolderTree({ className }: { className?: string }) {
         <span>Explorer</span>
       </div>
       <div className="flex-1 overflow-auto py-3 px-1 space-y-0.5">
-        <TreeNode node={mockData} level={0} />
+        {isLoading ? (
+          <div className="px-4 py-2 text-sm text-muted-foreground">
+            Loading...
+          </div>
+        ) : folders && folders.length > 0 ? (
+          folders.map(folder => (
+            <TreeNode
+              key={folder.id}
+              node={folder}
+              level={0}
+              onSelect={onSelect}
+              selectedPath={selectedPath}
+            />
+          ))
+        ) : (
+          <div className="px-4 py-2 text-sm text-muted-foreground">
+            No folders found
+          </div>
+        )}
       </div>
     </div>
   )
-}
+})
 
-function TreeNode({ node, level }: { node: FileNode; level: number }) {
-  const [isOpen, setIsOpen] = useState(true)
+function TreeNode({
+  node,
+  level,
+  onSelect,
+  selectedPath,
+}: {
+  node: FolderModel
+  level: number
+  onSelect?: (path: string | null) => void
+  selectedPath?: string | null
+}) {
+  const [isOpen, setIsOpen] = useState(false)
   const hasChildren = node.children && node.children.length > 0
 
-  if (node.type !== 'folder') return null
+  const isSelected = selectedPath === node.path
 
   return (
     <div>
       <div
-        className="flex items-center gap-2.5 pr-2 py-2 group select-none transition-colors"
+        className={cn(
+          'flex items-center gap-2.5 pr-2 py-2 group select-none transition-colors',
+        )}
         style={{ paddingLeft: `${level * 16 + 12}px` }}
       >
         <span
@@ -94,15 +102,21 @@ function TreeNode({ node, level }: { node: FileNode; level: number }) {
           )}
         </span>
         <div
-          className="flex flex-1 items-center gap-2.5 cursor-pointer hover:bg-accent/50 hover:text-accent-foreground px-2 py-1 rounded-md transition-colors"
+          className={cn(
+            'flex flex-1 items-center gap-2.5 cursor-pointer px-2 py-1 rounded-md transition-colors',
+            isSelected
+              ? 'bg-accent text-accent-foreground'
+              : 'hover:bg-accent/50 hover:text-accent-foreground',
+          )}
           onClick={() => {
-            // TODO
-            console.log('Navigate to folder:', node.name)
+            onSelect?.(node.path)
           }}
         >
           <FolderIcon
-            className={isOpen ? 'text-primary' : 'text-muted-foreground'}
-            weight={isOpen ? 'fill' : 'duotone'}
+            className={
+              isOpen || isSelected ? 'text-primary' : 'text-muted-foreground'
+            }
+            weight={isOpen || isSelected ? 'fill' : 'duotone'}
             size={20}
           />
           <span className="truncate font-medium">{node.name}</span>
@@ -111,7 +125,13 @@ function TreeNode({ node, level }: { node: FileNode; level: number }) {
       {isOpen && hasChildren && (
         <div className="mt-0.5">
           {node.children!.map(child => (
-            <TreeNode key={child.id} node={child} level={level + 1} />
+            <TreeNode
+              key={child.id}
+              node={child}
+              level={level + 1}
+              onSelect={onSelect}
+              selectedPath={selectedPath}
+            />
           ))}
         </div>
       )}

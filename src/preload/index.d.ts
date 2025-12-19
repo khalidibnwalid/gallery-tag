@@ -1,6 +1,6 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
-import { ImageUpdatePayload } from '@main/types/api.shared'
+import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
 import {
+  FolderModel,
   ImageModel,
   Notifier,
   PaginatedResult,
@@ -26,18 +26,15 @@ declare global {
           folderPath: string,
           offset?: number,
           size?: number,
-        ) => Promise<PaginatedResult<ImageModel & { tags?: string }>>
-        getBySearch: (
-          query: string,
-        ) => Promise<(ImageModel & { tags?: string })[]>
-        getBySearchPaginated: (
-          query: string,
-          offset?: number,
-          size?: number,
+          filter?: SearchFilter,
         ) => Promise<PaginatedResult<ImageModel & { tags?: string }>>
         onUpdate: (
           callback: ({ images }: ImageUpdatePayload) => void,
         ) => () => void
+      }
+
+      folders: {
+        getAll: (folderPath: string) => Promise<FolderModel[]>
       }
 
       tags: {

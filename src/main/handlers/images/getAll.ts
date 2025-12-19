@@ -1,6 +1,6 @@
 import { notifier } from '@main/services/notifier.service'
 import { createThumbnails } from '@main/services/thumbnails.service'
-import { ImageUpdatePayload } from '@main/types/api.shared'
+import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageModel, PaginatedResult } from '@main/types/models.shared'
 import {
@@ -13,6 +13,7 @@ import {
   getAndInitConfig,
   THUMBNAILS_DIR,
 } from '@main/utils/config'
+import { syncFoldersFromDisk } from '@main/utils/db/Folder'
 import {
   deleteDiffImagesByPath,
   getAllImagesWithTags,
@@ -31,6 +32,7 @@ async function getAllBase(
   folderPath: string,
   offset?: number,
   size?: number,
+  filter?: SearchFilter,
 ): Promise<
   | PaginatedResult<ImageModel & { tags?: string }>
   | (ImageModel & { tags?: string })[]
@@ -41,11 +43,13 @@ async function getAllBase(
 
     console.log(
       isPaginated
-        ? `Getting paginated images for folder: ${folderPath}, offset: ${offset}, size: ${size}`
+        ? `Getting paginated images for folder: ${folderPath}, offset: ${offset}, size: ${size}, filter: ${JSON.stringify(filter)}`
         : `Scanning folder: ${folderPath}`,
     )
 
     const { db } = await getAndInitConfig(folderPath)
+
+    await syncFoldersFromDisk(db, folderPath)
 
     const imageFiles = await getFilesByExtension(
       folderPath,
@@ -145,6 +149,7 @@ async function getAllBase(
         db,
         offset!,
         size!,
+        filter,
       )
       const hasMore = offset! + size! < total
 
@@ -201,8 +206,13 @@ export async function getPaginatedHandler(
   folderPath: string,
   offset: number = 0,
   size: number = 50,
+  filter?: SearchFilter,
 ): Promise<PaginatedResult<ImageModel & { tags?: string }>> {
-  return (await getAllBase(event, folderPath, offset, size)) as PaginatedResult<
-    ImageModel & { tags?: string }
-  >
+  return (await getAllBase(
+    event,
+    folderPath,
+    offset,
+    size,
+    filter,
+  )) as PaginatedResult<ImageModel & { tags?: string }>
 }

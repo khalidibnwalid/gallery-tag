@@ -3,13 +3,10 @@ import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  useInfiniteImages,
-  useInfiniteImagesSearch,
-} from '@/lib/queries/images'
+import { useInfiniteImages } from '@/lib/queries/images'
 import { FolderOpenIcon } from '@phosphor-icons/react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FolderTree } from '@/components/features/FolderTree'
 import SubBar from './-components/SubBar'
 import { useSettingsStore } from '@/lib/store/settings'
@@ -24,18 +21,15 @@ function Index() {
   const triggerFetchRef = useRef<HTMLDivElement>(null)
   const { isFolderTreeOpen } = useSettingsStore()
 
-  const folderImagesQuery = useInfiniteImages(folderPath ?? undefined)
-  const searchResults = useInfiniteImagesSearch(
-    searchQuery,
-    50,
-    isSearching && searchQuery.length > 0,
-  )
+  const [filterPath, setFilterPath] = useState<string | null>(null)
 
-  const activeQuery =
-    isSearching && searchQuery.length > 0 ? searchResults : folderImagesQuery
+  const filter = {
+    text: searchQuery,
+    filterPath: filterPath ?? undefined,
+  }
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    activeQuery
+    useInfiniteImages(folderPath ?? undefined, 50, filter)
 
   const images = data?.pages.flat() || []
 
@@ -62,10 +56,16 @@ function Index() {
     )
   }
 
+  const handleSelectFolder = (path: string | null) => setFilterPath(path)
+
   return (
     <div className="flex min-h-screen">
       <aside className="sticky top-0 h-screen z-30 shrink-0">
-        <FolderTree className={!isFolderTreeOpen ? 'w-0! opacity-0' : 'w-80 opacity-100'} />
+        <FolderTree
+          className={!isFolderTreeOpen ? 'w-0! opacity-0' : 'w-80 opacity-100'}
+          onSelect={handleSelectFolder}
+          selectedPath={filterPath}
+        />
       </aside>
       <div className="flex-1 p-6 pt-20 pb-24 w-0">
         {!folderPath ? (

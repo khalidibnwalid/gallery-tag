@@ -75,7 +75,7 @@ class DBSingleton {
     const db = new Database(dbPath)
 
     // TODO: INDEXES for performance
-    db.pragma('journal_mode = WAL') 
+    db.pragma('journal_mode = WAL')
 
     db.exec(`
       CREATE TABLE IF NOT EXISTS images (
@@ -100,6 +100,16 @@ class DBSingleton {
 
         parent_id INTEGER,
         FOREIGN KEY (parent_id) REFERENCES tags (id)
+      )
+    `)
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        parent_id INTEGER, 
+        path TEXT NOT NULL UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `)
 

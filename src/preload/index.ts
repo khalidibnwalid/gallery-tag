@@ -1,5 +1,6 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import { contextBridge } from 'electron'
+import foldersApi from './api/folders'
 import generalApi from './api/general'
 import imagesApi from './api/images'
 import systemApi from './api/system'
@@ -11,6 +12,7 @@ const api = {
   images: imagesApi,
   tags: tagsApi,
   general: generalApi,
+  folders: foldersApi,
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

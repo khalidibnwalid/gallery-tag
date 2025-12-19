@@ -1,5 +1,5 @@
 import { FileInfo } from '@main/types/global'
-import { ImageModel, TagModel } from '@main/types/models.shared'
+import { ImageModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
 
 export function insertImages(
@@ -86,17 +86,49 @@ export function getAllImagesWithTagsPaginated(
   db: Database.Database,
   offset: number = 0,
   size: number = 50,
+  filter?: { text?: string; filterPath?: string },
 ): {
   data: (ImageModel & { tags?: string })[]
   total: number
 } {
+  let whereClauses: string[] = []
+  let params: any[] = []
+
+  // Filter by text (filename or tags)
+  if (filter?.text) {
+    const searchPattern = `%${filter.text}%`
+    whereClauses.push(`(
+      i.file_name LIKE ? OR 
+      t.name LIKE ?
+    )`)
+    params.push(searchPattern, searchPattern)
+  }
+
+  // Filter by folder path
+  if (filter?.filterPath) {
+    const folderPattern = `${filter.filterPath}%`
+    whereClauses.push(`i.file_path LIKE ?`)
+    params.push(folderPattern)
+  }
+
+  const whereSql =
+    whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+  // Count query
   const countStmt = db.prepare(`
-    SELECT COUNT(*) as total
-    FROM images
+    SELECT COUNT(DISTINCT i.id) as total
+    FROM images i
+    LEFT JOIN image_tags it ON i.id = it.image_id
+    LEFT JOIN tags t ON it.tag_id = t.id
+    ${whereSql}
   `)
-  const countResult = countStmt.get() as { total: number }
+
+  // Create a separate params array for count query because it shouldn't have limit/offset
+  const countParams = [...params]
+  const countResult = countStmt.get(...countParams) as { total: number }
   const total = countResult.total
 
+  // Main query
   const stmt = db.prepare(`
     SELECT 
       i.id,
@@ -113,11 +145,15 @@ export function getAllImagesWithTagsPaginated(
     FROM images i
     LEFT JOIN image_tags it ON i.id = it.image_id
     LEFT JOIN tags t ON it.tag_id = t.id
+    ${whereSql}
     GROUP BY i.id
     ORDER BY i.file_name
     LIMIT ? OFFSET ?
   `)
-  const rows = stmt.all(size, offset) as (ImageModel & { tags?: string })[]
+
+  const rows = stmt.all(...params, size, offset) as (ImageModel & {
+    tags?: string
+  })[]
 
   return {
     data: rows,
@@ -274,69 +310,4 @@ export function updateThumbnailPaths(
   })
 
   transaction(updates)
-}
-
-export function searchImagesPaginated(
-  db: Database.Database,
-  query: string,
-  offset: number = 0,
-  size: number = 50,
-): {
-  data: (ImageModel & { tags?: string })[]
-  total: number
-} {
-  const searchPattern = `%${query}%`
-  
-  // Get total count for search results
-  const countStmt = db.prepare(`
-    SELECT COUNT(DISTINCT i.id) as total
-    FROM images i
-    LEFT JOIN image_tags it ON i.id = it.image_id
-    LEFT JOIN tags t ON it.tag_id = t.id
-    WHERE 
-      i.file_name LIKE ? OR 
-      i.file_path LIKE ? OR
-      t.name LIKE ?
-  `)
-  const countResult = countStmt.get(searchPattern, searchPattern, searchPattern) as { total: number }
-  const total = countResult.total
-
-  // Get paginated search results
-  const stmt = db.prepare(`
-    SELECT
-      i.id,
-      i.file_path as filePath,
-      i.file_name as fileName,
-      i.extension,
-      i.size,
-      i.created_at as createdAt,
-      i.modified_at as modifiedAt,
-      i.last_scanned as lastScanned,
-      i.thumbnail_path as thumbnailPath,
-
-      GROUP_CONCAT(t.name) as tags
-    FROM images i
-    LEFT JOIN image_tags it ON i.id = it.image_id
-    LEFT JOIN tags t ON it.tag_id = t.id
-    WHERE 
-      i.file_name LIKE ? OR 
-      i.file_path LIKE ? OR
-      t.name LIKE ?
-    GROUP BY i.id
-    ORDER BY i.file_name
-    LIMIT ? OFFSET ?
-  `)
-
-  const results = stmt.all(
-    searchPattern,
-    searchPattern,
-    searchPattern,
-    size,
-    offset
-  ) as (ImageModel & { tags?: string })[]
-  
-  return {
-    data: results,
-    total
-  }
 }

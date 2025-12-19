@@ -12,6 +12,15 @@ export interface ImageModel {
   thumbnailPath?: string
 }
 
+export interface FolderModel {
+  id: number
+  name: string
+  parentId: number | null
+  path: string
+  createdAt: string
+  children?: FolderModel[]
+}
+
 export interface TagModel {
   id: number
   name: string
