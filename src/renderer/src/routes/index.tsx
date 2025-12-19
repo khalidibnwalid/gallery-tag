@@ -10,7 +10,9 @@ import {
 import { FolderOpenIcon } from '@phosphor-icons/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
+import { FolderTree } from '@/components/features/FolderTree'
 import SubBar from './-components/SubBar'
+import { useSettingsStore } from '@/lib/store/settings'
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -20,6 +22,7 @@ function Index() {
   const { openFolderDialog, folderPath } = useFolder()
   const { searchQuery, isSearching } = useSearch()
   const triggerFetchRef = useRef<HTMLDivElement>(null)
+  const { isFolderTreeOpen } = useSettingsStore()
 
   const folderImagesQuery = useInfiniteImages(folderPath ?? undefined)
   const searchResults = useInfiniteImagesSearch(
@@ -59,44 +62,56 @@ function Index() {
     )
   }
 
-  if (!folderPath)
-    return (
-      <div className="text-center py-12 space-y-4">
-        <p className="text-foreground text-3xl font-bold">No Folder Opened</p>
-        <Button size="lg" className="text-xl" onClick={openFolderDialog}>
-          <FolderOpenIcon className="size-6" weight="fill" />
-          Open Folder
-        </Button>
-      </div>
-    )
-
   return (
-    <div className="p-6 min-h-screen">
-      {images && images?.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 space-y-4">
-          <p className="text-foreground text-lg">
-            {isSearching ? 'No search results found' : 'Empty Folder'}
-          </p>
-        </div>
-      )}
-
-      {images && images.length > 0 && (
-        <>
-          <SubBar />
-          <div className="pb-20 gap-4 masonry">
-            {images?.map((image, index) => (
-              <ImageCard key={image.id || index} image={image} index={index} />
-            ))}
+    <div className="flex min-h-screen">
+      <aside className="sticky top-0 h-screen z-30 shrink-0">
+        <FolderTree className={!isFolderTreeOpen ? 'w-0! opacity-0' : 'w-80 opacity-100'} />
+      </aside>
+      <div className="flex-1 p-6 pt-20 pb-24 w-0">
+        {!folderPath ? (
+          <div className="text-center py-12 space-y-4">
+            <p className="text-foreground text-3xl font-bold">
+              No Folder Opened
+            </p>
+            <Button size="lg" className="text-xl" onClick={openFolderDialog}>
+              <FolderOpenIcon className="size-6" weight="fill" />
+              Open Folder
+            </Button>
           </div>
+        ) : (
+          <>
+            {images && images?.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <p className="text-foreground text-lg">
+                  {isSearching ? 'No search results found' : 'Empty Folder'}
+                </p>
+              </div>
+            )}
 
-          <div
-            ref={triggerFetchRef}
-            className="h-10 flex items-center justify-center"
-          >
-            {isFetchingNextPage && <Spinner className="size-10" />}
-          </div>
-        </>
-      )}
+            {images && images.length > 0 && (
+              <>
+                <SubBar />
+                <div className="pb-20 gap-4 masonry">
+                  {images?.map((image, index) => (
+                    <ImageCard
+                      key={image.id || index}
+                      image={image}
+                      index={index}
+                    />
+                  ))}
+                </div>
+
+                <div
+                  ref={triggerFetchRef}
+                  className="h-10 flex items-center justify-center"
+                >
+                  {isFetchingNextPage && <Spinner className="size-10" />}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

@@ -4,9 +4,11 @@ import {
   GearIcon,
   HouseSimpleIcon,
   Icon,
-  StarIcon
+  StarIcon,
+  FolderIcon,
 } from '@phosphor-icons/react'
 import { useLocation, useRouter } from '@tanstack/react-router'
+import { useSettingsStore } from '@/lib/store/settings'
 
 interface NavItem {
   route: keyof FileRoutesByTo
@@ -22,9 +24,10 @@ const navigationItems: NavItem[] = [
 export function Sidebar() {
   const router = useRouter()
   const { pathname } = useLocation()
+  const { toggleFolderTree, isFolderTreeOpen } = useSettingsStore()
 
   return (
-    <nav className="z-50 fixed left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-background/80 backdrop-blur-sm border rounded-xl shadow-lg">
+    <nav className="z-50 fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-2 p-2 bg-background/80 backdrop-blur-md border rounded-2xl shadow-xl">
       {navigationItems.map(item => {
         const isActive = pathname === item.route
 
@@ -44,6 +47,21 @@ export function Sidebar() {
           </Button>
         )
       })}
+
+      <div className="w-px bg-border h-8 mx-1 self-center" />
+
+      <Button
+        variant={isFolderTreeOpen ? 'default' : 'outline'}
+        size="icon"
+        onClick={toggleFolderTree}
+        className="size-12"
+        title="Toggle Folder Tree"
+      >
+        <FolderIcon
+          className="size-6"
+          weight={isFolderTreeOpen ? 'fill' : 'regular'}
+        />
+      </Button>
     </nav>
   )
 }

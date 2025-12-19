@@ -7,19 +7,21 @@ import TopBar from './-components/TopBar'
 
 const RootLayout = () => (
   <div className="h-screen flex">
-    <Sidebar />
-    <FolderProvider>
-      <SearchProvider>
-        <div className="flex-1 flex flex-col relative">
-          <TopBar />
-          <ScrollArea className="flex-1 overflow-auto h-100vh">
-            <main className="ps-18 pt-16 min-h-full">
-              <Outlet />
-            </main>
-          </ScrollArea>
-        </div>
-      </SearchProvider>
-    </FolderProvider>
+    <>
+      <Sidebar />
+      <FolderProvider>
+        <SearchProvider>
+          <div className="flex-1 flex flex-col relative">
+            <TopBar />
+            <ScrollArea className="flex-1 overflow-auto h-100vh">
+              <main className="min-h-full pb-24">
+                <Outlet />
+              </main>
+            </ScrollArea>
+          </div>
+        </SearchProvider>
+      </FolderProvider>
+    </>
   </div>
 )
 
