@@ -297,13 +297,13 @@ function ImageContextMenu({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={() => window.api.revealInFileExplorer(image.filePath)}
+          onClick={() => window.api.system.revealInFileExplorer(image.filePath)}
         >
           <FolderOpenIcon className="size-5" />
           Show in System Explorer
         </ContextMenuItem>
         <ContextMenuItem
-          onClick={() => window.api.openPathInDefaultApp(image.filePath)}
+          onClick={() => window.api.system.openPathInDefaultApp(image.filePath)}
         >
           <RocketLaunchIcon className="size-5" />
           Open with Default App

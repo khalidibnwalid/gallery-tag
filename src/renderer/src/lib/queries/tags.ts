@@ -8,10 +8,10 @@ export function useTags() {
   return useQuery<TagData[]>({
     queryKey: QUERIES.TAGS(),
     queryFn: async () => {
-      if (!window.api || !window.api.getAllTags) {
+      if (!window.api || !window.api.tags.getAll) {
         throw new Error('Tags API not available')
       }
-      const tags = await window.api.getAllTags()
+      const tags = await window.api.tags.getAll()
       return tags
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -22,10 +22,10 @@ export function useTagsSearchQuery(query: string, enabled: boolean = true) {
   return useQuery<TagData[]>({
     queryKey: QUERIES.TAGS_SEARCH(query),
     queryFn: async () => {
-      if (!window.api || !window.api.getTagsBySearch) {
+      if (!window.api || !window.api.tags.getBySearch) {
         throw new Error('Tag search API not available')
       }
-      const tags = await window.api.getTagsBySearch(query)
+      const tags = await window.api.tags.getBySearch(query)
       return tags
     },
     staleTime: 30 * 1000, // 30 seconds
@@ -44,11 +44,11 @@ export function useCreateTagMutation() {
       name: string
       color?: string
     }): Promise<TagData[]> => {
-      if (!window.api || !window.api.addTags) {
+      if (!window.api || !window.api.tags.add) {
         throw new Error('Add tags API not available')
       }
 
-      const newTags = await window.api.addTags([{ name, color }], [])
+      const newTags = await window.api.tags.add([{ name, color }], [])
       return newTags
     },
     onSuccess: () => {
@@ -76,14 +76,46 @@ export function useAddTagsToImageMutation({
       tags: (TagData | Pick<TagData, 'name' | 'color'>)[]
       imageIds: number[]
     }): Promise<TagData[]> => {
-      if (!window.api || !window.api.addTags) {
+      if (!window.api || !window.api.tags.add) {
         throw new Error('Add tags API not available')
       }
 
-      const result = await window.api.addTags(tags, imageIds)
+      const result = await window.api.tags.add(tags, imageIds)
       return result
     },
     onSuccess: (data, { tags, imageIds }) => {
+      queryClient.setQueryData<{ pages: ImageData[][]; pageParams: unknown[] }>(
+        QUERIES.IMAGES_PAGINATED(folderPath),
+        oldData => {
+          const ids = new Set(imageIds)
+          if (!oldData) return { pages: [], pageParams: [] }
+          return {
+            ...oldData,
+            pages: oldData.pages.map(page =>
+              page.map(image => {
+                const currentTags = image.tags
+                  ? image.tags.split(',').map(t => t.trim())
+                  : []
+
+                return ids.has(image.id)
+                  ? {
+                      ...image,
+                      tags: image.tags
+                        ? image.tags +
+                          ', ' +
+                          tags
+                            .filter(tag => !currentTags.includes(tag.name))
+                            .map(tag => tag.name)
+                            .join(', ')
+                        : tags.map(tag => tag.name).join(', '),
+                    }
+                  : image
+              }),
+            ),
+          }
+        },
+      )
+
       queryClient.setQueryData<ImageData[]>(
         QUERIES.IMAGES(folderPath),
         oldData => {
@@ -143,11 +175,11 @@ export function useRemoveTagsFromImageMutation({
       tagIds: number[]
       imageIds: number[]
     }): Promise<void> => {
-      if (!window.api || !window.api.removeTags) {
+      if (!window.api || !window.api.tags.remove) {
         throw new Error('Remove tags API not available')
       }
 
-      await window.api.removeTags(tagIds, imageIds)
+      await window.api.tags.remove(tagIds, imageIds)
     },
     onSuccess: (_, { tagIds, imageIds }) => {
       const imageIdsSet = new Set(imageIds)

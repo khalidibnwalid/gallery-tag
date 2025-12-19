@@ -1,69 +1,16 @@
 import { electronAPI } from '@electron-toolkit/preload'
-import { ImageUpdatePayload } from '@main/types/api.shared'
-import { EVENTS } from '@main/types/constants.shared'
-import {
-  ImageModel,
-  Notifier,
-  PaginatedResult,
-  TagModel,
-} from '@main/types/models.shared'
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+import { contextBridge } from 'electron'
+import generalApi from './api/general'
+import imagesApi from './api/images'
+import systemApi from './api/system'
+import tagsApi from './api/tags'
 
 // Custom APIs for renderer
 const api = {
-  openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
-  revealInFileExplorer: (filePath: string) =>
-    ipcRenderer.invoke('reveal-in-file-explorer', filePath),
-  openPathInDefaultApp: (filePath: string) =>
-    ipcRenderer.invoke('open-path-in-default-app', filePath),
-
-  getImageFiles: (folderPath: string) =>
-    ipcRenderer.invoke('get-image-files', folderPath),
-  getImageFilesPaginated: (
-    folderPath: string,
-    offset: number = 0,
-    size: number = 50,
-  ): Promise<PaginatedResult<ImageModel & { tags?: string }>> =>
-    ipcRenderer.invoke('get-image-files-paginated', folderPath, offset, size),
-  onImageUpdate: (callback: (data: ImageUpdatePayload) => void) => {
-    const sub = (_: IpcRendererEvent, data: { payload: ImageUpdatePayload }) =>
-      callback(data.payload)
-    ipcRenderer.on(EVENTS.UPDATE_IMAGE, sub)
-    return () => ipcRenderer.removeListener(EVENTS.UPDATE_IMAGE, sub)
-  },
-  getItemsBySearch: (query: string) =>
-    ipcRenderer.invoke('get-items-by-search', query),
-  getItemsBySearchPaginated: (
-    query: string,
-    offset: number = 0,
-    size: number = 50,
-  ): Promise<PaginatedResult<ImageModel & { tags?: string }>> =>
-    ipcRenderer.invoke('get-items-by-search-paginated', query, offset, size),
-
-  addTags(tags: TagModel[], imagesIds: number[]): Promise<TagModel[]> {
-    return ipcRenderer.invoke('add-tags', { tags, imagesIds })
-  },
-
-  removeTags(tagIds: number[], imagesIds: number[]) {
-    return ipcRenderer.invoke('remove-tags', { tagIds, imagesIds })
-  },
-
-  getAllTags(): Promise<TagModel[]> {
-    return ipcRenderer.invoke('get-all-tags')
-  },
-
-  getTagsBySearch(query: string): Promise<TagModel[]> {
-    return ipcRenderer.invoke('get-tags-by-search', query)
-  },
-
-  onNotify: (callback: (notifier: Notifier<unknown>) => void) => {
-    const sub = (_: IpcRendererEvent, data: { payload: Notifier<unknown> }) =>
-      callback(data.payload)
-    ipcRenderer.on(EVENTS.NOTIFY, sub)
-    return () => ipcRenderer.removeListener(EVENTS.NOTIFY, sub)
-  },
-
-  closeApp: () => ipcRenderer.invoke('close-app'),
+  system: systemApi,
+  images: imagesApi,
+  tags: tagsApi,
+  general: generalApi,
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

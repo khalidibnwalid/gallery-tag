@@ -26,7 +26,7 @@ import { join } from 'path'
 
 const THUMBNAIL_WIDTH = 512
 
-async function getImageFilesBase(
+async function getAllBase(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
   offset?: number,
@@ -187,25 +187,22 @@ async function getImageFilesBase(
   }
 }
 
-export default async function getImageFilesHandler(
+export default async function getAllHandler(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
 ): Promise<(ImageModel & { tags?: string })[]> {
-  return (await getImageFilesBase(event, folderPath)) as (ImageModel & {
+  return (await getAllBase(event, folderPath)) as (ImageModel & {
     tags?: string
   })[]
 }
 
-export async function getImageFilesPaginatedHandler(
+export async function getPaginatedHandler(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
   offset: number = 0,
   size: number = 50,
 ): Promise<PaginatedResult<ImageModel & { tags?: string }>> {
-  return (await getImageFilesBase(
-    event,
-    folderPath,
-    offset,
-    size,
-  )) as PaginatedResult<ImageModel & { tags?: string }>
+  return (await getAllBase(event, folderPath, offset, size)) as PaginatedResult<
+    ImageModel & { tags?: string }
+  >
 }

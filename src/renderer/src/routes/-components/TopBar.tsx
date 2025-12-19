@@ -32,7 +32,7 @@ export default function TopBar() {
           variant="outline"
           size="icon"
           className="backdrop-blur-3xl bg-background/70!"
-          onClick={() => window.api.closeApp()}
+          onClick={() => window.api.system.closeApp()}
         >
           <XIcon size={20} color="currentColor" />
         </Button>
@@ -96,8 +96,7 @@ function TopTitle() {
           <Spinner />
         ) : (
           <span className="w-full overflow-hidden font-bold ">
-            {data?.pages.flat().length.toLocaleString() || 0} {" "}
-            Loaded
+            {data?.pages.flat().length.toLocaleString() || 0} Loaded
           </span>
         )}
       </Button>

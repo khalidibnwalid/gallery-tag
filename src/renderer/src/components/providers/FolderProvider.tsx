@@ -25,12 +25,12 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
 
   async function openFolderDialog(): Promise<string | null> {
     try {
-      if (!window.api || !window.api.openFolderDialog) {
+      if (!window.api || !window.api.system.openFolderDialog) {
         console.error('API not available')
         alert('API not available. Make sure the app is running in Electron.')
         return null
       }
-      const folderPath = await window.api.openFolderDialog()
+      const folderPath = await window.api.system.openFolderDialog()
 
       if (folderPath) {
         setFolderPath(folderPath)
@@ -42,7 +42,6 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
       alert(`Error opening folder: ${error}`)
       return null
     }
-
   }
 
   return (

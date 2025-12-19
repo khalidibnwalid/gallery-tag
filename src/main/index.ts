@@ -1,20 +1,8 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
-import addTagsHandler from './handlers/addTags'
-import getAllTagsHandler from './handlers/getAllTags'
-import getImageFilesHandler, {
-  getImageFilesPaginatedHandler,
-} from './handlers/getImageFiles'
-import getItemsBySearchHandler, {
-  getItemsBySearchPaginatedHandler,
-} from './handlers/getItemsBySearch'
-import getTagsBySearchHandler from './handlers/getTagsBySearch'
-import openFolderDialogHandler from './handlers/openFolderDialog'
-import openPathInDefaultAppHandler from './handlers/openPathInDefaultApp'
-import removeTagsHandler from './handlers/removeTags'
-import revealInFileExplorerHandler from './handlers/revealInFileExplorer'
+import { registerAllHandlers } from './handlers'
 import { notifier } from './services/notifier.service'
 
 app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
@@ -71,21 +59,7 @@ app.whenReady().then(() => {
   })
 
   // IPC Handlers
-  ipcMain.handle('open-folder-dialog', openFolderDialogHandler)
-  ipcMain.handle('get-image-files', getImageFilesHandler)
-  ipcMain.handle('get-image-files-paginated', getImageFilesPaginatedHandler)
-  ipcMain.handle('get-items-by-search', getItemsBySearchHandler)
-  ipcMain.handle(
-    'get-items-by-search-paginated',
-    getItemsBySearchPaginatedHandler,
-  )
-  ipcMain.handle('add-tags', addTagsHandler)
-  ipcMain.handle('remove-tags', removeTagsHandler)
-  ipcMain.handle('get-all-tags', getAllTagsHandler)
-  ipcMain.handle('get-tags-by-search', getTagsBySearchHandler)
-  ipcMain.handle('reveal-in-file-explorer', revealInFileExplorerHandler)
-  ipcMain.handle('open-path-in-default-app', openPathInDefaultAppHandler)
-  ipcMain.handle('close-app', () => app.quit())
+  registerAllHandlers()
 
   createWindow()
 

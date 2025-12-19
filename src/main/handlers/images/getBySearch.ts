@@ -2,19 +2,23 @@ import { ImageModel, PaginatedResult } from '@main/types/models.shared'
 import { db } from '@main/utils/db/db'
 import { searchImagesPaginated } from '@main/utils/db/Image'
 
-async function getItemsBySearchBase(
+async function getBySearchBase(
   _event: Electron.IpcMainInvokeEvent,
   query: string,
   offset?: number,
   size?: number,
-): Promise<PaginatedResult<ImageModel & { tags?: string }> | (ImageModel & { tags?: string })[]> {
+): Promise<
+  | PaginatedResult<ImageModel & { tags?: string }>
+  | (ImageModel & { tags?: string })[]
+> {
   try {
     const searchQuery = query.trim()
     const isPaginated = offset !== undefined && size !== undefined
 
-    console.log(isPaginated 
-      ? `Searching for: "${searchQuery}" with pagination - offset: ${offset}, size: ${size}`
-      : `Searching for: "${searchQuery}"`
+    console.log(
+      isPaginated
+        ? `Searching for: "${searchQuery}" with pagination - offset: ${offset}, size: ${size}`
+        : `Searching for: "${searchQuery}"`,
     )
 
     if (!searchQuery) {
@@ -25,8 +29,8 @@ async function getItemsBySearchBase(
             offset: offset!,
             size: size!,
             total: 0,
-            hasMore: false
-          }
+            hasMore: false,
+          },
         }
       } else {
         return []
@@ -34,11 +38,15 @@ async function getItemsBySearchBase(
     }
 
     if (isPaginated) {
-      const { data: results, total } = searchItemsPaginated(searchQuery, offset!, size!)
+      const { data: results, total } = searchItemsPaginated(
+        searchQuery,
+        offset!,
+        size!,
+      )
       const hasMore = offset! + size! < total
 
       console.log(
-        `Found ${results.length} images matching search query: "${searchQuery}" (${offset}-${offset! + size! - 1} of ${total})`
+        `Found ${results.length} images matching search query: "${searchQuery}" (${offset}-${offset! + size! - 1} of ${total})`,
       )
 
       return {
@@ -47,19 +55,19 @@ async function getItemsBySearchBase(
           offset: offset!,
           size: size!,
           total,
-          hasMore
-        }
+          hasMore,
+        },
       }
     } else {
       const results = searchItems(searchQuery)
       console.log(
-        `Found ${results.length} images matching search query: "${searchQuery}"`
+        `Found ${results.length} images matching search query: "${searchQuery}"`,
       )
       return results
     }
   } catch (error) {
     console.error('Error searching for items:', error)
-    
+
     if (offset !== undefined && size !== undefined) {
       return {
         data: [],
@@ -67,8 +75,8 @@ async function getItemsBySearchBase(
           offset,
           size,
           total: 0,
-          hasMore: false
-        }
+          hasMore: false,
+        },
       }
     } else {
       throw error
@@ -76,20 +84,24 @@ async function getItemsBySearchBase(
   }
 }
 
-export default async function getItemsBySearchHandler(
+export default async function getBySearchHandler(
   event: Electron.IpcMainInvokeEvent,
   query: string,
 ): Promise<(ImageModel & { tags?: string })[]> {
-  return await getItemsBySearchBase(event, query) as (ImageModel & { tags?: string })[]
+  return (await getBySearchBase(event, query)) as (ImageModel & {
+    tags?: string
+  })[]
 }
 
-export async function getItemsBySearchPaginatedHandler(
+export async function getBySearchPaginatedHandler(
   event: Electron.IpcMainInvokeEvent,
   query: string,
   offset: number = 0,
   size: number = 50,
 ): Promise<PaginatedResult<ImageModel & { tags?: string }>> {
-  return await getItemsBySearchBase(event, query, offset, size) as PaginatedResult<ImageModel & { tags?: string }>
+  return (await getBySearchBase(event, query, offset, size)) as PaginatedResult<
+    ImageModel & { tags?: string }
+  >
 }
 
 function searchItems(query: string): (ImageModel & { tags?: string })[] {
@@ -129,7 +141,11 @@ function searchItems(query: string): (ImageModel & { tags?: string })[] {
   return results
 }
 
-function searchItemsPaginated(query: string, offset: number, size: number): {
+function searchItemsPaginated(
+  query: string,
+  offset: number,
+  size: number,
+): {
   data: (ImageModel & { tags?: string })[]
   total: number
 } {

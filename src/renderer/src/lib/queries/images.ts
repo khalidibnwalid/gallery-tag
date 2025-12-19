@@ -19,11 +19,11 @@ function subscribeToImageUpdates(
   folderPath: string,
   isInfinite: boolean = false,
 ) {
-  if (!window.api || !window.api.onImageUpdate) return
+  if (!window.api || !window.api.images.onUpdate) return
 
   // create subscriptions if none exist
   if (globalSubscriptionCount++ === 0) {
-    globalImageUpdateUnsubscribe = window.api.onImageUpdate(
+    globalImageUpdateUnsubscribe = window.api.images.onUpdate(
       ({ images }: ImageUpdatePayload) => {
         images.forEach(image => {
           if (isInfinite) {
@@ -86,10 +86,10 @@ export default function useImages(folderPath?: string) {
   return useQuery<ImageData[]>({
     queryKey: QUERIES.IMAGES(folderPath),
     queryFn: async () => {
-      if (!window.api || !window.api.openFolderDialog) {
+      if (!window.api || !window.api.system.openFolderDialog) {
         throw new Error('API not available')
       }
-      const imageFiles = await window.api.getImageFiles(folderPath)
+      const imageFiles = await window.api.images.getAll(folderPath)
       return imageFiles
     },
     staleTime: Infinity,
@@ -115,10 +115,10 @@ export function useInfiniteImages(folderPath?: string, pageSize: number = 50) {
     queryKey: QUERIES.IMAGES_PAGINATED(folderPath),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      if (!window.api || !window.api.getImageFilesPaginated) {
+      if (!window.api || !window.api.images.getPaginated) {
         throw new Error('API not available')
       }
-      const result = await window.api.getImageFilesPaginated(
+      const result = await window.api.images.getPaginated(
         folderPath,
         pageParam as number,
         pageSize,
@@ -143,10 +143,10 @@ export function useInfiniteImagesSearch(
     queryKey: QUERIES.IMAGES_SEARCH(query),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      if (!window.api || !window.api.getItemsBySearchPaginated) {
+      if (!window.api || !window.api.images.getBySearchPaginated) {
         throw new Error('Search API not available')
       }
-      const result = await window.api.getItemsBySearchPaginated(
+      const result = await window.api.images.getBySearchPaginated(
         query,
         pageParam as number,
         pageSize,
@@ -167,10 +167,10 @@ export function useImagesSearchQuery(query: string, enabled: boolean = true) {
   return useQuery<ImageData[]>({
     queryKey: QUERIES.IMAGES_SEARCH(query),
     queryFn: async () => {
-      if (!window.api || !window.api.getItemsBySearch) {
+      if (!window.api || !window.api.images.getBySearch) {
         throw new Error('Search API not available')
       }
-      const results = await window.api.getItemsBySearch(query)
+      const results = await window.api.images.getBySearch(query)
       return results
     },
     staleTime: 30 * 1000, // 30 seconds

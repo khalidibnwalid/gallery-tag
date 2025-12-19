@@ -1,7 +1,7 @@
 import { db } from '@main/utils/db/db'
 import { removeTagsFromImages } from '@main/utils/db/tag'
 
-export default async function removeTagsHandler(
+export default async function removeHandler(
   _: Electron.IpcMainInvokeEvent,
   {
     tagIds,

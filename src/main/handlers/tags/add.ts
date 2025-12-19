@@ -2,7 +2,7 @@ import { TagModel } from '@main/types/models.shared'
 import { db } from '@main/utils/db/db'
 import { addTagsToImages, getOrCreateTags } from '@main/utils/db/tag'
 
-export default async function addTagsHandler(
+export default async function addHandler(
   _event: Electron.IpcMainInvokeEvent,
   {
     tags,

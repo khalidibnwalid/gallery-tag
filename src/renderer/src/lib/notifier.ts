@@ -16,12 +16,12 @@ let subscriptionCount = 0
 let progressStateMap = new Map<string, ProgressState>()
 
 export function setupGlobalNotifier() {
-  if (!window.api || !window.api.onNotify) return
+  if (!window.api || !window.api.general.onNotify) return
 
   // subscribe if none exists
   if (subscriptionCount === 0) {
     subscriptionCount++
-    globalNotifyUnsubscribe = window.api.onNotify(notification => {
+    globalNotifyUnsubscribe = window.api.general.onNotify(notification => {
       switch (notification.id) {
         case 'image-thumbnail-generated':
           if (notification.type === 'progress.part') {

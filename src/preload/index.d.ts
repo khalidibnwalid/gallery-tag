@@ -11,42 +11,50 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: {
-      openFolderDialog: () => Promise<string | null>
-      revealInFileExplorer: (filePath: string) => void
-      openPathInDefaultApp: (filePath: string) => void
+      system: {
+        openFolderDialog: () => Promise<string | null>
+        revealInFileExplorer: (filePath: string) => void
+        openPathInDefaultApp: (filePath: string) => void
+        closeApp: () => void
+      }
 
-      getImageFiles: (
-        folderPath: string,
-      ) => Promise<(ImageModel & { tags?: string })[]>
-      getImageFilesPaginated: (
-        folderPath: string,
-        offset?: number,
-        size?: number,
-      ) => Promise<PaginatedResult<ImageModel & { tags?: string }>>
-      getItemsBySearch: (
-        query: string,
-      ) => Promise<(ImageModel & { tags?: string })[]>
-      getItemsBySearchPaginated: (
-        query: string,
-        offset?: number,
-        size?: number,
-      ) => Promise<PaginatedResult<ImageModel & { tags?: string }>>
-      onImageUpdate: (
-        callback: ({ images }: ImageUpdatePayload) => void,
-      ) => () => void
+      images: {
+        getAll: (
+          folderPath: string,
+        ) => Promise<(ImageModel & { tags?: string })[]>
+        getPaginated: (
+          folderPath: string,
+          offset?: number,
+          size?: number,
+        ) => Promise<PaginatedResult<ImageModel & { tags?: string }>>
+        getBySearch: (
+          query: string,
+        ) => Promise<(ImageModel & { tags?: string })[]>
+        getBySearchPaginated: (
+          query: string,
+          offset?: number,
+          size?: number,
+        ) => Promise<PaginatedResult<ImageModel & { tags?: string }>>
+        onUpdate: (
+          callback: ({ images }: ImageUpdatePayload) => void,
+        ) => () => void
+      }
 
-      addTags: (
-        tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[],
-        imagesIds: number[],
-      ) => Promise<TagModel[]>
-      removeTags: (tagIds: number[], imagesIds: number[]) => Promise<void>
+      tags: {
+        add: (
+          tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[],
+          imagesIds: number[],
+        ) => Promise<TagModel[]>
+        remove: (tagIds: number[], imagesIds: number[]) => Promise<void>
+        getAll: () => Promise<TagModel[]>
+        getBySearch: (query: string) => Promise<TagModel[]>
+      }
 
-      getAllTags: () => Promise<TagModel[]>
-      getTagsBySearch: (query: string) => Promise<TagModel[]>
-
-      onNotify: (callback: (notifier: Notifier<unknown>) => void) => () => void
-
-      closeApp: () => void
+      general: {
+        onNotify: (
+          callback: (notifier: Notifier<unknown>) => void,
+        ) => () => void
+      }
     }
   }
 }

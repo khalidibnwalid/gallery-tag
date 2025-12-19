@@ -2,7 +2,7 @@ import { TagModel } from '@main/types/models.shared'
 import { db } from '@main/utils/db/db'
 import { getTagsBySearch } from '@main/utils/db/tag'
 
-export default async function getTagsBySearchHandler(
+export default async function getBySearchHandler(
   _event: Electron.IpcMainInvokeEvent,
   query: string,
 ): Promise<TagModel[]> {
