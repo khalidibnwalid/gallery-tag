@@ -265,7 +265,7 @@ function ImageContextMenu({
     const text = await readFromClipboard()
     if (text) {
       const tagsSet = new Set<string>(allTags?.map(tag => tag.name))
-      const tags: (TagData | Pick<TagData, 'name'>)[] = text
+      const tags: (TagData | Pick<TagData, 'name' | 'color'>)[] = text
         .split(',')
         .filter(tag => Boolean(tag.trim()))
         .map(tag => {

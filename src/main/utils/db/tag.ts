@@ -1,5 +1,5 @@
-import { TagModel } from '@main/types/models.shared';
-import Database from 'better-sqlite3';
+import { TagModel } from '@main/types/models.shared'
+import Database from 'better-sqlite3'
 
 export function getOrCreateTags(
   db: Database.Database,
@@ -10,6 +10,7 @@ export function getOrCreateTags(
 ): TagModel[] {
   const transaction = db.transaction(() => {
     const results: TagModel[] = []
+    const pendingNames: string[] = []
 
     const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO tags (name, color)
@@ -26,13 +27,25 @@ export function getOrCreateTags(
       if (existingTag) {
         results.push(existingTag)
       } else {
+        if (!tagData.name) continue
+
         const newTag = insertStmt.get(
           tagData.name,
           tagData.color || null,
           tagData.name,
-        ) as TagModel
-        results.push(newTag)
+        ) as TagModel | undefined
+
+        if (newTag) {
+          results.push(newTag)
+        } else {
+          pendingNames.push(tagData.name)
+        }
       }
+    }
+
+    if (pendingNames.length > 0) {
+      const existingTags = getTagsByName(db, pendingNames)
+      results.push(...existingTags)
     }
 
     return results
@@ -56,6 +69,37 @@ export function getTagById(
   `)
 
   return stmt.get(tagId) as TagModel | undefined
+}
+
+export function getTagsByName(
+  db: Database.Database,
+  name: string,
+): TagModel | undefined
+export function getTagsByName(db: Database.Database, name: string[]): TagModel[]
+export function getTagsByName(
+  db: Database.Database,
+  name: string | string[],
+): TagModel | TagModel[] | undefined {
+  const isSingle = !Array.isArray(name)
+  const names = isSingle ? [name as string] : (name as string[])
+  const placeholders = names.map(() => 'LOWER(?)').join(',')
+
+  const stmt = db.prepare(`
+    SELECT 
+      id,
+      name,
+      color,
+      created_at as createdAt
+    FROM tags
+    WHERE name IN (${placeholders})
+  `)
+
+  const results = stmt.all(...names) as TagModel[]
+
+  if (isSingle) {
+    return results[0]
+  }
+  return results
 }
 
 export function getAllTags(db: Database.Database): TagModel[] {
