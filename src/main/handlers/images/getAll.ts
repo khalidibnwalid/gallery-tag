@@ -74,6 +74,8 @@ async function getAllBase(
       const imageUpdateBatcher = new Batcher<{
         filePath: string
         thumbnailPath: string
+        width?: number
+        height?: number
       }>({
         batchSize: 50,
         debounceTime: 500,
@@ -132,6 +134,8 @@ async function getAllBase(
           const payload = {
             filePath: currentResult.imagePath,
             thumbnailPath: currentResult.outputPath,
+            width: currentResult.originalWidth,
+            height: currentResult.originalHeight,
             order: processedCount,
             total: newFiles.length,
           }

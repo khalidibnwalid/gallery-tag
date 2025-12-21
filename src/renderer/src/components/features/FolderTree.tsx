@@ -71,7 +71,7 @@ function TreeNode({
   onSelect?: (path: string | null) => void
   selectedPath?: string | null
 }) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(true)
   const hasChildren = node.children && node.children.length > 0
 
   const isSelected = selectedPath === node.path

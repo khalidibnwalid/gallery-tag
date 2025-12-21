@@ -10,6 +10,8 @@ export interface ImageModel {
   modifiedAt: string
   lastScanned: string
   thumbnailPath?: string
+  width?: number
+  height?: number
 }
 
 export interface FolderModel {

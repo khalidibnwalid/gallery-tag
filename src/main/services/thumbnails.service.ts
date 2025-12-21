@@ -16,6 +16,8 @@ export type ThumbnailResult =
       imagePath: string
       outputPath: string
       success: true
+      originalWidth?: number
+      originalHeight?: number
       error?: undefined
     }
   | {
@@ -90,7 +92,10 @@ async function processImage(
   quality?: number,
 ): Promise<ThumbnailResult> {
   try {
-    await sharp(imagePath)
+    const pipeline = sharp(imagePath)
+    const metadata = await pipeline.metadata()
+
+    await pipeline
       .resize(width, height, {
         fit: 'cover',
         position: 'center',
@@ -102,6 +107,8 @@ async function processImage(
       imagePath,
       outputPath,
       success: true,
+      originalWidth: metadata.width,
+      originalHeight: metadata.height,
     }
   } catch (error) {
     return {

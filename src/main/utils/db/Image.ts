@@ -48,7 +48,9 @@ export function getAllImages(db: Database.Database): ImageModel[] {
       created_at as createdAt,
       modified_at as modifiedAt,
       last_scanned as lastScanned,
-      thumbnail_path as thumbnailPath
+      thumbnail_path as thumbnailPath,
+      width,
+      height
     FROM images 
     ORDER BY file_name
   `)
@@ -69,7 +71,10 @@ export function getAllImagesWithTags(
       i.created_at as createdAt,
       i.modified_at as modifiedAt,
       i.last_scanned as lastScanned,
+      i.last_scanned as lastScanned,
       i.thumbnail_path as thumbnailPath,
+      i.width,
+      i.height,
 
       GROUP_CONCAT(t.name) as tags
     FROM images i
@@ -139,7 +144,10 @@ export function getAllImagesWithTagsPaginated(
       i.created_at as createdAt,
       i.modified_at as modifiedAt,
       i.last_scanned as lastScanned,
+      i.last_scanned as lastScanned,
       i.thumbnail_path as thumbnailPath,
+      i.width,
+      i.height,
 
       GROUP_CONCAT(t.name) as tags
     FROM images i
@@ -293,19 +301,29 @@ export function updateThumbnailPath(
 
 export function updateThumbnailPaths(
   db: Database.Database,
-  updates: { filePath: string; thumbnailPath: string }[],
+  updates: {
+    filePath: string
+    thumbnailPath: string
+    width?: number
+    height?: number
+  }[],
 ): void {
   if (updates.length === 0) return
 
   const stmt = db.prepare(`
     UPDATE images 
-    SET thumbnail_path = ? 
+    SET thumbnail_path = ?, width = ?, height = ?
     WHERE file_path = ?
   `)
 
   const transaction = db.transaction((updateList: typeof updates) => {
     for (const update of updateList) {
-      stmt.run(update.thumbnailPath, update.filePath)
+      stmt.run(
+        update.thumbnailPath,
+        update.width || null,
+        update.height || null,
+        update.filePath,
+      )
     }
   })
 

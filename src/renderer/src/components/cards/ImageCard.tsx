@@ -42,8 +42,22 @@ export default function ImageCard(props: Props) {
     height: number
   } | null>(null)
 
+  const aspectRatio =
+    props.image.width && props.image.height
+      ? `${props.image.width} / ${props.image.height}`
+      : undefined
+
   return (
-    <Virtualize height={`${imageDimensions?.height || 500}px`}>
+    <Virtualize
+      height={
+        aspectRatio
+          ? undefined
+          : imageDimensions?.height
+            ? `${imageDimensions.height}px`
+            : '500px'
+      }
+      style={aspectRatio ? { aspectRatio } : undefined}
+    >
       <ImageBody
         image={props.image}
         index={props.index}
@@ -95,7 +109,10 @@ function ImageBody({
     : allTags.slice(0, TAG_DISPLAY_LIMIT)
 
   // maintain aspect ratio on unload
+  // only if we don't have the dimensions from the db
   const onImageLoad = () => {
+    if (image.width && image.height) return
+
     if (imgRef.current) {
       const { naturalWidth, naturalHeight } = imgRef.current
       const containerWidth = imgRef.current.offsetWidth
@@ -191,12 +208,24 @@ function ImageBody({
         )}
 
         <div className="grid gap-1 p-3 bg-background/60 max-h-1/2 backdrop-blur-3xl absolute bottom-0 w-full opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="flex items-start justify-between gap-1">
-            <h2 className="text-xl font-semibold">{image.fileName}</h2>
+          <div className="flex items-start justify-between gap-1 min-w-0">
+            <div className="flex-1 flex flex-col gap-0.5 min-w-0 overflow-hidden">
+              <h2
+                className="text-xl font-semibold truncate"
+                title={image.fileName}
+              >
+                {image.fileName}
+              </h2>
+              {image.width && image.height && (
+                <p className="text-xs text-muted-foreground font-mono">
+                  {image.width} × {image.height}
+                </p>
+              )}
+            </div>
             <TagSelector currentTags={allTags} imageIds={image.id}>
               <Button
                 variant="outline"
-                className=""
+                className="shrink-0"
                 size="icon-lg"
                 onClick={e => e.stopPropagation()}
               >

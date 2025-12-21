@@ -87,7 +87,9 @@ class DBSingleton {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         modified_at DATETIME NOT NULL,
         last_scanned DATETIME DEFAULT CURRENT_TIMESTAMP,
-        thumbnail_path TEXT
+        thumbnail_path TEXT,
+        width INTEGER,
+        height INTEGER
       )
     `)
 
