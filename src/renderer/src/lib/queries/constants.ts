@@ -3,7 +3,7 @@ const QUERIES = {
     folderPath ? (['images', folderPath] as const) : (['images'] as const),
   IMAGES_PAGINATED: (
     folderPath?: string,
-    filter?: { text?: string; filterPath?: string },
+    filter?: { text?: string; filterPath?: string; tags?: string[] },
   ) =>
     folderPath
       ? (['images', 'paginated', folderPath, filter] as const)

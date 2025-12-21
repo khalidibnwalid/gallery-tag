@@ -1,4 +1,5 @@
 import { FileInfo } from '@main/types/global'
+import { SearchFilter } from '@main/types/api.shared'
 import { ImageModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
 
@@ -91,7 +92,7 @@ export function getAllImagesWithTagsPaginated(
   db: Database.Database,
   offset: number = 0,
   size: number = 50,
-  filter?: { text?: string; filterPath?: string },
+  filter?: SearchFilter,
 ): {
   data: (ImageModel & { tags?: string })[]
   total: number
@@ -114,6 +115,30 @@ export function getAllImagesWithTagsPaginated(
     const folderPattern = `${filter.filterPath}%`
     whereClauses.push(`i.file_path LIKE ?`)
     params.push(folderPattern)
+  }
+
+  // Filter by tags
+  if (filter?.tags && filter.tags.length > 0) {
+    const placeholders = filter.tags.map(() => '?').join(',')
+    whereClauses.push(`i.id IN (
+      SELECT it.image_id
+      FROM image_tags it
+      JOIN tags t ON it.tag_id = t.id
+      WHERE t.name IN (${placeholders})
+    )`)
+    params.push(...filter.tags)
+  }
+
+  // Filter by excluded tags
+  if (filter?.excludedTags && filter.excludedTags.length > 0) {
+    const placeholders = filter.excludedTags.map(() => '?').join(',')
+    whereClauses.push(`i.id NOT IN (
+      SELECT it.image_id
+      FROM image_tags it
+      JOIN tags t ON it.tag_id = t.id
+      WHERE t.name IN (${placeholders})
+    )`)
+    params.push(...filter.excludedTags)
   }
 
   const whereSql =

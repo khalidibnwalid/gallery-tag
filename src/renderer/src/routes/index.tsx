@@ -1,3 +1,4 @@
+import { TagsExplorer } from '@/components/features/TagsExplorer'
 import ImageCard from '@/components/cards/ImageCard'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
@@ -10,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { FolderTree } from '@/components/features/FolderTree'
 import SubBar from './-components/SubBar'
 import { useSettingsStore } from '@/lib/store/settings'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -22,17 +24,21 @@ function Index() {
   const { isFolderTreeOpen } = useSettingsStore()
 
   const [filterPath, setFilterPath] = useState<string | null>(null)
+  const [filterTags, setFilterTags] = useState<string[]>([])
+  const [excludedTags, setExcludedTags] = useState<string[]>([])
 
   const filter = {
     text: searchQuery,
     filterPath: filterPath ?? undefined,
+    tags: filterTags,
+    excludedTags,
   }
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteImages(folderPath ?? undefined, 50, filter)
 
   const images = data?.pages.flat() || []
-
+  
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {
@@ -60,11 +66,25 @@ function Index() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 h-screen z-30 shrink-0">
+      <aside
+        className={cn(
+          'sticky top-0 h-screen z-30 shrink-0 flex flex-col transition-all duration-300',
+          !isFolderTreeOpen
+            ? 'w-0 overflow-hidden opacity-0'
+            : 'w-80 opacity-100',
+        )}
+      >
         <FolderTree
-          className={!isFolderTreeOpen ? 'w-0! opacity-0' : 'w-80 opacity-100'}
+          className="flex-1 min-h-0"
           onSelect={handleSelectFolder}
           selectedPath={filterPath}
+        />
+        <TagsExplorer
+          className="flex-1 min-h-0 border-t border-border/40"
+          selectedTags={filterTags}
+          excludedTags={excludedTags}
+          onSelectTags={setFilterTags}
+          onExcludeTags={setExcludedTags}
         />
       </aside>
       <div className="flex-1 p-6 pt-20 pb-24 w-0">

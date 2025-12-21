@@ -1,3 +1,6 @@
+import { useFolder } from '@/components/providers/FolderProvider'
+import { Button } from '@/components/ui/button'
+import { useFolders } from '@/lib/queries/folders'
 import { cn } from '@/lib/utils'
 import { FolderModel } from '@main/types/models.shared'
 import {
@@ -6,8 +9,6 @@ import {
   FolderIcon,
 } from '@phosphor-icons/react'
 import { memo, useState } from 'react'
-import { useFolders } from '@/lib/queries/folders'
-import { useFolder } from '@/components/providers/FolderProvider'
 
 interface FolderTreeProps {
   className?: string
@@ -29,7 +30,7 @@ export const FolderTree = memo(function FolderTree({
     <div
       className={cn(
         className,
-        'border-e-2 border-border h-full flex flex-col pt-16 transition-all duration-300',
+        'border-e-2 border-border flex flex-col pt-16 transition-all duration-300',
       )}
     >
       <div className="px-6 py-4 border-b border-border/40 font-bold text-xs text-muted-foreground uppercase tracking-widest flex items-center justify-between">
@@ -78,14 +79,17 @@ function TreeNode({
 
   return (
     <div>
-      <div
+      <Button
+        variant={isSelected ? 'secondary' : 'ghost'}
         className={cn(
-          'flex items-center gap-2.5 pr-2 py-2 group select-none transition-colors',
+          'w-full justify-start h-10 pr-4 font-bold',
+          isSelected && 'bg-primary! text-primary-foreground',
         )}
         style={{ paddingLeft: `${level * 16 + 12}px` }}
+        onClick={() => onSelect?.(node.path)}
       >
         <span
-          className="text-muted-foreground/70 hover:text-foreground shrink-0 cursor-pointer p-0.5 hover:bg-accent rounded"
+          className="mr-2 cursor-pointer hover:bg-pure/20 rounded p-0.5 shrink-0"
           onClick={e => {
             e.stopPropagation()
             setIsOpen(!isOpen)
@@ -98,30 +102,18 @@ function TreeNode({
               <CaretRightIcon size={14} />
             )
           ) : (
-            <div className="w-[14px]" />
+            <div className="w-[14px] h-[14px]" />
           )}
         </span>
-        <div
+        <FolderIcon
           className={cn(
-            'flex flex-1 items-center gap-2.5 cursor-pointer px-2 py-1 rounded-md transition-colors',
-            isSelected
-              ? 'bg-accent text-accent-foreground'
-              : 'hover:bg-accent/50 hover:text-accent-foreground',
+            'mr-2 size-5',
+            isSelected ? 'text-primary-foreground' : 'text-primary',
           )}
-          onClick={() => {
-            onSelect?.(node.path)
-          }}
-        >
-          <FolderIcon
-            className={
-              isOpen || isSelected ? 'text-primary' : 'text-muted-foreground'
-            }
-            weight={isOpen || isSelected ? 'fill' : 'duotone'}
-            size={20}
-          />
-          <span className="truncate font-medium">{node.name}</span>
-        </div>
-      </div>
+          weight={isOpen || isSelected ? 'fill' : 'duotone'}
+        />
+        <span className="truncate">{node.name}</span>
+      </Button>
       {isOpen && hasChildren && (
         <div className="mt-0.5">
           {node.children!.map(child => (

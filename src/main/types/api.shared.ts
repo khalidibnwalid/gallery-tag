@@ -10,4 +10,6 @@ export interface ImageUpdatePayload {
 export interface SearchFilter {
   text?: string
   filterPath?: string
+  tags?: string[]
+  excludedTags?: string[]
 }

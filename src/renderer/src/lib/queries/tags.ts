@@ -84,37 +84,37 @@ export function useAddTagsToImageMutation({
       return result
     },
     onSuccess: (data, { tags, imageIds }) => {
-      queryClient.setQueryData<{ pages: ImageData[][]; pageParams: unknown[] }>(
-        QUERIES.IMAGES_PAGINATED(folderPath),
-        oldData => {
-          const ids = new Set(imageIds)
-          if (!oldData) return { pages: [], pageParams: [] }
-          return {
-            ...oldData,
-            pages: oldData.pages.map(page =>
-              page.map(image => {
-                const currentTags = image.tags
-                  ? image.tags.split(',').map(t => t.trim())
-                  : []
+      queryClient.setQueriesData<{
+        pages: ImageData[][]
+        pageParams: unknown[]
+      }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
+        const ids = new Set(imageIds)
+        if (!oldData) return { pages: [], pageParams: [] }
+        return {
+          ...oldData,
+          pages: oldData.pages.map(page =>
+            page.map(image => {
+              const currentTags = image.tags
+                ? image.tags.split(',').map(t => t.trim())
+                : []
 
-                return ids.has(image.id)
-                  ? {
-                      ...image,
-                      tags: image.tags
-                        ? image.tags +
-                          ', ' +
-                          tags
-                            .filter(tag => !currentTags.includes(tag.name))
-                            .map(tag => tag.name)
-                            .join(', ')
-                        : tags.map(tag => tag.name).join(', '),
-                    }
-                  : image
-              }),
-            ),
-          }
-        },
-      )
+              return ids.has(image.id)
+                ? {
+                    ...image,
+                    tags: image.tags
+                      ? image.tags +
+                        ', ' +
+                        tags
+                          .filter(tag => !currentTags.includes(tag.name))
+                          .map(tag => tag.name)
+                          .join(', ')
+                      : tags.map(tag => tag.name).join(', '),
+                  }
+                : image
+            }),
+          ),
+        }
+      })
 
       queryClient.setQueryData<ImageData[]>(
         QUERIES.IMAGES(folderPath),
@@ -190,10 +190,10 @@ export function useRemoveTagsFromImageMutation({
 
       const tagsNamesSet = new Set<string>(tagsData.map(tag => tag.name))
 
-      queryClient.setQueryData<{
+      queryClient.setQueriesData<{
         pages: ImageData[][]
         pageParams: unknown[]
-      }>(QUERIES.IMAGES_PAGINATED(folderPath), oldData => {
+      }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
         if (!oldData) return { pages: [], pageParams: [] }
         return {
           ...oldData,
