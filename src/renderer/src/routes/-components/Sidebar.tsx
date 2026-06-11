@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react'
 import { useLocation, useRouter } from '@tanstack/react-router'
 import { useSettingsStore } from '@/lib/store/settings'
+import { useFolder } from '@/components/providers/FolderProvider'
 
 interface NavItem {
   route: keyof FileRoutesByTo
@@ -25,6 +26,9 @@ export function Sidebar() {
   const router = useRouter()
   const { pathname } = useLocation()
   const { toggleFolderTree, isFolderTreeOpen } = useSettingsStore()
+  const { folderPath } = useFolder()
+
+  if (!folderPath) return null
 
   return (
     <nav className="z-50 fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-row gap-2 p-2 bg-background/80 backdrop-blur-md border rounded-2xl shadow-xl">

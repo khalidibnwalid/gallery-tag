@@ -5,7 +5,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
@@ -43,13 +48,14 @@ export default function TopBar() {
 
 function FileDropDown() {
   const [loading, setLoading] = useState(false)
-  const { openFolderDialog } = useFolder()
+  const { openFolderDialog, recentFolders, openFolder } = useFolder()
 
-  async function openFolder() {
+  async function handleOpenFolder() {
     setLoading(true)
     await openFolderDialog()
     setLoading(false)
   }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -58,13 +64,44 @@ function FileDropDown() {
       <DropdownMenuContent
         className="w-56 bg-background/70 backdrop-blur-3xl"
         align="start"
-        onClick={openFolder}
       >
-        <DropdownMenuItem disabled={loading}>
-          {loading && <Spinner />}
+        <DropdownMenuItem disabled={loading} onSelect={handleOpenFolder}>
+          {loading && <Spinner className="mr-2" />}
           Open Folder...
           <DropdownMenuShortcut>⇧⌘O</DropdownMenuShortcut>
         </DropdownMenuItem>
+
+        {recentFolders.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Open Recent</DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-72 bg-background/80 backdrop-blur-3xl">
+                  {recentFolders.map(path => {
+                    const name = path.split('/').pop() || path
+                    return (
+                      <DropdownMenuItem
+                        key={path}
+                        onSelect={() => openFolder(path)}
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold truncate">{name}</span>
+                          <span
+                            className="text-xs text-muted-foreground truncate"
+                            title={path}
+                          >
+                            {path}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    )
+                  })}
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

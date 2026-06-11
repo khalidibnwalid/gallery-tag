@@ -1,6 +1,6 @@
+import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
 import { useTags } from '@/lib/queries/tags'
 import { cn } from '@/lib/utils'
@@ -14,21 +14,13 @@ import {
 } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 
-interface TagsExplorerProps {
-  className?: string
-  selectedTags?: string[]
-  excludedTags?: string[]
-  onSelectTags?: (tags: string[]) => void
-  onExcludeTags?: (tags: string[]) => void
-}
-
-export function TagsExplorer({
-  className,
-  selectedTags = [],
-  excludedTags = [],
-  onSelectTags,
-  onExcludeTags,
-}: TagsExplorerProps) {
+export function TagsExplorer({ className }: { className?: string }) {
+  const {
+    filterTags: selectedTags = [],
+    excludedTags = [],
+    setFilterTags: onSelectTags,
+    setExcludedTags: onExcludeTags,
+  } = useSearch()
   const [isExpanded, setIsExpanded] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const { data: tags, isLoading } = useTags()
@@ -75,8 +67,9 @@ export function TagsExplorer({
   return (
     <div
       className={cn(
+        'flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm',
         className,
-        'border-e-2 border-border h-full flex flex-col transition-all duration-300 bg-background/50 backdrop-blur-sm',
+        !isExpanded && 'flex-none',
       )}
     >
       <div
@@ -113,8 +106,8 @@ export function TagsExplorer({
             />
           </div>
 
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-0.5">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="px-3 py-3 space-y-1">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Spinner className="size-5" />
@@ -132,10 +125,10 @@ export function TagsExplorer({
                     <Button
                       key={tag.id}
                       variant="ghost"
-                      size="sm"
                       className={cn(
-                        'w-full justify-start h-10 px-4 font-bold',
-                        isSelected && 'bg-primary! text-primary-foreground',
+                        'w-full justify-start h-9 px-3 text-sm font-semibold rounded-md transition-all duration-150',
+                        isSelected &&
+                          'bg-primary! text-primary-foreground hover:!bg-primary/80',
                         isExcluded &&
                           'bg-destructive! text-destructive-foreground',
                       )}
@@ -148,13 +141,13 @@ export function TagsExplorer({
                       ) : (
                         <CircleIcon className="size-4 mr-2 text-muted-foreground" />
                       )}
-                      {tag.name}
+                      <span className="truncate">{tag.name}</span>
                     </Button>
                   )
                 })
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       )}
     </div>

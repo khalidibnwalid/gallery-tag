@@ -1,4 +1,5 @@
 import { useFolder } from '@/components/providers/FolderProvider'
+import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { useFolders } from '@/lib/queries/folders'
 import { cn } from '@/lib/utils'
@@ -12,17 +13,14 @@ import { memo, useState } from 'react'
 
 interface FolderTreeProps {
   className?: string
-  onSelect?: (path: string | null) => void
-  selectedPath?: string | null
 }
 
 export const FolderTree = memo(function FolderTree({
   className,
-  onSelect,
-  selectedPath,
 }: FolderTreeProps) {
   const { folderPath: rootPath } = useFolder()
   const { data: folders, isLoading } = useFolders()
+  const { filterPath, setFilterPath } = useSearch()
 
   if (!rootPath) return null
 
@@ -30,13 +28,13 @@ export const FolderTree = memo(function FolderTree({
     <div
       className={cn(
         className,
-        'border-e-2 border-border flex flex-col pt-16 transition-all duration-300',
+        'flex flex-col pt-16 transition-all duration-300',
       )}
     >
       <div className="px-6 py-4 border-b border-border/40 font-bold text-xs text-muted-foreground uppercase tracking-widest flex items-center justify-between">
         <span>Explorer</span>
       </div>
-      <div className="flex-1 overflow-auto py-3 px-1 space-y-0.5">
+      <div className="flex-1 overflow-auto py-3 px-3 space-y-1">
         {isLoading ? (
           <div className="px-4 py-2 text-sm text-muted-foreground">
             Loading...
@@ -47,8 +45,8 @@ export const FolderTree = memo(function FolderTree({
               key={folder.id}
               node={folder}
               level={0}
-              onSelect={onSelect}
-              selectedPath={selectedPath}
+              onSelect={setFilterPath}
+              selectedPath={filterPath}
             />
           ))
         ) : (
@@ -82,14 +80,14 @@ function TreeNode({
       <Button
         variant={isSelected ? 'secondary' : 'ghost'}
         className={cn(
-          'w-full justify-start h-10 pr-4 font-bold',
+          'w-full justify-start h-9 pr-3 text-sm font-semibold rounded-md transition-all duration-150',
           isSelected && 'bg-primary! text-primary-foreground',
         )}
-        style={{ paddingLeft: `${level * 16 + 12}px` }}
+        style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={() => onSelect?.(node.path)}
       >
         <span
-          className="mr-2 cursor-pointer hover:bg-pure/20 rounded p-0.5 shrink-0"
+          className="mr-1.5 cursor-pointer hover:bg-pure/20 rounded p-0.5 shrink-0"
           onClick={e => {
             e.stopPropagation()
             setIsOpen(!isOpen)
@@ -97,17 +95,17 @@ function TreeNode({
         >
           {hasChildren ? (
             isOpen ? (
-              <CaretDownIcon size={14} />
+              <CaretDownIcon size={13} />
             ) : (
-              <CaretRightIcon size={14} />
+              <CaretRightIcon size={13} />
             )
           ) : (
-            <div className="w-[14px] h-[14px]" />
+            <div className="w-[13px] h-[13px]" />
           )}
         </span>
         <FolderIcon
           className={cn(
-            'mr-2 size-5',
+            'mr-2 size-[18px]',
             isSelected ? 'text-primary-foreground' : 'text-primary',
           )}
           weight={isOpen || isSelected ? 'fill' : 'duotone'}
