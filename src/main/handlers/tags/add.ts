@@ -1,6 +1,6 @@
 import { TagModel } from '@main/types/models.shared'
-import { db } from '@main/utils/db/db'
-import { addTagsToImages, getOrCreateTags } from '@main/utils/db/tag'
+import { db } from '@main/utils/repositories/db'
+import { TagRepository } from '@main/utils/repositories/tag'
 
 export default async function addHandler(
   _event: Electron.IpcMainInvokeEvent,
@@ -24,6 +24,8 @@ export default async function addHandler(
         'No active database connection found. Please load a folder first.',
       )
 
+    const tagRepo = new TagRepository(database)
+
     let newTags: Pick<TagModel, 'name' | 'color'>[] = []
     let processedTags: TagModel[] = []
     let insertedTags: TagModel[] = []
@@ -38,7 +40,7 @@ export default async function addHandler(
     }
 
     if (newTags.length > 0) {
-      insertedTags = getOrCreateTags(database, newTags as unknown as TagModel[]) // not exactly safe...
+      insertedTags = tagRepo.getOrCreateTags(newTags as unknown as TagModel[]) // not exactly safe...
       processedTags.push(...insertedTags)
     }
 
@@ -46,7 +48,7 @@ export default async function addHandler(
 
     // Add tags to images in the junction table
     if (imagesIds && imagesIds.length > 0)
-      addTagsToImages(database, tagIds, imagesIds)
+      tagRepo.addTagsToImages(tagIds, imagesIds)
 
     console.log(
       `Successfully added ${tagIds.length} tags to ${imagesIds?.length || 0} images`,

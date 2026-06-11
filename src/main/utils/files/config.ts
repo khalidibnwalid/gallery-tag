@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { constants } from 'fs'
 import { access, mkdir } from 'fs/promises'
 import { join } from 'path'
-import { db } from './db/db'
+import { db } from '../repositories/db'
 
 export const CONFIG_DIR = '.gallery'
 export const CONFIG_DB_FILE = 'gallery.sqlite'

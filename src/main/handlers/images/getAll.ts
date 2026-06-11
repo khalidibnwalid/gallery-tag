@@ -12,22 +12,11 @@ import {
   CONFIG_DIR,
   getAndInitConfig,
   THUMBNAILS_DIR,
-} from '@main/utils/config'
-import { syncFoldersFromDisk } from '@main/utils/db/Folder'
-import {
-  deleteDiffImagesByPath,
-  getAllImagesWithTags,
-  getAllImagesWithTagsPaginated,
-  getImagesWithoutHash,
-  getMissingImages,
-  getPathsNotInImagesTable,
-  insertImages,
-  recoverImage,
-  updateImageHash,
-  updateThumbnailPaths,
-} from '@main/utils/db/Image'
-import { EXTENSIONS, getFilesByExtension } from '@main/utils/getFiles'
-import { computeFileHash } from '@main/utils/hashing'
+} from '@main/utils/files/config'
+import { FolderRepository } from '@main/utils/repositories/Folder'
+import { ImageRepository } from '@main/utils/repositories/Image'
+import { EXTENSIONS, getFilesByExtension } from '@main/utils/files/getFiles'
+import { computeFileHash } from '@main/utils/files/hashing'
 import { join } from 'path'
 
 const THUMBNAIL_WIDTH = 512
@@ -53,8 +42,10 @@ async function getAllBase(
     )
 
     const { db } = await getAndInitConfig(folderPath)
+    const folderRepo = new FolderRepository(db)
+    const imageRepo = new ImageRepository(db)
 
-    await syncFoldersFromDisk(db, folderPath)
+    await folderRepo.syncFoldersFromDisk(folderPath)
 
     const imageFiles = await getFilesByExtension(
       folderPath,
@@ -65,10 +56,10 @@ async function getAllBase(
     const currentPaths = imageFiles.map(file => file.fullPath)
 
     // 1. Get missing images (candidates for recovery)
-    const missingImages = getMissingImages(db, currentPaths)
+    const missingImages = imageRepo.getMissingImages(currentPaths)
 
     // 2. Identify new candidates
-    const newPaths = getPathsNotInImagesTable(db, currentPaths)
+    const newPaths = imageRepo.getPathsNotInImagesTable(currentPaths)
     const newPathsSet = new Set(newPaths)
     const newFilesRaw = imageFiles.filter(file =>
       newPathsSet.has(file.fullPath),
@@ -112,7 +103,7 @@ async function getAllBase(
             // Match found - recover the image record
             const oldImage = missingHashMap.get(file.hash)!
 
-            recoverImage(db, oldImage.id, file)
+            imageRepo.recoverImage(oldImage.id, file)
             console.log(
               `Recovered image: ${oldImage.filePath} -> ${file.fullPath}`,
             )
@@ -137,7 +128,7 @@ async function getAllBase(
 
       // Insert the truly new files
       if (filesToInsert.length > 0) {
-        insertImages(db, filesToInsert)
+        imageRepo.insertImages(filesToInsert)
         console.log(`Inserted ${filesToInsert.length} new images into database`)
 
         // Start thumbnail generation for inserted files
@@ -154,7 +145,7 @@ async function getAllBase(
               type: 'update',
               payload: { images } satisfies ImageUpdatePayload,
             })
-            updateThumbnailPaths(db, images)
+            imageRepo.updateThumbnailPaths(images)
 
             notifier.notify<NotifyImageThumbnailGeneratedPartPayload>({
               id: 'image-thumbnail-generated',
@@ -221,13 +212,13 @@ async function getAllBase(
     }
 
     // 3. Cleanup: Delete images that are truly missing (and not recovered)
-    const numRemoved = deleteDiffImagesByPath(db, currentPaths)
+    const numRemoved = imageRepo.deleteDiffImagesByPath(currentPaths)
     if (numRemoved > 0) {
       console.log(`Removed ${numRemoved} stale image records from database`)
     }
 
     // 4. Background: Backfill hashes for existing images (limit 50 per scan to avoid performance hit)
-    const unhashedImages = getImagesWithoutHash(db)
+    const unhashedImages = imageRepo.getImagesWithoutHash()
     if (unhashedImages.length > 0) {
       const batch = unhashedImages.slice(0, 50)
       console.log(
@@ -238,7 +229,7 @@ async function getAllBase(
         batch.map(async img => {
           try {
             const hash = await computeFileHash(img.filePath)
-            updateImageHash(db, img.id, hash)
+            imageRepo.updateImageHash(img.id, hash)
           } catch (error) {
             // Ignore errors for individual files
           }
@@ -249,8 +240,7 @@ async function getAllBase(
     }
 
     if (isPaginated) {
-      const { data: images, total } = getAllImagesWithTagsPaginated(
-        db,
+      const { data: images, total } = imageRepo.getAllImagesWithTagsPaginated(
         offset!,
         size!,
         filter,
@@ -272,7 +262,7 @@ async function getAllBase(
       }
     } else {
       // get all image paths from database (after update and delete)
-      const images = getAllImagesWithTags(db)
+      const images = imageRepo.getAllImagesWithTags()
 
       console.log(`Returning ${images.length} image paths`)
       return images

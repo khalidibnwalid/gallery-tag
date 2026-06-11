@@ -1,6 +1,6 @@
 import { TagModel } from '@main/types/models.shared'
-import { db } from '@main/utils/db/db'
-import { getAllTags } from '@main/utils/db/tag'
+import { db } from '@main/utils/repositories/db'
+import { TagRepository } from '@main/utils/repositories/tag'
 
 export default async function getAllHandler(
   _event: Electron.IpcMainInvokeEvent,
@@ -19,7 +19,8 @@ export default async function getAllHandler(
     const database = db.getDatabase(connectedPaths[0])
 
     // Get all tags
-    const tags = getAllTags(database)
+    const tagRepo = new TagRepository(database)
+    const tags = tagRepo.getAllTags()
 
     console.log(`Found ${tags.length} total tags`)
     return tags

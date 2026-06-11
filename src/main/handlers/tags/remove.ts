@@ -1,5 +1,5 @@
-import { db } from '@main/utils/db/db'
-import { removeTagsFromImages } from '@main/utils/db/tag'
+import { db } from '@main/utils/repositories/db'
+import { TagRepository } from '@main/utils/repositories/tag'
 
 export default async function removeHandler(
   _: Electron.IpcMainInvokeEvent,
@@ -25,7 +25,8 @@ export default async function removeHandler(
         'No active database connection found. Please load a folder first.',
       )
 
-    removeTagsFromImages(database, tagIds, imagesIds)
+    const tagRepo = new TagRepository(database)
+    tagRepo.removeTagsFromImages(tagIds, imagesIds)
 
     console.log(
       `Successfully removed ${tagIds.length} tags from ${imagesIds.length} images`,

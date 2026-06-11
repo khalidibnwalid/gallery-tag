@@ -1,6 +1,6 @@
 import { TagModel } from '@main/types/models.shared'
-import { db } from '@main/utils/db/db'
-import { getTagsBySearch } from '@main/utils/db/tag'
+import { db } from '@main/utils/repositories/db'
+import { TagRepository } from '@main/utils/repositories/tag'
 
 export default async function getBySearchHandler(
   _event: Electron.IpcMainInvokeEvent,
@@ -21,7 +21,8 @@ export default async function getBySearchHandler(
     }
 
     // Search for tags
-    const tags = getTagsBySearch(database, searchQuery)
+    const tagRepo = new TagRepository(database)
+    const tags = tagRepo.getTagsBySearch(searchQuery)
 
     console.log(
       `Found ${tags.length} tags matching search query: "${searchQuery}"`,
