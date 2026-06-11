@@ -12,6 +12,7 @@ export interface ImageModel {
   thumbnailPath?: string
   width?: number
   height?: number
+  hash?: string
 }
 
 export interface FolderModel {

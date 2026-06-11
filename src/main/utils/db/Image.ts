@@ -5,7 +5,7 @@ import Database from 'better-sqlite3'
 
 export function insertImages(
   db: Database.Database,
-  images: FileInfo[] | FileInfo,
+  images: (FileInfo & { hash?: string })[] | (FileInfo & { hash?: string }),
 ): void {
   if (!Array.isArray(images)) {
     images = [images]
@@ -13,21 +13,24 @@ export function insertImages(
 
   const insertStmt = db.prepare(`
     INSERT OR REPLACE INTO images 
-    (file_path, file_name, extension, size, modified_at, last_scanned)
-    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    (file_path, file_name, extension, size, modified_at, last_scanned, hash)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
   `)
 
-  const transaction = db.transaction((imageList: FileInfo[]) => {
-    for (const image of imageList) {
-      insertStmt.run(
-        image.fullPath,
-        image.fileName,
-        image.extension,
-        image.size,
-        image.modifiedAt.toISOString(),
-      )
-    }
-  })
+  const transaction = db.transaction(
+    (imageList: (FileInfo & { hash?: string })[]) => {
+      for (const image of imageList) {
+        insertStmt.run(
+          image.fullPath,
+          image.fileName,
+          image.extension,
+          image.size,
+          image.modifiedAt.toISOString(),
+          image.hash || null,
+        )
+      }
+    },
+  )
 
   transaction(images)
 }
@@ -51,7 +54,8 @@ export function getAllImages(db: Database.Database): ImageModel[] {
       last_scanned as lastScanned,
       thumbnail_path as thumbnailPath,
       width,
-      height
+      height,
+      hash
     FROM images 
     ORDER BY file_name
   `)
@@ -76,6 +80,7 @@ export function getAllImagesWithTags(
       i.thumbnail_path as thumbnailPath,
       i.width,
       i.height,
+      i.hash,
 
       GROUP_CONCAT(t.name) as tags
     FROM images i
@@ -173,6 +178,7 @@ export function getAllImagesWithTagsPaginated(
       i.thumbnail_path as thumbnailPath,
       i.width,
       i.height,
+      i.hash,
 
       GROUP_CONCAT(t.name) as tags
     FROM images i
@@ -353,4 +359,113 @@ export function updateThumbnailPaths(
   })
 
   transaction(updates)
+}
+
+export function getMissingImages(
+  db: Database.Database,
+  currentPaths: string[],
+): ImageModel[] {
+  // Create temp table for current paths
+  db.prepare(
+    `
+    CREATE TEMPORARY TABLE IF NOT EXISTS temp_current_paths_check (
+      file_path TEXT PRIMARY KEY
+    )
+  `,
+  ).run()
+
+  db.prepare('DELETE FROM temp_current_paths_check').run()
+
+  const insertStmt = db.prepare(
+    'INSERT INTO temp_current_paths_check (file_path) VALUES (?)',
+  )
+  const transaction = db.transaction((paths: string[]) => {
+    for (const path of paths) insertStmt.run(path)
+  })
+
+  transaction(currentPaths)
+
+  // Select images that are NOT in the temp table
+  const stmt = db.prepare(`
+    SELECT 
+      id,
+      file_path as filePath,
+      file_name as fileName,
+      extension,
+      size,
+      created_at as createdAt,
+      modified_at as modifiedAt,
+      last_scanned as lastScanned,
+      thumbnail_path as thumbnailPath,
+      width,
+      height,
+      hash
+    FROM images 
+    WHERE file_path NOT IN (SELECT file_path FROM temp_current_paths_check)
+  `)
+
+  const rows = stmt.all() as ImageModel[]
+
+  db.prepare('DROP TABLE temp_current_paths_check').run()
+
+  return rows
+}
+
+export function recoverImage(
+  db: Database.Database,
+  oldImageId: number,
+  newFileInfo: FileInfo & { hash?: string },
+): void {
+  const stmt = db.prepare(`
+    UPDATE images 
+    SET 
+      file_path = ?,
+      file_name = ?,
+      extension = ?,
+      size = ?,
+      modified_at = ?,
+      last_scanned = CURRENT_TIMESTAMP,
+      hash = COALESCE(?, hash)
+    WHERE id = ?
+  `)
+
+  stmt.run(
+    newFileInfo.fullPath,
+    newFileInfo.fileName,
+    newFileInfo.extension,
+    newFileInfo.size,
+    newFileInfo.modifiedAt.toISOString(),
+    newFileInfo.hash || null,
+    oldImageId,
+  )
+}
+
+export function getImagesWithoutHash(db: Database.Database): ImageModel[] {
+  const stmt = db.prepare(`
+    SELECT 
+      id,
+      file_path as filePath,
+      file_name as fileName,
+      extension,
+      size,
+      created_at as createdAt,
+      modified_at as modifiedAt,
+      last_scanned as lastScanned,
+      thumbnail_path as thumbnailPath,
+      width,
+      height,
+      hash
+    FROM images 
+    WHERE hash IS NULL
+  `)
+  return stmt.all() as ImageModel[]
+}
+
+export function updateImageHash(
+  db: Database.Database,
+  imageId: number,
+  hash: string,
+): void {
+  const stmt = db.prepare('UPDATE images SET hash = ? WHERE id = ?')
+  stmt.run(hash, imageId)
 }

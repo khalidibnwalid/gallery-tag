@@ -43,6 +43,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17",
+    "xxhash": "^0.3.0",
+    "xxhashjs": "^0.2.2",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

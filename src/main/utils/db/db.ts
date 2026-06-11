@@ -89,7 +89,8 @@ class DBSingleton {
         last_scanned DATETIME DEFAULT CURRENT_TIMESTAMP,
         thumbnail_path TEXT,
         width INTEGER,
-        height INTEGER
+        height INTEGER,
+        hash TEXT
       )
     `)
 
