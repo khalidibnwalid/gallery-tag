@@ -4,10 +4,12 @@ const QUERIES = {
   IMAGES_PAGINATED: (
     folderPath?: string,
     filter?: { text?: string; filterPath?: string; tags?: string[] },
-  ) =>
-    folderPath
-      ? (['images', 'paginated', folderPath, filter] as const)
-      : (['images', 'paginated', filter] as const),
+  ) => {
+    const key: any[] = ['images', 'paginated']
+    if (folderPath) key.push(folderPath)
+    if (filter !== undefined) key.push(filter)
+    return key as readonly any[]
+  },
   IMAGES_SEARCH: (query?: string) =>
     query
       ? (['images', 'search', query] as const)

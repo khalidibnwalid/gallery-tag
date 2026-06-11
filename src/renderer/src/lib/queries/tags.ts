@@ -98,17 +98,20 @@ export function useAddTagsToImageMutation({
                 ? image.tags.split(',').map(t => t.trim())
                 : []
 
+              const newTagsToAppend = tags
+                .filter(tag => !currentTags.includes(tag.name))
+                .map(tag => tag.name)
+                .filter(Boolean)
+                .join(', ')
+
               return ids.has(image.id)
                 ? {
                     ...image,
                     tags: image.tags
-                      ? image.tags +
-                        ', ' +
-                        tags
-                          .filter(tag => !currentTags.includes(tag.name))
-                          .map(tag => tag.name)
-                          .join(', ')
-                      : tags.map(tag => tag.name).join(', '),
+                      ? newTagsToAppend
+                        ? image.tags + ', ' + newTagsToAppend
+                        : image.tags
+                      : newTagsToAppend || image.tags,
                   }
                 : image
             }),
@@ -126,17 +129,20 @@ export function useAddTagsToImageMutation({
               ? image.tags.split(',').map(t => t.trim())
               : []
 
+            const newTagsToAppend = tags
+              .filter(tag => !currentTags.includes(tag.name))
+              .map(tag => tag.name)
+              .filter(Boolean)
+              .join(', ')
+
             return ids.has(image.id)
               ? {
                   ...image,
                   tags: image.tags
-                    ? image.tags +
-                      ', ' +
-                      tags
-                        .filter(tag => !currentTags.includes(tag.name))
-                        .map(tag => tag.name)
-                        .join(', ')
-                    : tags.map(tag => tag.name).join(', '),
+                    ? newTagsToAppend
+                      ? image.tags + ', ' + newTagsToAppend
+                      : image.tags
+                    : newTagsToAppend || image.tags,
                 }
               : image
           })
@@ -211,7 +217,7 @@ export function useRemoveTagsFromImageMutation({
 
               return {
                 ...image,
-                tags: updatedTags.join(', '),
+                tags: updatedTags.join(', ') || undefined,
               }
             }),
           ),
@@ -235,7 +241,7 @@ export function useRemoveTagsFromImageMutation({
 
             return {
               ...image,
-              tags: updatedTags.join(', '),
+              tags: updatedTags.join(', ') || undefined,
             }
           })
         },

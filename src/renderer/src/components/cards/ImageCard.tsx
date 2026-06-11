@@ -296,9 +296,9 @@ function ImageContextMenu({
       const tagsSet = new Set<string>(allTags?.map(tag => tag.name))
       const tags: (TagData | Pick<TagData, 'name' | 'color'>)[] = text
         .split(',')
-        .filter(tag => Boolean(tag.trim()))
-        .map(tag => {
-          const trimmedTag = tag.trim()
+        .map(tag => tag.trim())
+        .filter(Boolean)
+        .map(trimmedTag => {
           if (tagsSet.has(trimmedTag))
             return (
               allTags!.find(t => t.name === trimmedTag) ?? { name: trimmedTag }
@@ -307,8 +307,13 @@ function ImageContextMenu({
           return { name: trimmedTag }
         })
 
+      const targetImageIds = isSelectionMode
+        ? Array.from(selectedItems)
+        : [image.id]
+      if (targetImageIds.length === 0 || tags.length === 0) return
+
       await addTagsMutation({
-        imageIds: isSelectionMode ? Array.from(selectedItems) : [image.id],
+        imageIds: targetImageIds,
         tags,
       })
     }

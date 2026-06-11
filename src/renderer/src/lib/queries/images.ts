@@ -27,10 +27,10 @@ function subscribeToImageUpdates(
       ({ images }: ImageUpdatePayload) => {
         images.forEach(image => {
           if (isInfinite) {
-            queryClient.setQueryData<{
+            queryClient.setQueriesData<{
               pages: ImageData[][]
               pageParams: unknown[]
-            }>(QUERIES.IMAGES_PAGINATED(folderPath), oldData => {
+            }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
               if (!oldData) return oldData
               return {
                 ...oldData,
