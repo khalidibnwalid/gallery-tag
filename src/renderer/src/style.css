@@ -161,7 +161,7 @@
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Custom scrollbars for native overflow areas */
   ::-webkit-scrollbar {
     width: 8px;

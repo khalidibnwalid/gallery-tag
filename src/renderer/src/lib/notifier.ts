@@ -3,6 +3,7 @@ import {
   NotifyImageThumbnailGeneratedPartPayload,
   NotifyImageThumbnailGenerationCompletePayload,
 } from '@main/types/notifier.shared'
+import { QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 interface ProgressState {
@@ -15,7 +16,7 @@ let globalNotifyUnsubscribe: (() => void) | null = null
 let subscriptionCount = 0
 let progressStateMap = new Map<string, ProgressState>()
 
-export function setupGlobalNotifier() {
+export function setupGlobalNotifier(queryClient?: QueryClient) {
   if (!window.api || !window.api.general.onNotify) return
 
   // subscribe if none exists
@@ -77,6 +78,10 @@ export function setupGlobalNotifier() {
             toast.success(`Thumbnail generation complete!`, {
               description: `Processed ${payload.totalProcessed} images${payload.totalFailed > 0 ? `, ${payload.totalFailed} failed` : ''}`,
             })
+
+            if (queryClient) {
+              queryClient.invalidateQueries()
+            }
           }
           break
         default:

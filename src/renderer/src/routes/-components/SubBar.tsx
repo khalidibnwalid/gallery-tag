@@ -25,7 +25,9 @@ export default function SubBar() {
 
 function ImagesSelectionBar() {
   const { paginatedImagesQuery } = useFolder()
-  const images = paginatedImagesQuery.data!.pages.flat()
+  const images =
+    paginatedImagesQuery.data?.pages.flatMap(page => page.data) || []
+  const totalCount = paginatedImagesQuery.data?.pages[0]?.total || 0
 
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
   const selectedImageIds = useSelectionStore(state => state.selectedItems)
@@ -37,12 +39,11 @@ function ImagesSelectionBar() {
 
   if (!isSelectionMode) return null
 
-  const isAllSelected = images
-    ? images.length > 0 && images.every(image => selectedImageIds.has(image.id))
-    : false
+  const isAllSelected =
+    images.length > 0 && images.every(image => selectedImageIds.has(image.id))
 
   const onSelectAll = () => {
-    if (images) {
+    if (images.length > 0) {
       const allImageIds = images.map(image => image.id)
       if (isAllSelected) {
         clearSelection()
@@ -99,7 +100,7 @@ function ImagesSelectionBar() {
         </Button>
       </TagSelector>
       <Button variant="ghost" size="lg" className="animate-fade-in px-0.5">
-        {selectedImageIds.size} of {images.length} selected
+        {selectedImageIds.size} of {totalCount} selected
       </Button>
     </>
   )

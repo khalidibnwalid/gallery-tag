@@ -17,6 +17,7 @@ import { TagSelector } from '../features/TagsSelector'
 import { Virtualize } from '../features/Virtualize'
 import { useFolder } from '../providers/FolderProvider'
 import { useLighthouse } from '../providers/LighthouseProvider'
+import { useSearch } from '../providers/SearchProvider'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import {
@@ -83,6 +84,7 @@ function ImageBody({
     folderImagesQuery: { data: allImages },
   } = useFolder()
   const { openLighthouse } = useLighthouse()
+  const { setSearchColor, setIsSearching } = useSearch()
 
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
   const isSelected = useSelectionStore(state =>
@@ -220,6 +222,23 @@ function ImageBody({
                 <p className="text-xs text-muted-foreground font-mono">
                   {image.width} × {image.height}
                 </p>
+              )}
+              {image.dominantColors && image.dominantColors.length > 0 && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  {image.dominantColors.slice(0, 5).map((color, colorIdx) => (
+                    <button
+                      key={colorIdx}
+                      className="size-4.5 rounded-full border border-foreground/20 hover:scale-125 transition-transform duration-200 cursor-pointer focus:outline-none"
+                      style={{ backgroundColor: color }}
+                      title={`Search similar to ${color}`}
+                      onClick={e => {
+                        e.stopPropagation()
+                        setSearchColor(color)
+                        setIsSearching(true)
+                      }}
+                    />
+                  ))}
+                </div>
               )}
             </div>
             <TagSelector currentTags={allTags} imageIds={image.id}>

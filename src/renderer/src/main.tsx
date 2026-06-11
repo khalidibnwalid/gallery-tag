@@ -27,7 +27,7 @@ declare module '@tanstack/react-router' {
 }
 
 function App() {
-  useEffect(setupGlobalNotifier, [])
+  useEffect(() => setupGlobalNotifier(queryClient), [])
 
   return (
     <QueryClientProvider client={queryClient}>

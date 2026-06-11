@@ -2,6 +2,7 @@ import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ColorPicker } from '@/components/features/ColorPicker'
 import useDebounce from '@/lib/hooks/useDebounce'
 import {
   useCreateTagMutation,
@@ -28,7 +29,8 @@ const autoCompleteTypes = {
 type ItemType = keyof typeof autoCompleteTypes
 
 export default function SearchBar() {
-  const { setSearchQuery, setIsSearching } = useSearch()
+  const { setSearchQuery, setIsSearching, searchColor, setSearchColor } =
+    useSearch()
   const { folderPath } = useFolder()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -129,16 +131,40 @@ export default function SearchBar() {
           <MagnifyingGlassIcon size={24} className="backdrop-blur-none" />
         }
         endContent={
-          searchValue.length > 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClear}
-              className="opacity-70 hover:opacity-100 backdrop-blur-none"
-            >
-              <XIcon size={20} color="currentColor" />
-            </Button>
-          )
+          <div className="flex items-center gap-2 select-none">
+            {searchValue.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClear}
+                className="opacity-70 hover:opacity-100 backdrop-blur-none"
+              >
+                <XIcon size={20} color="currentColor" />
+              </Button>
+            )}
+            <ColorPicker
+              value={searchColor}
+              onChange={color => {
+                setSearchColor(color)
+                if (color) setIsSearching(true)
+              }}
+            />
+            {searchColor && (
+              <div
+                className="size-5 rounded-full border border-foreground/30 relative group cursor-pointer shadow-xs animate-fade-in transition-all hover:scale-105"
+                style={{ backgroundColor: searchColor }}
+                title="Active color search filter. Click to clear."
+                onClick={e => {
+                  e.stopPropagation()
+                  setSearchColor(null)
+                }}
+              >
+                <span className="opacity-0 group-hover:opacity-100 absolute inset-0 flex items-center justify-center text-[10px] text-white font-bold drop-shadow-xs">
+                  ✕
+                </span>
+              </div>
+            )}
+          </div>
         }
       />
 
@@ -151,39 +177,3 @@ export default function SearchBar() {
     </div>
   )
 }
-
-//  endContent={
-//           <div className="flex items-center">
-//             {searchValue.length > 0 && (
-//               <Button
-//                 variant="ghost"
-//                 size="icon"
-//                 onClick={onClear}
-//                 className="opacity-70 hover:opacity-100 backdrop-blur-none"
-//               >
-//                 <XIcon size={20} color="currentColor" />
-//               </Button>
-//             )}
-//             <Button
-//               variant="ghost"
-//               size="icon"
-//               className="opacity-70 hover:opacity-100 backdrop-blur-none"
-//             >
-//               <TagIcon size={20} color="currentColor" />
-//             </Button>
-//             <Button
-//               variant="ghost"
-//               size="icon"
-//               className="opacity-70 hover:opacity-100 backdrop-blur-none"
-//             >
-//               <PaletteIcon size={20} color="currentColor" />
-//             </Button>
-//             <Button
-//               variant="ghost"
-//               size="icon"
-//               className="opacity-70 hover:opacity-100 backdrop-blur-none"
-//             >
-//               <FadersIcon size={20} color="currentColor" />
-//             </Button>
-//           </div>
-//         }

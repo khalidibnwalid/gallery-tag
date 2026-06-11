@@ -11,6 +11,8 @@ interface SearchProvider {
   setFilterTags: React.Dispatch<React.SetStateAction<string[]>>
   excludedTags: string[]
   setExcludedTags: React.Dispatch<React.SetStateAction<string[]>>
+  searchColor: string | null
+  setSearchColor: React.Dispatch<React.SetStateAction<string | null>>
   clearSearch: () => void
 }
 
@@ -22,6 +24,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [filterPath, setFilterPath] = useState<string | null>(null)
   const [filterTags, setFilterTags] = useState<string[]>([])
   const [excludedTags, setExcludedTags] = useState<string[]>([])
+  const [searchColor, setSearchColor] = useState<string | null>(null)
 
   const clearSearch = () => {
     setSearchQuery('')
@@ -29,6 +32,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setFilterPath(null)
     setFilterTags([])
     setExcludedTags([])
+    setSearchColor(null)
   }
 
   return (
@@ -44,6 +48,8 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         setFilterTags,
         excludedTags,
         setExcludedTags,
+        searchColor,
+        setSearchColor,
         clearSearch,
       }}
     >

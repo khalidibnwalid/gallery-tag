@@ -89,8 +89,8 @@ export default function useImages(folderPath?: string) {
       if (!window.api || !window.api.system.openFolderDialog) {
         throw new Error('API not available')
       }
-      const imageFiles = await window.api.images.getAll(folderPath)
-      return imageFiles
+      const result = await window.api.images.getAll(folderPath)
+      return result.data
     },
     staleTime: Infinity,
     enabled: !!folderPath,
@@ -105,6 +105,7 @@ export function useInfiniteImages(
     filterPath?: string
     tags?: string[]
     excludedTags?: string[]
+    color?: string
   },
 ) {
   const { folderPath: contextFolderPath } = useFolder()
@@ -120,7 +121,7 @@ export function useInfiniteImages(
     }
   }, [folderPath, queryClient])
 
-  return useInfiniteQuery<ImageData[], Error>({
+  return useInfiniteQuery<{ data: ImageData[]; total: number }, Error>({
     queryKey: QUERIES.IMAGES_PAGINATED(folderPath, filter),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
@@ -133,10 +134,13 @@ export function useInfiniteImages(
         pageSize,
         filter!,
       )
-      return result.data
+      return {
+        data: result.data,
+        total: result.pagination.total,
+      }
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage?.length < pageSize) return undefined
+      if (lastPage?.data.length < pageSize) return undefined
       return allPages.length * pageSize
     },
     staleTime: Infinity,

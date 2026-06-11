@@ -8,8 +8,14 @@ import SubBar from './SubBar'
 
 export function ImageGallery() {
   const { folderPath } = useFolder()
-  const { searchQuery, filterPath, filterTags, excludedTags, isSearching } =
-    useSearch()
+  const {
+    searchQuery,
+    filterPath,
+    filterTags,
+    excludedTags,
+    isSearching,
+    searchColor,
+  } = useSearch()
   const triggerFetchRef = useRef<HTMLDivElement>(null)
 
   const filter = {
@@ -17,12 +23,13 @@ export function ImageGallery() {
     filterPath: filterPath ?? undefined,
     tags: filterTags,
     excludedTags,
+    color: searchColor ?? undefined,
   }
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteImages(folderPath ?? undefined, 50, filter)
 
-  const images = data?.pages.flat() || []
+  const images = data?.pages.flatMap(page => page.data) || []
 
   useEffect(() => {
     const observer = new IntersectionObserver(

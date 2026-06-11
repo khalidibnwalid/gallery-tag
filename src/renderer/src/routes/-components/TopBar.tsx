@@ -112,6 +112,8 @@ function TopTitle() {
   const { isLoading, data } = paginatedImagesQuery
   if (!folderPath) return null
 
+  const totalCount = data?.pages[0]?.total || 0
+
   return (
     <div
       className="items-center gap-1 max-w-1/3 xl:flex hidden"
@@ -133,7 +135,7 @@ function TopTitle() {
           <Spinner />
         ) : (
           <span className="w-full overflow-hidden font-bold ">
-            {data?.pages.flat().length.toLocaleString() || 0} Loaded
+            {totalCount.toLocaleString()} Images
           </span>
         )}
       </Button>
