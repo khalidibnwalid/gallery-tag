@@ -90,7 +90,8 @@ class DBSingleton {
         thumbnail_path TEXT,
         width INTEGER,
         height INTEGER,
-        hash TEXT
+        hash TEXT,
+        dominant_colors TEXT
       )
     `)
 
@@ -124,6 +125,25 @@ class DBSingleton {
         FOREIGN KEY (image_id) REFERENCES images (id),
         FOREIGN KEY (tag_id) REFERENCES tags (id)
       )
+    `)
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS image_colors (
+        image_id INTEGER NOT NULL,
+        r INTEGER NOT NULL,
+        g INTEGER NOT NULL,
+        b INTEGER NOT NULL,
+        h INTEGER NOT NULL,
+        s INTEGER NOT NULL,
+        l INTEGER NOT NULL,
+        rank INTEGER NOT NULL,
+        PRIMARY KEY (image_id, rank),
+        FOREIGN KEY (image_id) REFERENCES images (id) ON DELETE CASCADE
+      )
+    `)
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_image_colors_rgb ON image_colors (r, g, b)
     `)
 
     console.log(`Database initialized: ${dbPath}`)

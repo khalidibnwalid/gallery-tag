@@ -72,9 +72,7 @@ export class TagRepository {
 
   getTagsByName(name: string): TagModel | undefined
   getTagsByName(name: string[]): TagModel[]
-  getTagsByName(
-    name: string | string[],
-  ): TagModel | TagModel[] | undefined {
+  getTagsByName(name: string | string[]): TagModel | TagModel[] | undefined {
     const isSingle = !Array.isArray(name)
     const names = isSingle ? [name as string] : (name as string[])
     const placeholders = names.map(() => 'LOWER(?)').join(',')

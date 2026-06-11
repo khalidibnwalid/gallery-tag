@@ -13,6 +13,18 @@ export interface ImageModel {
   width?: number
   height?: number
   hash?: string
+  dominantColors?: string[]
+}
+
+export interface ImageColorModel {
+  imageId: number
+  r: number
+  g: number
+  b: number
+  h: number
+  s: number
+  l: number
+  rank: number
 }
 
 export interface FolderModel {

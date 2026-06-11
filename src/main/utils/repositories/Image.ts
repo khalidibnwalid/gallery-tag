@@ -1,13 +1,26 @@
-import { FileInfo } from '@main/types/global'
 import { SearchFilter } from '@main/types/api.shared'
+import { FileInfo } from '@main/types/global'
 import { ImageModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
+import { hexToRgb, rgbToHsl } from '../colors'
+
+function mapImageRow(row: any): any {
+  if (!row) return row
+  return {
+    ...row,
+    dominantColors: row.dominantColors
+      ? JSON.parse(row.dominantColors)
+      : undefined,
+  }
+}
 
 export class ImageRepository {
   constructor(private db: Database.Database) {}
 
   insertImages(
-    images: (FileInfo & { hash?: string })[] | (FileInfo & { hash?: string }),
+    images:
+      | (FileInfo & { hash?: string; dominantColors?: string[] })[]
+      | (FileInfo & { hash?: string; dominantColors?: string[] }),
   ): void {
     if (!Array.isArray(images)) {
       images = [images]
@@ -15,21 +28,31 @@ export class ImageRepository {
 
     const insertStmt = this.db.prepare(`
       INSERT OR REPLACE INTO images 
-      (file_path, file_name, extension, size, modified_at, last_scanned, hash)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+      (file_path, file_name, extension, size, modified_at, last_scanned, hash, dominant_colors)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
     `)
 
     const transaction = this.db.transaction(
-      (imageList: (FileInfo & { hash?: string })[]) => {
+      (
+        imageList: (FileInfo & { hash?: string; dominantColors?: string[] })[],
+      ) => {
         for (const image of imageList) {
-          insertStmt.run(
+          const result = insertStmt.run(
             image.fullPath,
             image.fileName,
             image.extension,
             image.size,
             image.modifiedAt.toISOString(),
             image.hash || null,
+            image.dominantColors ? JSON.stringify(image.dominantColors) : null,
           )
+
+          if (image.dominantColors) {
+            this.updateColorsInDb(
+              Number(result.lastInsertRowid),
+              image.dominantColors,
+            )
+          }
         }
       },
     )
@@ -38,12 +61,14 @@ export class ImageRepository {
   }
 
   getImagePaths(): string[] {
-    const stmt = this.db.prepare('SELECT file_path FROM images ORDER BY file_name')
+    const stmt = this.db.prepare(
+      'SELECT file_path FROM images ORDER BY file_name',
+    )
     const rows = stmt.all() as { file_path: string }[]
     return rows.map(row => row.file_path)
   }
 
-  getAllImages(): ImageModel[] {
+  getAllImages(): { data: ImageModel[]; total: number } {
     const stmt = this.db.prepare(`
       SELECT 
         id,
@@ -57,15 +82,20 @@ export class ImageRepository {
         thumbnail_path as thumbnailPath,
         width,
         height,
-        hash
+        hash,
+        dominant_colors as dominantColors
       FROM images 
       ORDER BY file_name
     `)
-    const rows = stmt.all() as ImageModel[]
-    return rows
+    const rows = stmt.all() as any[]
+    const data = rows.map(mapImageRow)
+    return { data, total: data.length }
   }
 
-  getAllImagesWithTags(): (ImageModel & { tags?: string })[] {
+  getAllImagesWithTags(): {
+    data: (ImageModel & { tags?: string })[]
+    total: number
+  } {
     const stmt = this.db.prepare(`
       SELECT 
         i.id,
@@ -80,6 +110,7 @@ export class ImageRepository {
         i.width,
         i.height,
         i.hash,
+        i.dominant_colors as dominantColors,
 
         GROUP_CONCAT(t.name) as tags
       FROM images i
@@ -88,8 +119,9 @@ export class ImageRepository {
       GROUP BY i.id
       ORDER BY i.file_name
     `)
-    const rows = stmt.all() as (ImageModel & { tags?: string })[]
-    return rows
+    const rows = stmt.all() as any[]
+    const data = rows.map(mapImageRow)
+    return { data, total: data.length }
   }
 
   getAllImagesWithTagsPaginated(
@@ -144,23 +176,46 @@ export class ImageRepository {
       params.push(...filter.excludedTags)
     }
 
+    // Filter by color
+    let isColorFiltered = false
+    let colorDistExpr = ''
+
+    if (filter?.color) {
+      const targetRgb = hexToRgb(filter.color)
+      if (targetRgb) {
+        const [r, g, b] = targetRgb
+        colorDistExpr = `(ic.r - ${r}) * (ic.r - ${r}) + (ic.g - ${g}) * (ic.g - ${g}) + (ic.b - ${b}) * (ic.b - ${b})`
+        whereClauses.push(`${colorDistExpr} <= ${75 * 75}`)
+        isColorFiltered = true
+      }
+    }
+
     const whereSql =
       whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const joinClause = isColorFiltered
+      ? 'INNER JOIN image_colors ic ON i.id = ic.image_id'
+      : ''
 
     // Count query
     const countStmt = this.db.prepare(`
       SELECT COUNT(DISTINCT i.id) as total
       FROM images i
+      ${joinClause}
       LEFT JOIN image_tags it ON i.id = it.image_id
       LEFT JOIN tags t ON it.tag_id = t.id
       ${whereSql}
     `)
 
-    const countParams = [...params]
-    const countResult = countStmt.get(...countParams) as { total: number }
-    const total = countResult.total
+    const countResult = countStmt.get(...params) as { total: number }
+    const total = countResult?.total || 0
 
     // Main query
+    const selectColorDist = isColorFiltered
+      ? `, MIN(${colorDistExpr}) as color_dist`
+      : ''
+    const orderBy = isColorFiltered ? 'color_dist ASC' : 'i.file_name'
+
     const stmt = this.db.prepare(`
       SELECT 
         i.id,
@@ -175,23 +230,24 @@ export class ImageRepository {
         i.width,
         i.height,
         i.hash,
-
+        i.dominant_colors as dominantColors
+        ${selectColorDist},
         GROUP_CONCAT(t.name) as tags
       FROM images i
+      ${joinClause}
       LEFT JOIN image_tags it ON i.id = it.image_id
       LEFT JOIN tags t ON it.tag_id = t.id
       ${whereSql}
       GROUP BY i.id
-      ORDER BY i.file_name
+      ORDER BY ${orderBy}
       LIMIT ? OFFSET ?
     `)
 
-    const rows = stmt.all(...params, size, offset) as (ImageModel & {
-      tags?: string
-    })[]
+    const rows = stmt.all(...params, size, offset) as any[]
+    const data = rows.map(mapImageRow)
 
     return {
-      data: rows,
+      data,
       total,
     }
   }
@@ -201,13 +257,15 @@ export class ImageRepository {
       return []
     }
 
-    this.db.prepare(
-      `
+    this.db
+      .prepare(
+        `
       CREATE TEMPORARY TABLE IF NOT EXISTS temp_check_paths (
         file_path TEXT PRIMARY KEY
       )
     `,
-    ).run()
+      )
+      .run()
 
     this.db.prepare('DELETE FROM temp_check_paths').run()
 
@@ -239,13 +297,15 @@ export class ImageRepository {
 
   deleteDiffImagesByPath(currentPaths: string[]) {
     // temporary table for current paths
-    this.db.prepare(
-      `
+    this.db
+      .prepare(
+        `
       CREATE TEMPORARY TABLE IF NOT EXISTS temp_current_paths (
         file_path TEXT PRIMARY KEY
       )
     `,
-    ).run()
+      )
+      .run()
 
     // clear any existing data
     this.db.prepare('DELETE FROM temp_current_paths').run()
@@ -342,13 +402,15 @@ export class ImageRepository {
 
   getMissingImages(currentPaths: string[]): ImageModel[] {
     // Create temp table for current paths
-    this.db.prepare(
-      `
+    this.db
+      .prepare(
+        `
       CREATE TEMPORARY TABLE IF NOT EXISTS temp_current_paths_check (
         file_path TEXT PRIMARY KEY
       )
     `,
-    ).run()
+      )
+      .run()
 
     this.db.prepare('DELETE FROM temp_current_paths_check').run()
 
@@ -375,21 +437,23 @@ export class ImageRepository {
         thumbnail_path as thumbnailPath,
         width,
         height,
-        hash
+        hash,
+        dominant_colors as dominantColors
       FROM images 
       WHERE file_path NOT IN (SELECT file_path FROM temp_current_paths_check)
     `)
 
-    const rows = stmt.all() as ImageModel[]
+    const rows = stmt.all() as any[]
+    const data = rows.map(mapImageRow)
 
     this.db.prepare('DROP TABLE temp_current_paths_check').run()
 
-    return rows
+    return data
   }
 
   recoverImage(
     oldImageId: number,
-    newFileInfo: FileInfo & { hash?: string },
+    newFileInfo: FileInfo & { hash?: string; dominantColors?: string[] },
   ): void {
     const stmt = this.db.prepare(`
       UPDATE images 
@@ -400,7 +464,8 @@ export class ImageRepository {
         size = ?,
         modified_at = ?,
         last_scanned = CURRENT_TIMESTAMP,
-        hash = COALESCE(?, hash)
+        hash = COALESCE(?, hash),
+        dominant_colors = COALESCE(?, dominant_colors)
       WHERE id = ?
     `)
 
@@ -411,8 +476,15 @@ export class ImageRepository {
       newFileInfo.size,
       newFileInfo.modifiedAt.toISOString(),
       newFileInfo.hash || null,
+      newFileInfo.dominantColors
+        ? JSON.stringify(newFileInfo.dominantColors)
+        : null,
       oldImageId,
     )
+
+    if (newFileInfo.dominantColors) {
+      this.updateColorsInDb(oldImageId, newFileInfo.dominantColors)
+    }
   }
 
   getImagesWithoutHash(): ImageModel[] {
@@ -429,15 +501,75 @@ export class ImageRepository {
         thumbnail_path as thumbnailPath,
         width,
         height,
-        hash
+        hash,
+        dominant_colors as dominantColors
       FROM images 
       WHERE hash IS NULL
     `)
-    return stmt.all() as ImageModel[]
+    const rows = stmt.all() as any[]
+    return rows.map(mapImageRow)
   }
 
   updateImageHash(imageId: number, hash: string): void {
     const stmt = this.db.prepare('UPDATE images SET hash = ? WHERE id = ?')
     stmt.run(hash, imageId)
+  }
+
+  getImagesWithoutDominantColors(): ImageModel[] {
+    const stmt = this.db.prepare(`
+      SELECT 
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors
+      FROM images 
+      WHERE dominant_colors IS NULL OR id NOT IN (SELECT DISTINCT image_id FROM image_colors)
+    `)
+    const rows = stmt.all() as any[]
+    return rows.map(mapImageRow)
+  }
+
+  private updateColorsInDb(imageId: number, colors: string[]): void {
+    this.db.prepare('DELETE FROM image_colors WHERE image_id = ?').run(imageId)
+    if (!colors || colors.length === 0) return
+
+    const insertColorStmt = this.db.prepare(`
+      INSERT INTO image_colors (image_id, r, g, b, h, s, l, rank)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    colors.forEach((color, index) => {
+      const rgb = hexToRgb(color)
+      if (rgb) {
+        const hsl = rgbToHsl(rgb[0], rgb[1], rgb[2])
+        insertColorStmt.run(
+          imageId,
+          rgb[0],
+          rgb[1],
+          rgb[2],
+          hsl.h,
+          hsl.s,
+          hsl.l,
+          index + 1,
+        )
+      }
+    })
+  }
+
+  updateImageDominantColors(imageId: number, colors: string[]): void {
+    const stmt = this.db.prepare(
+      'UPDATE images SET dominant_colors = ? WHERE id = ?',
+    )
+    stmt.run(JSON.stringify(colors), imageId)
+    this.updateColorsInDb(imageId, colors)
   }
 }

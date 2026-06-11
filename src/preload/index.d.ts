@@ -19,9 +19,10 @@ declare global {
       }
 
       images: {
-        getAll: (
-          folderPath: string,
-        ) => Promise<(ImageModel & { tags?: string })[]>
+        getAll: (folderPath: string) => Promise<{
+          data: (ImageModel & { tags?: string })[]
+          total: number
+        }>
         getPaginated: (
           folderPath: string,
           offset?: number,

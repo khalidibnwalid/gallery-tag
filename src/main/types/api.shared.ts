@@ -12,4 +12,5 @@ export interface SearchFilter {
   filterPath?: string
   tags?: string[]
   excludedTags?: string[]
+  color?: string
 }

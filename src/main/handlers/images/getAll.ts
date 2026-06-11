@@ -17,6 +17,7 @@ import { FolderRepository } from '@main/utils/repositories/Folder'
 import { ImageRepository } from '@main/utils/repositories/Image'
 import { EXTENSIONS, getFilesByExtension } from '@main/utils/files/getFiles'
 import { computeFileHash } from '@main/utils/files/hashing'
+import { extractDominantColors } from '@main/utils/files/colorExtractor'
 import { join } from 'path'
 
 const THUMBNAIL_WIDTH = 512
@@ -29,7 +30,7 @@ async function getAllBase(
   filter?: SearchFilter,
 ): Promise<
   | PaginatedResult<ImageModel & { tags?: string }>
-  | (ImageModel & { tags?: string })[]
+  | { data: (ImageModel & { tags?: string })[]; total: number }
 > {
   try {
     const sender = event.sender
@@ -70,6 +71,7 @@ async function getAllBase(
     let filesToInsert = newFilesRaw.map(f => ({
       ...f,
       hash: undefined as string | undefined,
+      dominantColors: undefined as string[] | undefined,
     }))
 
     if (newPaths.length > 0) {
@@ -77,14 +79,15 @@ async function getAllBase(
 
       // Compute hashes for new files to enable matching
       // We use a concurrency limit if needed, but for now Promise.all is okay for reasonable batches
-      const newFilesWithHash = await Promise.all(
+      const newFilesWithHashAndColor = await Promise.all(
         newFilesRaw.map(async file => ({
           ...file,
           hash: await computeFileHash(file.fullPath),
+          dominantColors: await extractDominantColors(file.fullPath),
         })),
       )
 
-      filesToInsert = newFilesWithHash
+      filesToInsert = newFilesWithHashAndColor
 
       // Attempt recovery if there are missing images to match against
       if (missingImages.length > 0) {
@@ -239,6 +242,31 @@ async function getAllBase(
       })
     }
 
+    // 5. Background: Backfill dominant colors for existing images (limit 50 per scan)
+    const colorlessImages = imageRepo.getImagesWithoutDominantColors()
+    if (colorlessImages.length > 0) {
+      const batch = colorlessImages.slice(0, 50)
+      console.log(
+        `Backfilling dominant colors for ${batch.length} images (out of ${colorlessImages.length} remaining)...`,
+      )
+      // Fire and forget - do not await
+      Promise.allSettled(
+        batch.map(async img => {
+          try {
+            let colors = img.dominantColors
+            if (!colors || colors.length === 0) {
+              colors = await extractDominantColors(img.filePath)
+            }
+            imageRepo.updateImageDominantColors(img.id, colors)
+          } catch (error) {
+            // Ignore errors for individual files
+          }
+        }),
+      ).then(() => {
+        console.log('Background dominant colors backfill batch complete')
+      })
+    }
+
     if (isPaginated) {
       const { data: images, total } = imageRepo.getAllImagesWithTagsPaginated(
         offset!,
@@ -262,10 +290,10 @@ async function getAllBase(
       }
     } else {
       // get all image paths from database (after update and delete)
-      const images = imageRepo.getAllImagesWithTags()
+      const result = imageRepo.getAllImagesWithTags()
 
-      console.log(`Returning ${images.length} image paths`)
-      return images
+      console.log(`Returning ${result.total} image paths`)
+      return result
     }
   } catch (error) {
     console.error('Error getting image files:', error)
@@ -281,7 +309,7 @@ async function getAllBase(
         },
       }
     } else {
-      return []
+      return { data: [], total: 0 }
     }
   }
 }
@@ -289,10 +317,11 @@ async function getAllBase(
 export default async function getAllHandler(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
-): Promise<(ImageModel & { tags?: string })[]> {
-  return (await getAllBase(event, folderPath)) as (ImageModel & {
-    tags?: string
-  })[]
+): Promise<{ data: (ImageModel & { tags?: string })[]; total: number }> {
+  return (await getAllBase(event, folderPath)) as {
+    data: (ImageModel & { tags?: string })[]
+    total: number
+  }
 }
 
 export async function getPaginatedHandler(
