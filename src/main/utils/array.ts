@@ -5,4 +5,3 @@ export const chunkify = <T>(array: T[], chunkSize: number): T[][] => {
   }
   return chunks
 }
-

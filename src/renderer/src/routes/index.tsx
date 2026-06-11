@@ -38,7 +38,7 @@ function Index() {
     useInfiniteImages(folderPath ?? undefined, 50, filter)
 
   const images = data?.pages.flat() || []
-  
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       entries => {

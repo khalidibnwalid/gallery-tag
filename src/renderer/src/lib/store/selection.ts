@@ -31,7 +31,7 @@ export const useSelectionStore = create<SelectionState>()(
           state => {
             const newSet = new Set(state.selectedItems)
             let newLastIndex = state.lastSelectedIndex
-            
+
             if (newSet.has(item)) {
               newSet.delete(item)
               // if we're deselecting the last selected item, clear the index
@@ -42,10 +42,10 @@ export const useSelectionStore = create<SelectionState>()(
               newSet.add(item)
               newLastIndex = index ?? state.lastSelectedIndex
             }
-            
-            return { 
+
+            return {
               selectedItems: newSet,
-              lastSelectedIndex: newLastIndex
+              lastSelectedIndex: newLastIndex,
             }
           },
           false,
@@ -81,16 +81,16 @@ export const useSelectionStore = create<SelectionState>()(
             const newSet = new Set(state.selectedItems)
             const start = Math.min(fromIndex, toIndex)
             const end = Math.max(fromIndex, toIndex)
-            
+
             for (let i = start; i <= end; i++) {
               if (items[i]) {
                 newSet.add(items[i])
               }
             }
-            
-            return { 
+
+            return {
               selectedItems: newSet,
-              lastSelectedIndex: toIndex
+              lastSelectedIndex: toIndex,
             }
           },
           false,
@@ -99,14 +99,22 @@ export const useSelectionStore = create<SelectionState>()(
       },
 
       clearSelection: () => {
-        set({ selectedItems: new Set(), lastSelectedIndex: null }, false, 'clearSelection')
+        set(
+          { selectedItems: new Set(), lastSelectedIndex: null },
+          false,
+          'clearSelection',
+        )
       },
 
       selectAll: items => {
-        set({ 
-          selectedItems: new Set(items),
-          lastSelectedIndex: items.length > 0 ? items.length - 1 : null
-        }, false, 'selectAll')
+        set(
+          {
+            selectedItems: new Set(items),
+            lastSelectedIndex: items.length > 0 ? items.length - 1 : null,
+          },
+          false,
+          'selectAll',
+        )
       },
 
       toggleSelectionMode: open => {

@@ -12,5 +12,4 @@ export const NOTIFIER_EVENTS = {
 export const NOTIFIER_EVENT_TYPES = {
   PROGRESS_COMPLETE: 'progress.complete',
   PROGRESS_PART: 'progress.part',
-  
 } as const
