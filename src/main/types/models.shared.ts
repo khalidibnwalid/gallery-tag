@@ -14,6 +14,8 @@ export interface ImageModel {
   height?: number
   hash?: string
   dominantColors?: string[]
+  deletedAt?: string
+  isDuplicate?: number
 }
 
 export interface ImageColorModel {

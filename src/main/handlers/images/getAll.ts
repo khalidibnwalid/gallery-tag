@@ -56,10 +56,36 @@ async function getAllBase(
 
     const currentPaths = imageFiles.map(file => file.fullPath)
 
-    // 1. Get missing images (candidates for recovery)
-    const missingImages = imageRepo.getMissingImages(currentPaths)
+    // Mark missing images as soft-deleted
+    const numSoftDeleted = imageRepo.markMissingImagesAsDeleted(currentPaths)
+    if (numSoftDeleted > 0) {
+      console.log(`Soft-deleted ${numSoftDeleted} missing images`)
+    }
 
-    // 2. Identify new candidates
+    // Purge deleted images older than 30 days
+    const numPurged = imageRepo.purgeExpiredDeletedImages()
+    if (numPurged > 0) {
+      console.log(`Purged ${numPurged} expired soft-deleted images from database`)
+    }
+
+    // 0. Same-path recovery: soft-deleted images whose file still exists at the
+    const softDeletedAtCurrentPaths = imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
+    if (softDeletedAtCurrentPaths.length > 0) {
+      const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
+      for (const img of softDeletedAtCurrentPaths) {
+        const fileInfo = currentFileMap.get(img.filePath)
+        if (fileInfo) {
+          imageRepo.recoverImage(img.id, fileInfo)
+          console.log(`Same-path recovery: ${img.filePath}`)
+        }
+      }
+      console.log(`Recovered ${softDeletedAtCurrentPaths.length} same-path soft-deleted images`)
+    }
+
+    // 1. Get missing images (candidates for hash-based recovery)
+    const missingImages = imageRepo.getMissingImages()
+
+    // 2. Identify new candidates (excludes already-active and just-recovered paths)
     const newPaths = imageRepo.getPathsNotInImagesTable(currentPaths)
     const newPathsSet = new Set(newPaths)
     const newFilesRaw = imageFiles.filter(file =>
@@ -72,10 +98,12 @@ async function getAllBase(
       ...f,
       hash: undefined as string | undefined,
       dominantColors: undefined as string[] | undefined,
+      isDuplicate: undefined as number | undefined,
     }))
 
     if (newPaths.length > 0) {
       console.log(`Processing ${newPaths.length} new files...`)
+
 
       // Compute hashes for new files to enable matching
       // We use a concurrency limit if needed, but for now Promise.all is okay for reasonable batches
@@ -84,6 +112,7 @@ async function getAllBase(
           ...file,
           hash: await computeFileHash(file.fullPath),
           dominantColors: await extractDominantColors(file.fullPath),
+          isDuplicate: undefined as number | undefined,
         })),
       )
 
@@ -103,17 +132,28 @@ async function getAllBase(
 
         for (const file of filesToInsert) {
           if (file.hash && missingHashMap.has(file.hash)) {
-            // Match found - recover the image record
-            const oldImage = missingHashMap.get(file.hash)!
+            // Check if we have an active image in the DB with the same hash
+            const hasActive = imageRepo.hasActiveImageWithHash(file.hash)
 
-            imageRepo.recoverImage(oldImage.id, file)
-            console.log(
-              `Recovered image: ${oldImage.filePath} -> ${file.fullPath}`,
-            )
+            if (!hasActive) {
+              // Match found and no active duplicate exists - recover the image record
+              const oldImage = missingHashMap.get(file.hash)!
 
-            // Consume the match
-            missingHashMap.delete(file.hash)
-            recoveredCount++
+              imageRepo.recoverImage(oldImage.id, file)
+              console.log(
+                `Recovered image: ${oldImage.filePath} -> ${file.fullPath}`,
+              )
+
+              // Consume the match
+              missingHashMap.delete(file.hash)
+              recoveredCount++
+            } else {
+              // Active image with same hash exists: mark this as duplicate and let it be inserted
+              unmatchedFiles.push({
+                ...file,
+                isDuplicate: 1,
+              })
+            }
           } else {
             // No match found
             unmatchedFiles.push(file)
@@ -212,12 +252,6 @@ async function getAllBase(
           thumbnailOptions: { width: THUMBNAIL_WIDTH },
         })
       }
-    }
-
-    // 3. Cleanup: Delete images that are truly missing (and not recovered)
-    const numRemoved = imageRepo.deleteDiffImagesByPath(currentPaths)
-    if (numRemoved > 0) {
-      console.log(`Removed ${numRemoved} stale image records from database`)
     }
 
     // 4. Background: Backfill hashes for existing images (limit 50 per scan to avoid performance hit)

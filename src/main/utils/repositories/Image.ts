@@ -19,8 +19,8 @@ export class ImageRepository {
 
   insertImages(
     images:
-      | (FileInfo & { hash?: string; dominantColors?: string[] })[]
-      | (FileInfo & { hash?: string; dominantColors?: string[] }),
+      | (FileInfo & { hash?: string; dominantColors?: string[]; isDuplicate?: number })[]
+      | (FileInfo & { hash?: string; dominantColors?: string[]; isDuplicate?: number }),
   ): void {
     if (!Array.isArray(images)) {
       images = [images]
@@ -28,15 +28,21 @@ export class ImageRepository {
 
     const insertStmt = this.db.prepare(`
       INSERT OR REPLACE INTO images 
-      (file_path, file_name, extension, size, modified_at, last_scanned, hash, dominant_colors)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+      (file_path, file_name, extension, size, modified_at, last_scanned, hash, dominant_colors, is_duplicate, deleted_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, NULL)
     `)
 
     const transaction = this.db.transaction(
       (
-        imageList: (FileInfo & { hash?: string; dominantColors?: string[] })[],
+        imageList: (FileInfo & { hash?: string; dominantColors?: string[]; isDuplicate?: number })[],
       ) => {
         for (const image of imageList) {
+          let isDup = image.isDuplicate !== undefined ? image.isDuplicate : 0
+          if (image.hash && image.isDuplicate === undefined) {
+            const hasActive = this.hasActiveImageWithHash(image.hash)
+            isDup = hasActive ? 1 : 0
+          }
+
           const result = insertStmt.run(
             image.fullPath,
             image.fileName,
@@ -45,6 +51,7 @@ export class ImageRepository {
             image.modifiedAt.toISOString(),
             image.hash || null,
             image.dominantColors ? JSON.stringify(image.dominantColors) : null,
+            isDup,
           )
 
           if (image.dominantColors) {
@@ -62,7 +69,7 @@ export class ImageRepository {
 
   getImagePaths(): string[] {
     const stmt = this.db.prepare(
-      'SELECT file_path FROM images ORDER BY file_name',
+      'SELECT file_path FROM images WHERE deleted_at IS NULL ORDER BY file_name',
     )
     const rows = stmt.all() as { file_path: string }[]
     return rows.map(row => row.file_path)
@@ -83,8 +90,11 @@ export class ImageRepository {
         width,
         height,
         hash,
-        dominant_colors as dominantColors
+        dominant_colors as dominantColors,
+        deleted_at as deletedAt,
+        is_duplicate as isDuplicate
       FROM images 
+      WHERE deleted_at IS NULL
       ORDER BY file_name
     `)
     const rows = stmt.all() as any[]
@@ -111,11 +121,14 @@ export class ImageRepository {
         i.height,
         i.hash,
         i.dominant_colors as dominantColors,
+        i.deleted_at as deletedAt,
+        i.is_duplicate as isDuplicate,
 
         GROUP_CONCAT(t.name) as tags
       FROM images i
       LEFT JOIN image_tags it ON i.id = it.image_id
       LEFT JOIN tags t ON it.tag_id = t.id
+      WHERE i.deleted_at IS NULL
       GROUP BY i.id
       ORDER BY i.file_name
     `)
@@ -132,7 +145,7 @@ export class ImageRepository {
     data: (ImageModel & { tags?: string })[]
     total: number
   } {
-    let whereClauses: string[] = []
+    let whereClauses: string[] = ['i.deleted_at IS NULL']
     let params: any[] = []
 
     // Filter by text (filename or tags)
@@ -230,7 +243,9 @@ export class ImageRepository {
         i.width,
         i.height,
         i.hash,
-        i.dominant_colors as dominantColors
+        i.dominant_colors as dominantColors,
+        i.deleted_at as deletedAt,
+        i.is_duplicate as isDuplicate
         ${selectColorDist},
         GROUP_CONCAT(t.name) as tags
       FROM images i
@@ -278,13 +293,13 @@ export class ImageRepository {
 
     transaction(currentPaths)
 
-    // find paths not in the table
+    // find paths not in the table as active images
     const stmt = this.db.prepare(
       `
       SELECT tcp.file_path 
       FROM temp_check_paths tcp
       LEFT JOIN images i ON tcp.file_path = i.file_path
-      WHERE i.file_path IS NULL
+      WHERE i.file_path IS NULL OR i.deleted_at IS NOT NULL
     `,
     )
 
@@ -295,7 +310,7 @@ export class ImageRepository {
     return rows.map(row => row.file_path)
   }
 
-  deleteDiffImagesByPath(currentPaths: string[]) {
+  markMissingImagesAsDeleted(currentPaths: string[]) {
     // temporary table for current paths
     this.db
       .prepare(
@@ -320,14 +335,16 @@ export class ImageRepository {
 
     transaction(currentPaths)
 
-    // Delete records not in current paths using JOIN
+    // Mark missing images as deleted
     const result = this.db
       .prepare(
         `
-      DELETE FROM images 
-      WHERE file_path NOT IN (
-        SELECT file_path FROM temp_current_paths
-      )
+      UPDATE images 
+      SET deleted_at = CURRENT_TIMESTAMP
+      WHERE deleted_at IS NULL
+        AND file_path NOT IN (
+          SELECT file_path FROM temp_current_paths
+        )
     `,
       )
       .run()
@@ -336,16 +353,88 @@ export class ImageRepository {
     return result.changes
   }
 
+  purgeExpiredDeletedImages(): number {
+    // Find image IDs to purge (deleted more than 30 days ago)
+    const stmt = this.db.prepare(`
+      SELECT id FROM images
+      WHERE deleted_at IS NOT NULL
+        AND deleted_at < datetime('now', '-30 days')
+    `)
+    const expired = stmt.all() as { id: number }[]
+    if (expired.length === 0) return 0
+
+    const ids = expired.map(row => row.id)
+    
+    // Delete from images and its related data inside a transaction
+    const runDelete = this.db.transaction(() => {
+      const deleteColors = this.db.prepare('DELETE FROM image_colors WHERE image_id = ?')
+      const deleteTags = this.db.prepare('DELETE FROM image_tags WHERE image_id = ?')
+      const deleteImage = this.db.prepare('DELETE FROM images WHERE id = ?')
+
+      for (const id of ids) {
+        deleteColors.run(id)
+        deleteTags.run(id)
+        deleteImage.run(id)
+      }
+    })
+    
+    runDelete()
+    return ids.length
+  }
+
+  hasActiveImageWithHash(hash: string): boolean {
+    const stmt = this.db.prepare(`
+      SELECT 1 FROM images
+      WHERE hash = ? AND deleted_at IS NULL
+      LIMIT 1
+    `)
+    return !!stmt.get(hash)
+  }
+
+  /**
+   * Returns soft-deleted image records whose file_path is in the given list.
+   * Used to recover images that were soft-deleted but whose file still exists
+   * at the same path (e.g. a rescan after an app restart).
+   */
+  getSoftDeletedImagesAtPaths(paths: string[]): ImageModel[] {
+    if (paths.length === 0) return []
+
+    const placeholders = paths.map(() => '?').join(',')
+    const stmt = this.db.prepare(`
+      SELECT
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors,
+        deleted_at as deletedAt,
+        is_duplicate as isDuplicate
+      FROM images
+      WHERE deleted_at IS NOT NULL
+        AND file_path IN (${placeholders})
+    `)
+    const rows = stmt.all(...paths) as any[]
+    return rows.map(mapImageRow)
+  }
+
   getImageStats(): {
     totalImages: number
     totalSize: number
     lastScanTime: string | null
   } {
     const countStmt = this.db.prepare(
-      'SELECT COUNT(*) as count, SUM(size) as total_size FROM images',
+      'SELECT COUNT(*) as count, SUM(size) as total_size FROM images WHERE deleted_at IS NULL',
     )
     const scanStmt = this.db.prepare(
-      'SELECT MAX(last_scanned) as last_scan FROM images',
+      'SELECT MAX(last_scanned) as last_scan FROM images WHERE deleted_at IS NULL',
     )
 
     const countResult = countStmt.get() as {
@@ -400,30 +489,7 @@ export class ImageRepository {
     transaction(updates)
   }
 
-  getMissingImages(currentPaths: string[]): ImageModel[] {
-    // Create temp table for current paths
-    this.db
-      .prepare(
-        `
-      CREATE TEMPORARY TABLE IF NOT EXISTS temp_current_paths_check (
-        file_path TEXT PRIMARY KEY
-      )
-    `,
-      )
-      .run()
-
-    this.db.prepare('DELETE FROM temp_current_paths_check').run()
-
-    const insertStmt = this.db.prepare(
-      'INSERT INTO temp_current_paths_check (file_path) VALUES (?)',
-    )
-    const transaction = this.db.transaction((paths: string[]) => {
-      for (const path of paths) insertStmt.run(path)
-    })
-
-    transaction(currentPaths)
-
-    // Select images that are NOT in the temp table
+  getMissingImages(): ImageModel[] {
     const stmt = this.db.prepare(`
       SELECT 
         id,
@@ -440,15 +506,11 @@ export class ImageRepository {
         hash,
         dominant_colors as dominantColors
       FROM images 
-      WHERE file_path NOT IN (SELECT file_path FROM temp_current_paths_check)
+      WHERE deleted_at IS NOT NULL
     `)
 
     const rows = stmt.all() as any[]
-    const data = rows.map(mapImageRow)
-
-    this.db.prepare('DROP TABLE temp_current_paths_check').run()
-
-    return data
+    return rows.map(mapImageRow)
   }
 
   recoverImage(
@@ -465,7 +527,9 @@ export class ImageRepository {
         modified_at = ?,
         last_scanned = CURRENT_TIMESTAMP,
         hash = COALESCE(?, hash),
-        dominant_colors = COALESCE(?, dominant_colors)
+        dominant_colors = COALESCE(?, dominant_colors),
+        deleted_at = NULL,
+        is_duplicate = 0
       WHERE id = ?
     `)
 
@@ -504,7 +568,7 @@ export class ImageRepository {
         hash,
         dominant_colors as dominantColors
       FROM images 
-      WHERE hash IS NULL
+      WHERE hash IS NULL AND deleted_at IS NULL
     `)
     const rows = stmt.all() as any[]
     return rows.map(mapImageRow)
@@ -532,7 +596,7 @@ export class ImageRepository {
         hash,
         dominant_colors as dominantColors
       FROM images 
-      WHERE dominant_colors IS NULL OR id NOT IN (SELECT DISTINCT image_id FROM image_colors)
+      WHERE (dominant_colors IS NULL OR id NOT IN (SELECT DISTINCT image_id FROM image_colors)) AND deleted_at IS NULL
     `)
     const rows = stmt.all() as any[]
     return rows.map(mapImageRow)

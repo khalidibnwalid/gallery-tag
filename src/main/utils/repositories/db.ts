@@ -91,7 +91,9 @@ class DBSingleton {
         width INTEGER,
         height INTEGER,
         hash TEXT,
-        dominant_colors TEXT
+        dominant_colors TEXT,
+        deleted_at DATETIME,
+        is_duplicate INTEGER DEFAULT 0
       )
     `)
 
