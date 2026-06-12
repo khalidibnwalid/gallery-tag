@@ -20,9 +20,16 @@ export class NotifierService {
   }
 
   public notify<T>({ id, type, payload }: Notifier<T>): void {
-    if (!this.mainWindow) {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) {
       console.warn(
-        'NotifierService: No main window set, cannot send notification',
+        'NotifierService: No main window set or window is destroyed, cannot send notification',
+      )
+      return
+    }
+
+    if (this.mainWindow.webContents.isDestroyed()) {
+      console.warn(
+        'NotifierService: webContents has been destroyed, cannot send notification',
       )
       return
     }

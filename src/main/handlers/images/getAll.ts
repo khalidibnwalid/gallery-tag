@@ -12,6 +12,7 @@ import {
   scanColors,
   scanEmbeddings,
 } from '@main/utils/files/scan'
+import { runExclusiveSync } from '../../utils/locks'
 import { watcherService } from '@main/services/watcher.service'
 
 async function getAllBase(
@@ -46,65 +47,67 @@ async function getAllBase(
       console.error('Failed to start folder watcher:', err)
     })
 
-    await folderRepo.syncFoldersFromDisk(folderPath)
+    await runExclusiveSync(folderPath, async () => {
+      await folderRepo.syncFoldersFromDisk(folderPath)
 
-    const imageFiles = await getFilesByExtension(
-      folderPath,
-      EXTENSIONS.IMAGES,
-      CONFIG_DIR,
-    )
-
-    const currentPaths = imageFiles.map(file => file.fullPath)
-
-    // Mark missing images as soft-deleted
-    const numSoftDeleted = imageRepo.markMissingImagesAsDeleted(currentPaths)
-    if (numSoftDeleted > 0) {
-      console.log(`Soft-deleted ${numSoftDeleted} missing images`)
-    }
-
-    // Purge deleted images older than 30 days
-    const numPurged = imageRepo.purgeExpiredDeletedImages()
-    if (numPurged > 0) {
-      console.log(
-        `Purged ${numPurged} expired soft-deleted images from database`,
+      const imageFiles = await getFilesByExtension(
+        folderPath,
+        EXTENSIONS.IMAGES,
+        CONFIG_DIR,
       )
-    }
 
-    // 0. Same-path recovery: soft-deleted images whose file still exists at the
-    const softDeletedAtCurrentPaths =
-      imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
-    if (softDeletedAtCurrentPaths.length > 0) {
-      const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
-      for (const img of softDeletedAtCurrentPaths) {
-        const fileInfo = currentFileMap.get(img.filePath)
-        if (fileInfo) {
-          imageRepo.recoverImage(img.id, fileInfo)
-          console.log(`Same-path recovery: ${img.filePath}`)
-        }
+      const currentPaths = imageFiles.map(file => file.fullPath)
+
+      // Mark missing images as soft-deleted
+      const numSoftDeleted = imageRepo.markMissingImagesAsDeleted(currentPaths)
+      if (numSoftDeleted > 0) {
+        console.log(`Soft-deleted ${numSoftDeleted} missing images`)
       }
-      console.log(
-        `Recovered ${softDeletedAtCurrentPaths.length} same-path soft-deleted images`,
+
+      // Purge deleted images older than 30 days
+      const numPurged = imageRepo.purgeExpiredDeletedImages()
+      if (numPurged > 0) {
+        console.log(
+          `Purged ${numPurged} expired soft-deleted images from database`,
+        )
+      }
+
+      // 0. Same-path recovery: soft-deleted images whose file still exists at the
+      const softDeletedAtCurrentPaths =
+        imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
+      if (softDeletedAtCurrentPaths.length > 0) {
+        const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
+        for (const img of softDeletedAtCurrentPaths) {
+          const fileInfo = currentFileMap.get(img.filePath)
+          if (fileInfo) {
+            imageRepo.recoverImage(img.id, fileInfo)
+            console.log(`Same-path recovery: ${img.filePath}`)
+          }
+        }
+        console.log(
+          `Recovered ${softDeletedAtCurrentPaths.length} same-path soft-deleted images`,
+        )
+      }
+
+      // 1. Process new files (recovery & thumbnail generation)
+      await scanNewFiles(
+        imageRepo,
+        sender,
+        folderPath,
+        imageFiles,
+        currentPaths,
+        db,
       )
-    }
 
-    // 1. Process new files (recovery & thumbnail generation)
-    await scanNewFiles(
-      imageRepo,
-      sender,
-      folderPath,
-      imageFiles,
-      currentPaths,
-      db,
-    )
+      // 4. Background: Backfill hashes for existing images (limit 50 per scan to avoid performance hit)
+      scanHashes(imageRepo)
 
-    // 4. Background: Backfill hashes for existing images (limit 50 per scan to avoid performance hit)
-    scanHashes(imageRepo)
+      // 5. Background: Backfill dominant colors for existing images (limit 50 per scan)
+      scanColors(imageRepo)
 
-    // 5. Background: Backfill dominant colors for existing images (limit 50 per scan)
-    scanColors(imageRepo)
-
-    // 6. Background: Compute CLIP embeddings for unembedded images
-    scanEmbeddings(imageRepo, folderPath)
+      // 6. Background: Compute CLIP embeddings for unembedded images
+      scanEmbeddings(imageRepo, folderPath)
+    })
 
     let aiEmbedding: Float32Array | undefined = undefined
     if (filter?.aiSearchText) {

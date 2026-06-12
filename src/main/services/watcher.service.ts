@@ -13,6 +13,7 @@ import {
   scanColors,
   scanEmbeddings,
 } from '@main/utils/files/scan'
+import { runExclusiveSync } from '../utils/locks'
 
 class WatcherService {
   private activeFolderPath: string | null = null
@@ -72,93 +73,95 @@ class WatcherService {
   }
 
   async syncFolder(folderPath: string, sender: Electron.WebContents) {
-    const { db: database } = await getAndInitConfig(folderPath)
-    const folderRepo = new FolderRepository(database)
-    const imageRepo = new ImageRepository(database)
+    await runExclusiveSync(folderPath, async () => {
+      const { db: database } = await getAndInitConfig(folderPath)
+      const folderRepo = new FolderRepository(database)
+      const imageRepo = new ImageRepository(database)
 
-    // 1. Sync folders from disk
-    await folderRepo.syncFoldersFromDisk(folderPath)
+      // 1. Sync folders from disk
+      await folderRepo.syncFoldersFromDisk(folderPath)
 
-    // 2. Scan images
-    const imageFiles = await getFilesByExtension(
-      folderPath,
-      EXTENSIONS.IMAGES,
-      CONFIG_DIR,
-    )
-
-    const currentPaths = imageFiles.map(file => file.fullPath)
-
-    // 3. Find missing images to notify renderer
-    const missing = imageRepo.getImagesMissingFromPaths(currentPaths)
-    if (missing.length > 0) {
-      console.log(
-        `Watcher: ${missing.length} images went missing from disk. Soft-deleting...`,
+      // 2. Scan images
+      const imageFiles = await getFilesByExtension(
+        folderPath,
+        EXTENSIONS.IMAGES,
+        CONFIG_DIR,
       )
 
-      // Perform soft delete
-      imageRepo.markMissingImagesAsDeleted(currentPaths)
+      const currentPaths = imageFiles.map(file => file.fullPath)
 
-      // Notify renderer
-      sender.send(EVENTS.UPDATE_IMAGE, {
-        type: 'update',
-        payload: {
-          images: missing.map(img => ({
-            id: img.id,
-            filePath: `deleted://${img.id}`,
-            deletedAt: new Date().toISOString(),
-          })),
-        } satisfies ImageUpdatePayload,
-      })
-    }
+      // 3. Find missing images to notify renderer
+      const missing = imageRepo.getImagesMissingFromPaths(currentPaths)
+      if (missing.length > 0) {
+        console.log(
+          `Watcher: ${missing.length} images went missing from disk. Soft-deleting...`,
+        )
 
-    // 4. Same-path recovery for images that reappeared
-    const softDeletedAtCurrentPaths =
-      imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
-    if (softDeletedAtCurrentPaths.length > 0) {
-      const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
-      const recoveredImages: any[] = []
-      for (const img of softDeletedAtCurrentPaths) {
-        const fileInfo = currentFileMap.get(img.filePath)
-        if (fileInfo) {
-          imageRepo.recoverImage(img.id, fileInfo)
-          recoveredImages.push({
-            id: img.id,
-            filePath: img.filePath,
-            fileName: img.fileName,
-          })
-          console.log(`Watcher same-path recovery: ${img.filePath}`)
-        }
-      }
-      if (recoveredImages.length > 0) {
+        // Perform soft delete
+        imageRepo.markMissingImagesAsDeleted(currentPaths)
+
+        // Notify renderer
         sender.send(EVENTS.UPDATE_IMAGE, {
           type: 'update',
           payload: {
-            images: recoveredImages,
+            images: missing.map(img => ({
+              id: img.id,
+              filePath: `deleted://${img.id}`,
+              deletedAt: new Date().toISOString(),
+            })),
           } satisfies ImageUpdatePayload,
         })
       }
-    }
 
-    // 5. Process new files (inserting and creating thumbnails)
-    await scanNewFiles(
-      imageRepo,
-      sender,
-      folderPath,
-      imageFiles,
-      currentPaths,
-      database,
-    )
+      // 4. Same-path recovery for images that reappeared
+      const softDeletedAtCurrentPaths =
+        imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
+      if (softDeletedAtCurrentPaths.length > 0) {
+        const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
+        const recoveredImages: any[] = []
+        for (const img of softDeletedAtCurrentPaths) {
+          const fileInfo = currentFileMap.get(img.filePath)
+          if (fileInfo) {
+            imageRepo.recoverImage(img.id, fileInfo)
+            recoveredImages.push({
+              id: img.id,
+              filePath: img.filePath,
+              fileName: img.fileName,
+            })
+            console.log(`Watcher same-path recovery: ${img.filePath}`)
+          }
+        }
+        if (recoveredImages.length > 0) {
+          sender.send(EVENTS.UPDATE_IMAGE, {
+            type: 'update',
+            payload: {
+              images: recoveredImages,
+            } satisfies ImageUpdatePayload,
+          })
+        }
+      }
 
-    // 6. Background tasks
-    scanHashes(imageRepo)
-    scanColors(imageRepo)
-    scanEmbeddings(imageRepo, folderPath)
+      // 5. Process new files (inserting and creating thumbnails)
+      await scanNewFiles(
+        imageRepo,
+        sender,
+        folderPath,
+        imageFiles,
+        currentPaths,
+        database,
+      )
 
-    // Notify UI that library/folders changed on disk
-    notifier.notify({
-      id: 'library-changed',
-      type: 'status',
-      payload: { folderPath },
+      // 6. Background tasks
+      scanHashes(imageRepo)
+      scanColors(imageRepo)
+      scanEmbeddings(imageRepo, folderPath)
+
+      // Notify UI that library/folders changed on disk
+      notifier.notify({
+        id: 'library-changed',
+        type: 'status',
+        payload: { folderPath },
+      })
     })
   }
 
