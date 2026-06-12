@@ -187,6 +187,15 @@ class DBSingleton {
       CREATE INDEX IF NOT EXISTS idx_image_colors_rgb ON image_colors (r, g, b)
     `)
 
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key_name TEXT PRIMARY KEY NOT NULL,
+        setting_value TEXT NOT NULL,
+        value_type TEXT CHECK(value_type IN ('string', 'number', 'boolean', 'json' , 'json_array')) DEFAULT 'string',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
     console.log(`Database initialized: ${dbPath}`)
     return db
   }

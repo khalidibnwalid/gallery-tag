@@ -77,3 +77,36 @@ export interface Notifier<T> {
 export type NotifierEventValues = ExtractNestedValues<
   (typeof NOTIFIER_EVENTS)[keyof typeof NOTIFIER_EVENTS]
 >
+
+export interface AppSettingModel {
+  keyName: string
+  settingValue: string
+  valueType: 'string' | 'number' | 'boolean' | 'json' | 'json_array'
+  updatedAt: string
+}
+
+export type SettingValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: SettingValue }
+  | SettingValue[]
+
+export type ValueTypeMap = {
+  string: string
+  number: number
+  boolean: boolean
+  json: { [key: string]: any }
+  json_array: any[]
+}
+
+export type InferValueTypeKey<T> = NonNullable<T> extends string
+  ? 'string'
+  : NonNullable<T> extends number
+    ? 'number'
+    : NonNullable<T> extends boolean
+      ? 'boolean'
+      : NonNullable<T> extends any[]
+        ? 'json_array'
+        : 'json'

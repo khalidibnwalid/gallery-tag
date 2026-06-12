@@ -5,6 +5,10 @@ import {
   Notifier,
   PaginatedResult,
   TagModel,
+  AppSettingModel,
+  SettingValue,
+  ValueTypeMap,
+  InferValueTypeKey,
 } from '@main/types/models.shared'
 
 declare global {
@@ -54,6 +58,18 @@ declare global {
         onNotify: (
           callback: (notifier: Notifier<unknown>) => void,
         ) => () => void
+      }
+
+      settings: {
+        getAll: () => Promise<AppSettingModel[]>
+        get: (key: string) => Promise<AppSettingModel | undefined>
+        getValue<T extends SettingValue = SettingValue>(key: string): Promise<T | undefined>
+        set<T extends SettingValue>(
+          key: string,
+          value: T,
+          valueType?: InferValueTypeKey<T>,
+        ): Promise<void>
+        delete: (key: string) => Promise<void>
       }
     }
   }
