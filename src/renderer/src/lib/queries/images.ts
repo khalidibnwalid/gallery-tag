@@ -5,10 +5,12 @@ import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
+  useMutation,
 } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { ImageData } from '../types/image'
 import QUERIES from './constants'
+import { toast } from 'sonner'
 
 // don't want two of the same subscriptions active at once
 let globalSubscriptionCount = 0
@@ -26,28 +28,49 @@ function subscribeToImageUpdates(
     globalImageUpdateUnsubscribe = window.api.images.onUpdate(
       ({ images }: ImageUpdatePayload) => {
         images.forEach(image => {
+          const filePath = image?.filePath
+          if (!filePath) return
+
+          const belongs = folderPath ? filePath.startsWith(folderPath) : true
+
           if (isInfinite) {
             queryClient.setQueriesData<{
               pages: ImageData[][]
               pageParams: unknown[]
-            }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
-              if (!oldData) return oldData
-              return {
-                ...oldData,
-                pages: oldData.pages.map(page =>
-                  page.map(old =>
-                    image?.filePath === old.filePath || image?.id === old.id
-                      ? { ...old, ...image }
-                      : old,
+            }>(
+              { queryKey: QUERIES.IMAGES_PAGINATED(folderPath) },
+              oldData => {
+                if (!oldData) return oldData
+
+                if (!belongs) {
+                  return {
+                    ...oldData,
+                    pages: oldData.pages.map(page =>
+                      page.filter(old => old.id !== image.id),
+                    ),
+                  }
+                }
+
+                return {
+                  ...oldData,
+                  pages: oldData.pages.map(page =>
+                    page.map(old =>
+                      image?.filePath === old.filePath || image?.id === old.id
+                        ? { ...old, ...image }
+                        : old,
+                    ),
                   ),
-                ),
-              }
-            })
+                }
+              },
+            )
           } else {
             queryClient.setQueryData<ImageData[]>(
               QUERIES.IMAGES(folderPath),
               oldData => {
                 if (!oldData) return oldData
+                if (!belongs) {
+                  return oldData.filter(old => old.id !== image.id)
+                }
                 return oldData.map(old =>
                   image?.filePath === old.filePath || image?.id === old.id
                     ? { ...old, ...image }
@@ -149,3 +172,73 @@ export function useInfiniteImages(
     enabled: !!folderPath,
   })
 }
+
+export function useRenameImageMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      imageId,
+      newName,
+    }: {
+      imageId: number
+      newName: string
+    }) => {
+      if (!window.api || !window.api.images.rename) {
+        throw new Error('Images rename API not available')
+      }
+      return await window.api.images.rename(imageId, newName)
+    },
+    onSuccess: () => {
+      toast.success('Image renamed successfully')
+      queryClient.invalidateQueries({ queryKey: ['images'] })
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to rename image')
+    },
+  })
+}
+
+export function useMoveImagesMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      imageIds,
+      targetFolderPath,
+    }: {
+      imageIds: number | number[]
+      targetFolderPath: string
+    }) => {
+      if (!window.api || !window.api.images.moveTo) {
+        throw new Error('Images move API not available')
+      }
+      return await window.api.images.moveTo(imageIds, targetFolderPath)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['images'] })
+    },
+  })
+}
+
+export function useDeleteImagesMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (imageIds: number | number[]) => {
+      if (!window.api || !window.api.images.delete) {
+        throw new Error('Images delete API not available')
+      }
+      return await window.api.images.delete(imageIds)
+    },
+    onSuccess: () => {
+      toast.success('Images deleted successfully')
+      queryClient.invalidateQueries({ queryKey: ['images'] })
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to delete images')
+    },
+  })
+}
+
+

@@ -773,6 +773,81 @@ export class ImageRepository {
     return result.changes
   }
 
+  getImageById(id: number): ImageModel | undefined {
+    const stmt = this.db.prepare(`
+      SELECT 
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors,
+        deleted_at as deletedAt,
+        is_duplicate as isDuplicate
+      FROM images 
+      WHERE id = ?
+    `)
+    const row = stmt.get(id)
+    return row ? mapImageRow(row) : undefined
+  }
+
+  getImagesByIds(ids: number[]): ImageModel[] {
+    if (ids.length === 0) return []
+    const placeholders = ids.map(() => '?').join(',')
+    const stmt = this.db.prepare(`
+      SELECT 
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors,
+        deleted_at as deletedAt,
+        is_duplicate as isDuplicate
+      FROM images 
+      WHERE id IN (${placeholders})
+    `)
+    const rows = stmt.all(...ids)
+    return rows.map(row => mapImageRow(row))
+  }
+
+  updateImagePathAndName(id: number, newFilePath: string, newFileName: string): void {
+    const stmt = this.db.prepare(`
+      UPDATE images 
+      SET file_path = ?, file_name = ?
+      WHERE id = ?
+    `)
+    stmt.run(newFilePath, newFileName, id)
+  }
+
+  softDeleteImages(ids: number[]): void {
+    const stmt = this.db.prepare(`
+      UPDATE images 
+      SET deleted_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND deleted_at IS NULL
+    `)
+    const transaction = this.db.transaction((idList: number[]) => {
+      for (const id of idList) {
+        stmt.run(id)
+      }
+    })
+    transaction(ids)
+  }
+
   getAllActiveImages(): ImageModel[] {
     const stmt = this.db.prepare(`
       SELECT 

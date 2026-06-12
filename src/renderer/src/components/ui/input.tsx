@@ -34,93 +34,100 @@ interface InputProps
   onValueChange?: (value: string) => void
 }
 
-function Input({
-  className,
-  type,
-  size,
-  variant,
-  startContent,
-  endContent,
-  value,
-  onValueChange,
-  onChange,
-  ...props
-}: InputProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onValueChange?.(e.target.value)
-    onChange?.(e)
-  }
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  (
+    {
+      className,
+      type,
+      size,
+      variant,
+      startContent,
+      endContent,
+      value,
+      onValueChange,
+      onChange,
+      ...props
+    },
+    ref,
+  ) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      onValueChange?.(e.target.value)
+      onChange?.(e)
+    }
 
-  if (startContent || endContent) {
-    const baseSize = size === 'lg' ? 'px-3' : size === 'sm' ? 'px-2.5' : 'px-3'
-    const startPadding = startContent
-      ? size === 'lg'
-        ? 'ps-9'
-        : size === 'sm'
-          ? 'ps-8'
-          : 'ps-8'
-      : baseSize
-    const endPadding = endContent
-      ? size === 'lg'
-        ? 'pe-9'
-        : size === 'sm'
-          ? 'pe-8'
-          : 'pe-8'
-      : baseSize
+    if (startContent || endContent) {
+      const baseSize = size === 'lg' ? 'px-3' : size === 'sm' ? 'px-2.5' : 'px-3'
+      const startPadding = startContent
+        ? size === 'lg'
+          ? 'ps-9'
+          : size === 'sm'
+            ? 'ps-8'
+            : 'ps-8'
+        : baseSize
+      const endPadding = endContent
+        ? size === 'lg'
+          ? 'pe-9'
+          : size === 'sm'
+            ? 'pe-8'
+            : 'pe-8'
+        : baseSize
+
+      return (
+        <div className="relative">
+          {startContent && (
+            <div
+              className={cn(
+                'absolute top-1/2 -translate-y-1/2 text-muted-foreground',
+                size === 'lg'
+                  ? 'ltr:left-3 rtl:right-3'
+                  : 'ltr:left-3 rtl:right-3',
+              )}
+            >
+              {startContent}
+            </div>
+          )}
+          <input
+            ref={ref}
+            type={type}
+            data-slot="input"
+            value={value}
+            onChange={handleChange}
+            className={cn(
+              inputVariants({ size, variant }),
+              startPadding,
+              endPadding,
+              className,
+            )}
+            {...props}
+          />
+          {endContent && (
+            <div
+              className={cn(
+                'absolute top-1/2 -translate-y-1/2 text-muted-foreground',
+                size === 'lg'
+                  ? 'ltr:right-3 rtl:left-3'
+                  : 'ltr:right-3 rtl:left-3',
+              )}
+            >
+              {endContent}
+            </div>
+          )}
+        </div>
+      )
+    }
 
     return (
-      <div className="relative">
-        {startContent && (
-          <div
-            className={cn(
-              'absolute top-1/2 -translate-y-1/2 text-muted-foreground',
-              size === 'lg'
-                ? 'ltr:left-3 rtl:right-3'
-                : 'ltr:left-3 rtl:right-3',
-            )}
-          >
-            {startContent}
-          </div>
-        )}
-        <input
-          type={type}
-          data-slot="input"
-          value={value}
-          onChange={handleChange}
-          className={cn(
-            inputVariants({ size, variant }),
-            startPadding,
-            endPadding,
-            className,
-          )}
-          {...props}
-        />
-        {endContent && (
-          <div
-            className={cn(
-              'absolute top-1/2 -translate-y-1/2 text-muted-foreground',
-              size === 'lg'
-                ? 'ltr:right-3 rtl:left-3'
-                : 'ltr:right-3 rtl:left-3',
-            )}
-          >
-            {endContent}
-          </div>
-        )}
-      </div>
+      <input
+        ref={ref}
+        type={type}
+        data-slot="input"
+        value={value}
+        onChange={handleChange}
+        className={cn(inputVariants({ size, variant }), 'px-3', className)}
+        {...props}
+      />
     )
-  }
-
-  return (
-    <input
-      type={type}
-      data-slot="input"
-      value={value}
-      onChange={handleChange}
-      className={cn(inputVariants({ size, variant }), 'px-3', className)}
-      {...props}
-    />
-  )
-}
+  },
+)
 
 export { Input }

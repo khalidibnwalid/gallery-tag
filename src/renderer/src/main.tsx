@@ -14,6 +14,8 @@ import { Toaster } from './components/ui/toast'
 import { setupGlobalNotifier } from './lib/notifier'
 import { routeTree } from './routeTree.gen'
 
+import { useSelectionStore } from './lib/store/selection'
+
 // wails go docs recommend using hash history
 const hashHistory = createHashHistory()
 const router = createRouter({ routeTree, history: hashHistory })
@@ -28,6 +30,26 @@ declare module '@tanstack/react-router' {
 
 function App() {
   useEffect(() => setupGlobalNotifier(queryClient), [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        const activeEl = document.activeElement
+        if (
+          activeEl &&
+          (activeEl.tagName === 'INPUT' ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.getAttribute('contenteditable') === 'true')
+        )
+          return
+        const selectionStore = useSelectionStore.getState()
+        if (selectionStore.isSelectionMode)
+          selectionStore.toggleSelectionMode(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <QueryClientProvider client={queryClient}>

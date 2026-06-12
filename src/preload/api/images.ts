@@ -25,6 +25,12 @@ const imagesApi = {
     ipcRenderer.on(EVENTS.UPDATE_IMAGE, sub)
     return () => ipcRenderer.removeListener(EVENTS.UPDATE_IMAGE, sub)
   },
+  moveTo: (imageId: number | number[], targetFolderPath: string): Promise<ImageModel | ImageModel[]> =>
+    ipcRenderer.invoke('images:move-to', imageId, targetFolderPath),
+  rename: (imageId: number, newName: string): Promise<ImageModel> =>
+    ipcRenderer.invoke('images:rename', imageId, newName),
+  delete: (imageId: number | number[]): Promise<void> =>
+    ipcRenderer.invoke('images:delete', imageId),
 }
 
 export default imagesApi

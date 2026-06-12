@@ -28,13 +28,13 @@ export type AppSettingKey =
 // Defaults
 export const CLIP_AVAILABLE_MODELS_DEFAULT: ClipModelConfig[] = [
   {
-    id: 'Xenova/clip-vit-base-patch32',
-    name: 'Xenova/clip-vit-base-patch32',
+    id: 'Xenova/clip-vit-base-patch16',
+    name: 'Xenova/clip-vit-base-patch16',
     dimension: 512,
   },
   {
-    id: 'Xenova/clip-vit-base-patch16',
-    name: 'Xenova/clip-vit-base-patch16',
+    id: 'Xenova/clip-vit-base-patch32',
+    name: 'Xenova/clip-vit-base-patch32',
     dimension: 512,
   },
   {

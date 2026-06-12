@@ -38,10 +38,15 @@ declare global {
         onUpdate: (
           callback: ({ images }: ImageUpdatePayload) => void,
         ) => () => void
+        moveTo: (imageId: number | number[], targetFolderPath: string) => Promise<ImageModel | ImageModel[]>
+        rename: (imageId: number, newName: string) => Promise<ImageModel>
+        delete: (imageId: number | number[]) => Promise<void>
       }
 
       folders: {
         getAll: (folderPath: string) => Promise<FolderModel[]>
+        add: (parentPath: string, folderName: string) => Promise<{ id: number; name: string; path: string; parentId: number | null }>
+        rename: (folderId: number, newName: string) => Promise<{ id: number; name: string; path: string }>
       }
 
       tags: {

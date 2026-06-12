@@ -58,6 +58,76 @@ export function useCreateTagMutation() {
   })
 }
 
+function updateTagsInQueryCache(
+  queryClient: any,
+  imageIds: number[],
+  tags: { name: string; color?: string }[],
+  action: 'add' | 'remove',
+) {
+  const ids = new Set(imageIds)
+
+  queryClient.setQueriesData(
+    { queryKey: ['images'] },
+    (oldData: any) => {
+      if (!oldData) return oldData
+
+      const updateImage = (image: ImageData) => {
+        if (!ids.has(image.id)) return image
+
+        const currentTags = image.tags
+          ? image.tags.split(',').map(t => t.trim())
+          : []
+
+        let newTagsString = image.tags
+
+        if (action === 'add') {
+          const newTagsToAppend = tags
+            .filter(tag => !currentTags.includes(tag.name))
+            .map(tag => tag.name)
+            .filter(Boolean)
+            .join(', ')
+
+          newTagsString = image.tags
+            ? newTagsToAppend
+              ? image.tags + ', ' + newTagsToAppend
+              : image.tags
+            : newTagsToAppend || image.tags
+        } else {
+          const tagsToRemove = new Set(tags.map(t => t.name))
+          const updatedTags = currentTags.filter(tagName => !tagsToRemove.has(tagName))
+          newTagsString = updatedTags.join(', ') || undefined
+        }
+
+        return {
+          ...image,
+          tags: newTagsString,
+        }
+      }
+
+      if (typeof oldData === 'object' && 'pages' in oldData && Array.isArray(oldData.pages)) {
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => {
+            if (Array.isArray(page)) {
+              return page.map(updateImage)
+            } else if (page && typeof page === 'object' && Array.isArray(page.data)) {
+              return {
+                ...page,
+                data: page.data.map(updateImage),
+              }
+            }
+            return page
+          }),
+        }
+      } else if (Array.isArray(oldData)) {
+        return oldData.map(updateImage)
+      }
+
+      return oldData
+    },
+  )
+}
+
 export function useAddTagsToImageMutation({
   onSuccess,
 }: { onSuccess?: (tags: TagData[]) => void } = {}) {
@@ -84,70 +154,7 @@ export function useAddTagsToImageMutation({
       return result
     },
     onSuccess: (data, { tags, imageIds }) => {
-      queryClient.setQueriesData<{
-        pages: ImageData[][]
-        pageParams: unknown[]
-      }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
-        const ids = new Set(imageIds)
-        if (!oldData) return { pages: [], pageParams: [] }
-        return {
-          ...oldData,
-          pages: oldData.pages.map(page =>
-            page.map(image => {
-              const currentTags = image.tags
-                ? image.tags.split(',').map(t => t.trim())
-                : []
-
-              const newTagsToAppend = tags
-                .filter(tag => !currentTags.includes(tag.name))
-                .map(tag => tag.name)
-                .filter(Boolean)
-                .join(', ')
-
-              return ids.has(image.id)
-                ? {
-                    ...image,
-                    tags: image.tags
-                      ? newTagsToAppend
-                        ? image.tags + ', ' + newTagsToAppend
-                        : image.tags
-                      : newTagsToAppend || image.tags,
-                  }
-                : image
-            }),
-          ),
-        }
-      })
-
-      queryClient.setQueryData<ImageData[]>(
-        QUERIES.IMAGES(folderPath),
-        oldData => {
-          const ids = new Set(imageIds)
-          if (!oldData) return []
-          return oldData.map(image => {
-            const currentTags = image.tags
-              ? image.tags.split(',').map(t => t.trim())
-              : []
-
-            const newTagsToAppend = tags
-              .filter(tag => !currentTags.includes(tag.name))
-              .map(tag => tag.name)
-              .filter(Boolean)
-              .join(', ')
-
-            return ids.has(image.id)
-              ? {
-                  ...image,
-                  tags: image.tags
-                    ? newTagsToAppend
-                      ? image.tags + ', ' + newTagsToAppend
-                      : image.tags
-                    : newTagsToAppend || image.tags,
-                }
-              : image
-          })
-        },
-      )
+      updateTagsInQueryCache(queryClient, imageIds, tags, 'add')
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       onSuccess?.(data)
@@ -188,64 +195,11 @@ export function useRemoveTagsFromImageMutation({
       await window.api.tags.remove(tagIds, imageIds)
     },
     onSuccess: (_, { tagIds, imageIds }) => {
-      const imageIdsSet = new Set(imageIds)
       const tagIdsSet = new Set(tagIds)
-
       const tagsData =
         tagsQuery.data?.filter(tag => tagIdsSet.has(tag.id)) || []
 
-      const tagsNamesSet = new Set<string>(tagsData.map(tag => tag.name))
-
-      queryClient.setQueriesData<{
-        pages: ImageData[][]
-        pageParams: unknown[]
-      }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
-        if (!oldData) return { pages: [], pageParams: [] }
-        return {
-          ...oldData,
-          pages: oldData.pages.map(page =>
-            page.map(image => {
-              if (!imageIdsSet.has(image.id)) return image
-
-              const currentTags = image.tags
-                ? image.tags.split(',').map(t => t.trim())
-                : []
-
-              const updatedTags = currentTags.filter(
-                tagName => !tagsNamesSet.has(tagName),
-              )
-
-              return {
-                ...image,
-                tags: updatedTags.join(', ') || undefined,
-              }
-            }),
-          ),
-        }
-      })
-
-      queryClient.setQueryData<ImageData[]>(
-        QUERIES.IMAGES(folderPath),
-        oldData => {
-          if (!oldData) return []
-          return oldData.map(image => {
-            if (!imageIdsSet.has(image.id)) return image
-
-            const currentTags = image.tags
-              ? image.tags.split(',').map(t => t.trim())
-              : []
-
-            const updatedTags = currentTags.filter(
-              tagName => !tagsNamesSet.has(tagName),
-            )
-
-            return {
-              ...image,
-              tags: updatedTags.join(', ') || undefined,
-            }
-          })
-        },
-      )
+      updateTagsInQueryCache(queryClient, imageIds, tagsData, 'remove')
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       onSuccess?.({ tagIds, imageIds })
     },
