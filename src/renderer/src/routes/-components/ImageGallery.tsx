@@ -75,7 +75,12 @@ export function ImageGallery() {
       <SubBar />
       <div className="pb-20 gap-4 masonry">
         {images.map((image, index) => (
-          <ImageCard key={image.id || index} image={image} index={index} />
+          <ImageCard
+            key={image.id || index}
+            image={image}
+            index={index}
+            allSearchImages={images}
+          />
         ))}
       </div>
 

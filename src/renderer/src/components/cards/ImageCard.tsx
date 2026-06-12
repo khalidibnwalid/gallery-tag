@@ -50,6 +50,7 @@ const TAG_DISPLAY_LIMIT = 5
 interface Props {
   image: ImageData
   index: number
+  allSearchImages?: ImageData[]
 }
 
 export default function ImageCard(props: Props) {
@@ -79,6 +80,7 @@ export default function ImageCard(props: Props) {
         image={props.image}
         index={props.index}
         setImageDimensions={setImageDimensions}
+        allSearchImages={props.allSearchImages}
       />
     </Virtualize>
   )
@@ -88,6 +90,7 @@ function ImageBody({
   image,
   index,
   setImageDimensions,
+  allSearchImages,
 }: Props & {
   setImageDimensions: React.Dispatch<
     React.SetStateAction<{
@@ -165,16 +168,24 @@ function ImageBody({
       return
     }
 
-    if (allImages && allImages.length > 0) {
+    if (allSearchImages && allSearchImages.length > 0) {
+      const startIndex = allSearchImages.findIndex(
+        img => img.filePath === image.filePath,
+      )
+      openLighthouse(
+        allSearchImages,
+        startIndex >= 0 ? startIndex : 0,
+      )
+    } else if (allImages && allImages.length > 0) {
       const startIndex = allImages.findIndex(
         img => img.filePath === image.filePath,
       )
       openLighthouse(
-        allImages.map(img => img.filePath),
+        allImages,
         startIndex >= 0 ? startIndex : 0,
       )
     } else {
-      openLighthouse([image.filePath], 0)
+      openLighthouse([image], 0)
     }
   }
 
@@ -482,7 +493,7 @@ function ImageContextMenu({
   )
 }
 
-function RenameImageDialog({
+export function RenameImageDialog({
   image,
   open,
   onOpenChange,

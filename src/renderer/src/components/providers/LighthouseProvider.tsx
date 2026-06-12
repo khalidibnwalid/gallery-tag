@@ -1,4 +1,5 @@
 import Lighthouse from '@/components/features/Lighthouse'
+import { ImageData } from '@/lib/types/image'
 import {
   createContext,
   ReactNode,
@@ -9,13 +10,14 @@ import {
 
 interface Context {
   isOpen: boolean
-  images: string[]
+  images: ImageData[]
   currentIndex: number
-  openLighthouse: (images: string[], startIndex?: number) => void
+  openLighthouse: (images: ImageData[], startIndex?: number) => void
   closeLighthouse: () => void
   goToNext: () => void
   goToPrevious: () => void
   goToIndex: (index: number) => void
+  insertAndGoToImage: (image: ImageData) => void
 }
 
 const LighthouseContext = createContext<Context | undefined>(undefined)
@@ -30,14 +32,6 @@ export function LighthouseProvider({ children }: LighthouseProviderProps) {
   return (
     <LighthouseContext.Provider value={lighthouse}>
       {children}
-      <Lighthouse
-        isOpen={lighthouse.isOpen}
-        images={lighthouse.images}
-        currentIndex={lighthouse.currentIndex}
-        onClose={lighthouse.closeLighthouse}
-        onNext={lighthouse.goToNext}
-        onPrevious={lighthouse.goToPrevious}
-      />
     </LighthouseContext.Provider>
   )
 }
@@ -54,7 +48,7 @@ export function useLighthouse(): Context {
 
 interface LighthouseState {
   isOpen: boolean
-  images: string[]
+  images: ImageData[]
   currentIndex: number
 }
 
@@ -65,7 +59,7 @@ function useLighthouseState(): Context {
     currentIndex: 0,
   })
 
-  const openLighthouse = useCallback((images: string[], startIndex = 0) => {
+  const openLighthouse = useCallback((images: ImageData[], startIndex = 0) => {
     if (images.length === 0) return
 
     const validIndex = Math.max(0, Math.min(startIndex, images.length - 1))
@@ -84,25 +78,54 @@ function useLighthouseState(): Context {
   }, [])
 
   const goToNext = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentIndex: (prev.currentIndex + 1) % prev.images.length,
-    }))
+    setState(prev => {
+      if (prev.images.length === 0) return prev
+      return {
+        ...prev,
+        currentIndex: (prev.currentIndex + 1) % prev.images.length,
+      }
+    })
   }, [])
 
   const goToPrevious = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentIndex:
-        (prev.currentIndex - 1 + prev.images.length) % prev.images.length,
-    }))
+    setState(prev => {
+      if (prev.images.length === 0) return prev
+      return {
+        ...prev,
+        currentIndex:
+          (prev.currentIndex - 1 + prev.images.length) % prev.images.length,
+      }
+    })
   }, [])
 
   const goToIndex = useCallback((index: number) => {
-    setState(prev => ({
-      ...prev,
-      currentIndex: Math.max(0, Math.min(index, prev.images.length - 1)),
-    }))
+    setState(prev => {
+      if (prev.images.length === 0) return prev
+      return {
+        ...prev,
+        currentIndex: Math.max(0, Math.min(index, prev.images.length - 1)),
+      }
+    })
+  }, [])
+
+  const insertAndGoToImage = useCallback((image: ImageData) => {
+    setState(prev => {
+      const existingIndex = prev.images.findIndex(img => img.filePath === image.filePath)
+      if (existingIndex !== -1) {
+        return {
+          ...prev,
+          currentIndex: existingIndex,
+        }
+      }
+      const newImages = [...prev.images]
+      const nextIndex = prev.currentIndex + 1
+      newImages.splice(nextIndex, 0, image)
+      return {
+        ...prev,
+        images: newImages,
+        currentIndex: nextIndex,
+      }
+    })
   }, [])
 
   return {
@@ -114,5 +137,6 @@ function useLighthouseState(): Context {
     goToNext,
     goToPrevious,
     goToIndex,
+    insertAndGoToImage,
   }
 }

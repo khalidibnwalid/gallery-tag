@@ -37,32 +37,29 @@ function subscribeToImageUpdates(
             queryClient.setQueriesData<{
               pages: ImageData[][]
               pageParams: unknown[]
-            }>(
-              { queryKey: QUERIES.IMAGES_PAGINATED(folderPath) },
-              oldData => {
-                if (!oldData) return oldData
+            }>({ queryKey: QUERIES.IMAGES_PAGINATED(folderPath) }, oldData => {
+              if (!oldData) return oldData
 
-                if (!belongs) {
-                  return {
-                    ...oldData,
-                    pages: oldData.pages.map(page =>
-                      page.filter(old => old.id !== image.id),
-                    ),
-                  }
-                }
-
+              if (!belongs) {
                 return {
                   ...oldData,
                   pages: oldData.pages.map(page =>
-                    page.map(old =>
-                      image?.filePath === old.filePath || image?.id === old.id
-                        ? { ...old, ...image }
-                        : old,
-                    ),
+                    page.filter(old => old.id !== image.id),
                   ),
                 }
-              },
-            )
+              }
+
+              return {
+                ...oldData,
+                pages: oldData.pages.map(page =>
+                  page.map(old =>
+                    image?.filePath === old.filePath || image?.id === old.id
+                      ? { ...old, ...image }
+                      : old,
+                  ),
+                ),
+              }
+            })
           } else {
             queryClient.setQueryData<ImageData[]>(
               QUERIES.IMAGES(folderPath),
@@ -241,4 +238,26 @@ export function useDeleteImagesMutation() {
   })
 }
 
-
+export function useSimilarImagesQuery(
+  filePath: string | null | undefined,
+  folderPath: string | null | undefined,
+) {
+  return useQuery<ImageData[]>({
+    queryKey: QUERIES.IMAGE_SIMILAR(filePath! || '', folderPath! || ''),
+    queryFn: async () => {
+      if (
+        !window.api ||
+        !window.api.images.getPaginated ||
+        !folderPath ||
+        !filePath
+      ) {
+        return []
+      }
+      const res = await window.api.images.getPaginated(folderPath, 0, 15, {
+        aiSearchImage: filePath,
+      })
+      return res.data.filter(img => img.filePath !== filePath)
+    },
+    enabled: !!folderPath && !!filePath,
+  })
+}

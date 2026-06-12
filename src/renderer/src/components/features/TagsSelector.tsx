@@ -119,16 +119,15 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
         break
       case 'Enter':
         e.preventDefault()
-        console.log('Enter key pressed, selectedIndex:', selectedIndex)
         if (selectedIndex >= 0 && selectedIndex < allOptions.length) {
           const selectedOption = allOptions[selectedIndex]
-          console.log('Enter key pressed, selecteOpt:', selectedOption)
-          console.log('Selected option:', selectedOption)
           onTagSelect(
             'isCreate' in selectedOption && selectedOption.isCreate
               ? selectedOption.name
               : (selectedOption as TagData),
           )
+          setSearchQuery('')
+          setSelectedIndex(-1)
           // unnecessary...
         } else if (searchQuery) {
           onTagSelect(searchQuery)

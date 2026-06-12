@@ -1,15 +1,14 @@
+import { useFolder } from '@/components/providers/FolderProvider'
 import { Button } from '@/components/ui/button'
+import { useSettingsStore } from '@/lib/store/settings'
 import { FileRoutesByTo } from '@/routeTree.gen'
 import {
   GearIcon,
   HouseSimpleIcon,
   Icon,
-  StarIcon,
-  FolderIcon,
+  SidebarSimpleIcon,
 } from '@phosphor-icons/react'
 import { useLocation, useRouter } from '@tanstack/react-router'
-import { useSettingsStore } from '@/lib/store/settings'
-import { useFolder } from '@/components/providers/FolderProvider'
 
 interface NavItem {
   route: keyof FileRoutesByTo
@@ -18,11 +17,10 @@ interface NavItem {
 
 const navigationItems: NavItem[] = [
   { icon: HouseSimpleIcon, route: '/' },
-  { icon: StarIcon, route: '/favorites' },
   { icon: GearIcon, route: '/settings' },
 ]
 
-export function Sidebar() {
+export function NavBar() {
   const router = useRouter()
   const { pathname } = useLocation()
   const { toggleFolderTree, isFolderTreeOpen } = useSettingsStore()
@@ -51,21 +49,24 @@ export function Sidebar() {
           </Button>
         )
       })}
+      {pathname === '/' && (
+        <>
+          <div className="w-px bg-border h-8 mx-1 self-center" />
 
-      <div className="w-px bg-border h-8 mx-1 self-center" />
-
-      <Button
-        variant={isFolderTreeOpen ? 'default' : 'outline'}
-        size="icon"
-        onClick={toggleFolderTree}
-        className="size-12"
-        title="Toggle Folder Tree"
-      >
-        <FolderIcon
-          className="size-6"
-          weight={isFolderTreeOpen ? 'fill' : 'regular'}
-        />
-      </Button>
+          <Button
+            variant={isFolderTreeOpen ? 'default' : 'outline'}
+            size="icon"
+            onClick={toggleFolderTree}
+            className="size-12"
+            title="Toggle Folder Tree"
+          >
+            <SidebarSimpleIcon
+              className="size-6"
+              weight={isFolderTreeOpen ? 'fill' : 'regular'}
+            />
+          </Button>
+        </>
+      )}
     </nav>
   )
 }

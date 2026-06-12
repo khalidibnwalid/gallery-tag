@@ -14,7 +14,10 @@ const QUERIES = {
     query
       ? (['images', 'search', query] as const)
       : (['images', 'search'] as const),
-
+  IMAGE_SIMILAR: (filePath: string, folderPath: string) =>
+    folderPath
+      ? (['images', 'similar', filePath, folderPath] as const)
+      : (['images', 'similar', filePath] as const),
   TAGS: () => ['tags'] as const,
   TAGS_SEARCH: (query?: string) =>
     query
