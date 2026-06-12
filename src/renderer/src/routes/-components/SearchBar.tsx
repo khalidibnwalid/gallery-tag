@@ -313,13 +313,13 @@ export default function SearchBar() {
       onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-indigo-600/10 border-2 border-dashed border-indigo-500 rounded-xl backdrop-blur-xs pointer-events-none animate-pulse">
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-xl backdrop-blur-xs pointer-events-none animate-pulse">
           <CameraIcon
             size={32}
             weight="fill"
-            className="text-indigo-400 mb-2 animate-bounce"
+            className="text-primary mb-2"
           />
-          <span className="text-sm font-semibold text-indigo-400">
+          <span className="text-sm font-semibold text-primary">
             Drop image to search with AI...
           </span>
         </div>
@@ -330,7 +330,7 @@ export default function SearchBar() {
           'h-12 text-lg! text-foreground bg-background/70! transition-all duration-300',
           aiSearchImage ? 'ps-[92px]' : 'ps-12',
           searchMode === 'ai' &&
-            'ring-2 ring-indigo-500/50 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.15)]',
+            'ring-2 ring-primary/50 border-primary/50 shadow-md',
         )}
         size="lg"
         placeholder={
@@ -358,7 +358,7 @@ export default function SearchBar() {
               className={cn(
                 'size-8 rounded-md transition-all duration-300',
                 searchMode === 'ai'
-                  ? 'bg-indigo-600/25 text-indigo-400 hover:bg-indigo-600/40 hover:text-indigo-300 shadow-[0_0_8px_rgba(99,102,241,0.2)]'
+                  ? 'bg-primary/25 text-primary hover:bg-primary/40 hover:text-primary shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted',
               )}
               title={
@@ -380,7 +380,7 @@ export default function SearchBar() {
                   e.stopPropagation()
                   setAiSearchImage(null)
                 }}
-                className="relative group size-8 rounded-md overflow-hidden border border-indigo-500/40 flex-shrink-0 animate-fade-in shadow-xs cursor-pointer"
+                className="relative group size-8 rounded-md overflow-hidden border border-primary/40 flex-shrink-0 animate-fade-in shadow-xs cursor-pointer"
                 title="Remove image search"
               >
                 <img
@@ -403,7 +403,7 @@ export default function SearchBar() {
                 size="icon"
                 disabled={!folderPath}
                 onClick={handleImageSearch}
-                className="opacity-75 hover:opacity-100 text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="opacity-75 hover:opacity-100 text-primary hover:text-primary transition-colors"
                 title="Search by image (image-to-image)"
               >
                 <CameraIcon size={20} weight="bold" />
