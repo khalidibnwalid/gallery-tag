@@ -13,6 +13,7 @@ declare global {
     api: {
       system: {
         openFolderDialog: () => Promise<string | null>
+        openFileDialog: () => Promise<string | null>
         revealInFileExplorer: (filePath: string) => void
         openPathInDefaultApp: (filePath: string) => void
         closeApp: () => void

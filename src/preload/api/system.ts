@@ -2,6 +2,7 @@ import { ipcRenderer } from 'electron'
 
 const systemApi = {
   openFolderDialog: () => ipcRenderer.invoke('open-folder-dialog'),
+  openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
   revealInFileExplorer: (filePath: string) =>
     ipcRenderer.invoke('reveal-in-file-explorer', filePath),
   openPathInDefaultApp: (filePath: string) =>

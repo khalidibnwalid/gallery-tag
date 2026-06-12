@@ -13,4 +13,7 @@ export interface SearchFilter {
   tags?: string[]
   excludedTags?: string[]
   color?: string
+
+  aiSearchText?: string
+  aiSearchImage?: string
 }

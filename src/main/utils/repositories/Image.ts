@@ -141,6 +141,7 @@ export class ImageRepository {
     offset: number = 0,
     size: number = 50,
     filter?: SearchFilter,
+    aiEmbedding?: Float32Array,
   ): {
     data: (ImageModel & { tags?: string })[]
     total: number
@@ -203,12 +204,21 @@ export class ImageRepository {
       }
     }
 
+    // Filter by AI vector similarity using sqlite-vec MATCH
+    if (aiEmbedding) {
+      whereClauses.push('v.embedding MATCH ? AND v.k = ?')
+      params.push(Buffer.from(aiEmbedding.buffer, aiEmbedding.byteOffset, aiEmbedding.byteLength), 1000)
+    }
+
     const whereSql =
       whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
 
-    const joinClause = isColorFiltered
+    let joinClause = isColorFiltered
       ? 'INNER JOIN image_colors ic ON i.id = ic.image_id'
       : ''
+    if (aiEmbedding) {
+      joinClause += ' INNER JOIN vec_images v ON i.id = v.image_id'
+    }
 
     // Count query
     const countStmt = this.db.prepare(`
@@ -227,7 +237,13 @@ export class ImageRepository {
     const selectColorDist = isColorFiltered
       ? `, MIN(${colorDistExpr}) as color_dist`
       : ''
-    const orderBy = isColorFiltered ? 'color_dist ASC' : 'i.file_name'
+
+    let orderBy = 'i.file_name'
+    if (aiEmbedding) {
+      orderBy = 'v.distance ASC'
+    } else if (isColorFiltered) {
+      orderBy = 'color_dist ASC'
+    }
 
     const stmt = this.db.prepare(`
       SELECT 
@@ -246,7 +262,8 @@ export class ImageRepository {
         i.dominant_colors as dominantColors,
         i.deleted_at as deletedAt,
         i.is_duplicate as isDuplicate
-        ${selectColorDist},
+        ${selectColorDist}
+        ${aiEmbedding ? ', v.distance as ai_distance' : ''},
         GROUP_CONCAT(t.name) as tags
       FROM images i
       ${joinClause}
@@ -369,11 +386,13 @@ export class ImageRepository {
     const runDelete = this.db.transaction(() => {
       const deleteColors = this.db.prepare('DELETE FROM image_colors WHERE image_id = ?')
       const deleteTags = this.db.prepare('DELETE FROM image_tags WHERE image_id = ?')
+      const deleteVec = this.db.prepare('DELETE FROM vec_images WHERE image_id = ?')
       const deleteImage = this.db.prepare('DELETE FROM images WHERE id = ?')
 
       for (const id of ids) {
         deleteColors.run(id)
         deleteTags.run(id)
+        deleteVec.run(BigInt(id))
         deleteImage.run(id)
       }
     })
@@ -635,5 +654,40 @@ export class ImageRepository {
     )
     stmt.run(JSON.stringify(colors), imageId)
     this.updateColorsInDb(imageId, colors)
+  }
+
+  getImagesWithoutEmbeddings(): ImageModel[] {
+    const stmt = this.db.prepare(`
+      SELECT 
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors
+      FROM images 
+      WHERE deleted_at IS NULL AND id NOT IN (SELECT image_id FROM vec_images)
+    `)
+    const rows = stmt.all() as any[]
+    return rows.map(mapImageRow)
+  }
+
+  insertImageEmbedding(imageId: number, embedding: Float32Array): void {
+    const deleteStmt = this.db.prepare('DELETE FROM vec_images WHERE image_id = ?')
+    const insertStmt = this.db.prepare('INSERT INTO vec_images (image_id, embedding) VALUES (?, ?)')
+    
+    const runTransaction = this.db.transaction((id: number, emb: Float32Array) => {
+      deleteStmt.run(BigInt(id))
+      insertStmt.run(BigInt(id), Buffer.from(emb.buffer, emb.byteOffset, emb.byteLength))
+    })
+    
+    runTransaction(imageId, embedding)
   }
 }

@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3'
+import * as sqliteVec from 'sqlite-vec'
 
 /*
  * we have an annoying problem, the db place might be used in multiple places and might change in runtime,
@@ -74,8 +75,22 @@ class DBSingleton {
   private initDB(dbPath: string): Database.Database {
     const db = new Database(dbPath)
 
+    try {
+      sqliteVec.load(db)
+      console.log('sqlite-vec extension loaded successfully')
+    } catch (e) {
+      console.error('Failed to load sqlite-vec extension:', e)
+    }
+
     // TODO: INDEXES for performance
     db.pragma('journal_mode = WAL')
+
+    db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS vec_images USING vec0(
+          image_id integer primary key,
+          embedding float[512]
+        )
+      `)
 
     db.exec(`
       CREATE TABLE IF NOT EXISTS images (

@@ -1,7 +1,12 @@
 import { notifier } from '@main/services/notifier.service'
 import { createThumbnails } from '@main/services/thumbnails.service'
+import { clipService } from '@main/services/clip.service'
 import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
-import { EVENTS } from '@main/types/constants.shared'
+import {
+  EVENTS,
+  NOTIFIER_EVENTS,
+  NOTIFIER_EVENT_TYPES,
+} from '@main/types/constants.shared'
 import { ImageModel, PaginatedResult } from '@main/types/models.shared'
 import {
   NotifyImageThumbnailGeneratedPartPayload,
@@ -65,11 +70,14 @@ async function getAllBase(
     // Purge deleted images older than 30 days
     const numPurged = imageRepo.purgeExpiredDeletedImages()
     if (numPurged > 0) {
-      console.log(`Purged ${numPurged} expired soft-deleted images from database`)
+      console.log(
+        `Purged ${numPurged} expired soft-deleted images from database`,
+      )
     }
 
     // 0. Same-path recovery: soft-deleted images whose file still exists at the
-    const softDeletedAtCurrentPaths = imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
+    const softDeletedAtCurrentPaths =
+      imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
     if (softDeletedAtCurrentPaths.length > 0) {
       const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
       for (const img of softDeletedAtCurrentPaths) {
@@ -79,7 +87,9 @@ async function getAllBase(
           console.log(`Same-path recovery: ${img.filePath}`)
         }
       }
-      console.log(`Recovered ${softDeletedAtCurrentPaths.length} same-path soft-deleted images`)
+      console.log(
+        `Recovered ${softDeletedAtCurrentPaths.length} same-path soft-deleted images`,
+      )
     }
 
     // 1. Get missing images (candidates for hash-based recovery)
@@ -103,7 +113,6 @@ async function getAllBase(
 
     if (newPaths.length > 0) {
       console.log(`Processing ${newPaths.length} new files...`)
-
 
       // Compute hashes for new files to enable matching
       // We use a concurrency limit if needed, but for now Promise.all is okay for reasonable batches
@@ -301,11 +310,95 @@ async function getAllBase(
       })
     }
 
+    // 6. Background: Compute CLIP embeddings for unembedded images
+    const processEmbeddings = async () => {
+      try {
+        const unembedded = imageRepo.getImagesWithoutEmbeddings()
+        if (unembedded.length === 0) return
+
+        console.log(
+          `CLIP: Starting embedding generation for ${unembedded.length} images...`,
+        )
+
+        await clipService.init(join(folderPath, CONFIG_DIR))
+
+        const sessionId = Date.now().toString()
+        let order = 0
+
+        notifier.notify({
+          id: NOTIFIER_EVENTS.IMAGES.EMBEDDING_GENERATED,
+          type: NOTIFIER_EVENT_TYPES.PROGRESS_PART,
+          payload: {
+            order: 0,
+            total: unembedded.length,
+            sessionId,
+          },
+        })
+
+        let totalProcessed = 0
+        let totalFailed = 0
+
+        for (const img of unembedded) {
+          try {
+            const embedding = await clipService.getImageEmbedding(img.filePath)
+            imageRepo.insertImageEmbedding(img.id, embedding)
+            totalProcessed++
+          } catch (error) {
+            console.error(
+              `Failed to generate embedding for ${img.filePath}:`,
+              error,
+            )
+            totalFailed++
+          }
+
+          order++
+          notifier.notify({
+            id: NOTIFIER_EVENTS.IMAGES.EMBEDDING_GENERATED,
+            type: NOTIFIER_EVENT_TYPES.PROGRESS_PART,
+            payload: {
+              order,
+              total: unembedded.length,
+              sessionId,
+            },
+          })
+        }
+
+        console.log(
+          `CLIP: Embedding generation complete. Processed ${totalProcessed}, failed ${totalFailed}`,
+        )
+        notifier.notify({
+          id: NOTIFIER_EVENTS.IMAGES.EMBEDDING_GENERATED,
+          type: NOTIFIER_EVENT_TYPES.PROGRESS_COMPLETE,
+          payload: {
+            totalProcessed,
+            totalFailed,
+            sessionId,
+          },
+        })
+      } catch (err) {
+        console.error('Error in background embedding generation:', err)
+      }
+    }
+
+    processEmbeddings()
+
+    let aiEmbedding: Float32Array | undefined = undefined
+    if (filter?.aiSearchText) {
+      console.log(`AI Text Search: "${filter.aiSearchText}"`)
+      await clipService.init(join(folderPath, CONFIG_DIR))
+      aiEmbedding = await clipService.getTextEmbedding(filter.aiSearchText)
+    } else if (filter?.aiSearchImage) {
+      console.log(`AI Image Search: "${filter.aiSearchImage}"`)
+      await clipService.init(join(folderPath, CONFIG_DIR))
+      aiEmbedding = await clipService.getImageEmbedding(filter.aiSearchImage)
+    }
+
     if (isPaginated) {
       const { data: images, total } = imageRepo.getAllImagesWithTagsPaginated(
         offset!,
         size!,
         filter,
+        aiEmbedding,
       )
       const hasMore = offset! + size! < total
 
