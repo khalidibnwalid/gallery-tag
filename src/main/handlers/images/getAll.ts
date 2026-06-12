@@ -37,6 +37,9 @@ async function getAllBase(
     const folderRepo = new FolderRepository(db)
     const imageRepo = new ImageRepository(db)
 
+    // Sync CLIP model selection from persisted settings before any embedding work
+    clipService.loadSettingsFromDb(db)
+
     await folderRepo.syncFoldersFromDisk(folderPath)
 
     const imageFiles = await getFilesByExtension(
@@ -85,6 +88,7 @@ async function getAllBase(
       folderPath,
       imageFiles,
       currentPaths,
+      db,
     )
 
     // 4. Background: Backfill hashes for existing images (limit 50 per scan to avoid performance hit)

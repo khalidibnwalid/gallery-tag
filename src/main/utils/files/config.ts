@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3'
 import { constants } from 'fs'
-import { access, mkdir } from 'fs/promises'
+import { access, mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { db } from '../repositories/db'
 
@@ -60,8 +60,15 @@ async function createConfigFolder(configDir: string): Promise<void> {
   try {
     await mkdir(configDir, { recursive: true })
     console.log(`Created config folder: ${configDir}`)
+    
+    // Create .gitignore to ignore all contents of the config folder
+    const gitignorePath = join(configDir, '.gitignore')
+    await writeFile(gitignorePath, '*\n').catch((err) => {
+      console.warn(`Failed to write .gitignore in ${configDir}:`, err)
+    })
   } catch (error) {
     console.error(`Failed to create config folder: ${configDir}`, error)
     throw error
   }
 }
+

@@ -1,5 +1,5 @@
 import { notifier } from '@main/services/notifier.service'
-import { createThumbnails } from '@main/services/thumbnails.service'
+import { createThumbnails, getThumbnailQuality } from '@main/services/thumbnails.service'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageModel } from '@main/types/models.shared'
@@ -14,6 +14,7 @@ import { ImageRepository } from '@main/utils/repositories/Image'
 import { computeFileHash } from '@main/utils/files/hashing'
 import { extractDominantColors } from '@main/utils/files/colorExtractor'
 import { join } from 'path'
+import Database from 'better-sqlite3'
 
 const THUMBNAIL_WIDTH = 512
 
@@ -23,6 +24,7 @@ export async function scanNewFiles(
   folderPath: string,
   imageFiles: FileInfo[],
   currentPaths: string[],
+  db?: Database.Database,
 ): Promise<void> {
   const newPaths = imageRepo.getPathsNotInImagesTable(currentPaths)
   if (newPaths.length === 0) return
@@ -178,7 +180,7 @@ export async function scanNewFiles(
       onError: error => {
         console.error('Error generating thumbnails:', error)
       },
-      thumbnailOptions: { width: THUMBNAIL_WIDTH },
+      thumbnailOptions: { width: THUMBNAIL_WIDTH, quality: db ? (getThumbnailQuality(db) ?? undefined) : undefined },
     })
   }
 }

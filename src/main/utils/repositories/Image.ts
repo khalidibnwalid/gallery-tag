@@ -20,8 +20,16 @@ export class ImageRepository {
 
   insertImages(
     images:
-      | (FileInfo & { hash?: string; dominantColors?: string[]; isDuplicate?: number })[]
-      | (FileInfo & { hash?: string; dominantColors?: string[]; isDuplicate?: number }),
+      | (FileInfo & {
+          hash?: string
+          dominantColors?: string[]
+          isDuplicate?: number
+        })[]
+      | (FileInfo & {
+          hash?: string
+          dominantColors?: string[]
+          isDuplicate?: number
+        }),
   ): void {
     if (!Array.isArray(images)) {
       images = [images]
@@ -35,7 +43,11 @@ export class ImageRepository {
 
     const transaction = this.db.transaction(
       (
-        imageList: (FileInfo & { hash?: string; dominantColors?: string[]; isDuplicate?: number })[],
+        imageList: (FileInfo & {
+          hash?: string
+          dominantColors?: string[]
+          isDuplicate?: number
+        })[],
       ) => {
         for (const image of imageList) {
           let isDup = image.isDuplicate !== undefined ? image.isDuplicate : 0
@@ -205,10 +217,38 @@ export class ImageRepository {
       }
     }
 
-    // Filter by AI vector similarity using sqlite-vec MATCH
+    let cteSql = ''
+    let cteParams: any[] = []
+
+    // Filter by AI vector similarity using sqlite-vec MATCH via CTE
     if (aiEmbedding) {
-      whereClauses.push('v.embedding MATCH ? AND v.k = ?')
-      params.push(Buffer.from(aiEmbedding.buffer, aiEmbedding.byteOffset, aiEmbedding.byteLength), 1000)
+      const vecTable = clipService.getVectorTableName()
+      cteSql = `
+        WITH search_results AS (
+          SELECT image_id, distance
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        )
+      `
+      cteParams.push(
+        Buffer.from(
+          aiEmbedding.buffer,
+          aiEmbedding.byteOffset,
+          aiEmbedding.byteLength,
+        ),
+        1000,
+      )
+
+      // Get threshold based on search type (text vs image)
+      let threshold = 0.0
+      if (filter?.aiSearchText) {
+        threshold = clipService.getTextToImageThreshold(this.db)
+      } else if (filter?.aiSearchImage) {
+        threshold = clipService.getImageToImageThreshold(this.db)
+      }
+      const maxDistance = 1.0 - threshold
+      whereClauses.push('v.distance <= ?')
+      params.push(maxDistance)
     }
 
     const whereSql =
@@ -218,12 +258,13 @@ export class ImageRepository {
       ? 'INNER JOIN image_colors ic ON i.id = ic.image_id'
       : ''
     if (aiEmbedding) {
-      const vecTable = clipService.getVectorTableName()
-      joinClause += ` INNER JOIN ${vecTable} v ON i.id = v.image_id`
+      joinClause += ` INNER JOIN search_results v ON i.id = v.image_id`
     }
+
 
     // Count query
     const countStmt = this.db.prepare(`
+      ${cteSql}
       SELECT COUNT(DISTINCT i.id) as total
       FROM images i
       ${joinClause}
@@ -232,7 +273,7 @@ export class ImageRepository {
       ${whereSql}
     `)
 
-    const countResult = countStmt.get(...params) as { total: number }
+    const countResult = countStmt.get(...cteParams, ...params) as { total: number }
     const total = countResult?.total || 0
 
     // Main query
@@ -248,6 +289,7 @@ export class ImageRepository {
     }
 
     const stmt = this.db.prepare(`
+      ${cteSql}
       SELECT 
         i.id,
         i.file_path as filePath,
@@ -277,7 +319,7 @@ export class ImageRepository {
       LIMIT ? OFFSET ?
     `)
 
-    const rows = stmt.all(...params, size, offset) as any[]
+    const rows = stmt.all(...cteParams, ...params, size, offset) as any[]
     const data = rows.map(mapImageRow)
 
     return {
@@ -383,15 +425,23 @@ export class ImageRepository {
     if (expired.length === 0) return 0
 
     const ids = expired.map(row => row.id)
-    
+
     // Delete from images and its related data inside a transaction
     const runDelete = this.db.transaction(() => {
-      const deleteColors = this.db.prepare('DELETE FROM image_colors WHERE image_id = ?')
-      const deleteTags = this.db.prepare('DELETE FROM image_tags WHERE image_id = ?')
+      const deleteColors = this.db.prepare(
+        'DELETE FROM image_colors WHERE image_id = ?',
+      )
+      const deleteTags = this.db.prepare(
+        'DELETE FROM image_tags WHERE image_id = ?',
+      )
       const vecTables = this.db
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND (name = 'vec_images' OR name LIKE 'vec_images_%')")
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND (name = 'vec_images' OR name LIKE 'vec_images_%')",
+        )
         .all() as { name: string }[]
-      const deleteVecStmts = vecTables.map(t => this.db.prepare(`DELETE FROM ${t.name} WHERE image_id = ?`))
+      const deleteVecStmts = vecTables.map(t =>
+        this.db.prepare(`DELETE FROM ${t.name} WHERE image_id = ?`),
+      )
       const deleteImage = this.db.prepare('DELETE FROM images WHERE id = ?')
 
       for (const id of ids) {
@@ -403,7 +453,7 @@ export class ImageRepository {
         deleteImage.run(id)
       }
     })
-    
+
     runDelete()
     return ids.length
   }
@@ -688,14 +738,64 @@ export class ImageRepository {
 
   insertImageEmbedding(imageId: number, embedding: Float32Array): void {
     const vecTable = clipService.getVectorTableName()
-    const deleteStmt = this.db.prepare(`DELETE FROM ${vecTable} WHERE image_id = ?`)
-    const insertStmt = this.db.prepare(`INSERT INTO ${vecTable} (image_id, embedding) VALUES (?, ?)`)
-    
-    const runTransaction = this.db.transaction((id: number, emb: Float32Array) => {
-      deleteStmt.run(BigInt(id))
-      insertStmt.run(BigInt(id), Buffer.from(emb.buffer, emb.byteOffset, emb.byteLength))
-    })
-    
+    const deleteStmt = this.db.prepare(
+      `DELETE FROM ${vecTable} WHERE image_id = ?`,
+    )
+    const insertStmt = this.db.prepare(
+      `INSERT INTO ${vecTable} (image_id, embedding) VALUES (?, ?)`,
+    )
+
+    const runTransaction = this.db.transaction(
+      (id: number, emb: Float32Array) => {
+        deleteStmt.run(BigInt(id))
+        insertStmt.run(
+          BigInt(id),
+          Buffer.from(emb.buffer, emb.byteOffset, emb.byteLength),
+        )
+      },
+    )
+
     runTransaction(imageId, embedding)
+  }
+
+  clearAllThumbnailPaths(): number {
+    const result = this.db
+      .prepare(
+        'UPDATE images SET thumbnail_path = NULL, width = NULL, height = NULL WHERE deleted_at IS NULL',
+      )
+      .run()
+    return result.changes
+  }
+
+  clearAllEmbeddings(): number {
+    const vecTable = clipService.getVectorTableName()
+    const result = this.db.prepare(`DELETE FROM ${vecTable}`).run()
+    return result.changes
+  }
+
+  getAllActiveImages(): ImageModel[] {
+    const stmt = this.db.prepare(`
+      SELECT 
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors,
+        deleted_at as deletedAt,
+        is_duplicate as isDuplicate
+      FROM images
+      WHERE deleted_at IS NULL
+      ORDER BY file_name
+    `)
+    const rows = stmt.all() as any[]
+    return rows.map(mapImageRow)
   }
 }

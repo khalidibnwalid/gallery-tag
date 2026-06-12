@@ -63,13 +63,17 @@ declare global {
       settings: {
         getAll: () => Promise<AppSettingModel[]>
         get: (key: string) => Promise<AppSettingModel | undefined>
-        getValue<T extends SettingValue = SettingValue>(key: string): Promise<T | undefined>
+        getValue<T extends SettingValue = SettingValue>(
+          key: string,
+        ): Promise<T | undefined>
         set<T extends SettingValue>(
           key: string,
           value: T,
           valueType?: InferValueTypeKey<T>,
         ): Promise<void>
         delete: (key: string) => Promise<void>
+        regenerateThumbnails: (folderPath: string) => Promise<number>
+        reindexImagesClip: (folderPath: string) => Promise<number>
       }
     }
   }

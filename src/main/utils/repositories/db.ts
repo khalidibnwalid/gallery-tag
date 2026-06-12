@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import * as sqliteVec from 'sqlite-vec'
 import { clipService } from '@main/services/clip.service'
+import { seedAppSettings } from '../seedSettings'
 
 /*
  * we have an annoying problem, the db place might be used in multiple places and might change in runtime,
@@ -83,8 +84,23 @@ class DBSingleton {
       console.error('Failed to load sqlite-vec extension:', e)
     }
 
-    // TODO: INDEXES for performance
     db.pragma('journal_mode = WAL')
+
+    // 1. Create app_settings table first so we can load/store settings
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key_name TEXT PRIMARY KEY NOT NULL,
+        setting_value TEXT NOT NULL,
+        value_type TEXT CHECK(value_type IN ('string', 'number', 'boolean', 'json' , 'json_array')) DEFAULT 'string',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // 2. Seed default settings (no-op if values already exist)
+    seedAppSettings(db)
+
+    // 3. Load settings into CLIP service so we know the correct active model name
+    clipService.loadSettingsFromDb(db)
 
     const currentDim = clipService.getEmbeddingDimension()
     const tableName = clipService.getVectorTableName()
@@ -112,7 +128,7 @@ class DBSingleton {
     db.exec(`
         CREATE VIRTUAL TABLE IF NOT EXISTS ${tableName} USING vec0(
           image_id integer primary key,
-          embedding float[${currentDim}]
+          embedding float[${currentDim}] distance_metric=cosine
         )
       `)
 
@@ -142,7 +158,6 @@ class DBSingleton {
         name TEXT NOT NULL,
         color TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
         parent_id INTEGER,
         FOREIGN KEY (parent_id) REFERENCES tags (id)
       )
@@ -185,15 +200,6 @@ class DBSingleton {
 
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_image_colors_rgb ON image_colors (r, g, b)
-    `)
-
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS app_settings (
-        key_name TEXT PRIMARY KEY NOT NULL,
-        setting_value TEXT NOT NULL,
-        value_type TEXT CHECK(value_type IN ('string', 'number', 'boolean', 'json' , 'json_array')) DEFAULT 'string',
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
     `)
 
     console.log(`Database initialized: ${dbPath}`)

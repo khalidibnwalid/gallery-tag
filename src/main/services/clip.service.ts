@@ -16,6 +16,16 @@ import {
   NOTIFIER_EVENTS,
   NOTIFIER_EVENT_TYPES,
 } from '@main/types/constants.shared'
+import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
+import {
+  APP_SETTING_KEYS,
+  CLIP_DEFAULT_MODEL,
+  CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT,
+  CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT,
+  CLIP_AVAILABLE_MODELS_DEFAULT,
+  ClipModelConfig,
+} from '@main/utils/appSettingsKeys'
+import Database from 'better-sqlite3'
 
 export function normalize(vector: Float32Array): Float32Array {
   let sum = 0
@@ -38,15 +48,80 @@ class ClipService {
   private textModel: CLIPTextModelWithProjection | null = null
   private initialized = false
   private initPromise: Promise<void> | null = null
-  private modelName = 'Xenova/clip-vit-base-patch32'
+  private modelName = CLIP_DEFAULT_MODEL
+  private modelDimension = 512
+
+
+  loadSettingsFromDb(db: Database.Database): void {
+    const repo = new AppSettingsRepository(db)
+
+    const savedModel = repo.getParsedValue<string>(
+      APP_SETTING_KEYS.CLIP_CURRENT_MODEL,
+    )
+    if (savedModel && savedModel !== this.modelName) {
+      console.log(
+        `[CLIP] Model changed from "${this.modelName}" → "${savedModel}". Will reinitialise.`,
+      )
+      this.modelName = savedModel
+      // Force reinitialisation so the new model is loaded on the next init() call
+      this.initialized = false
+      this.initPromise = null
+      this.processor = null
+      this.visionModel = null
+      this.tokenizer = null
+      this.textModel = null
+    }
+
+    const modelsConfig = (repo.getParsedValue<any[]>(
+      APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
+    ) || CLIP_AVAILABLE_MODELS_DEFAULT) as ClipModelConfig[]
+    const matchedModel = modelsConfig.find(m => m.id === this.modelName)
+    this.modelDimension = matchedModel ? matchedModel.dimension : 512
+  }
+
+  /**
+   * Persist a new model selection to the database and schedule a reinitialisation.
+   */
+  setModel(db: Database.Database, modelId: string): void {
+    const repo = new AppSettingsRepository(db)
+    repo.setSetting(APP_SETTING_KEYS.CLIP_CURRENT_MODEL, modelId, 'string')
+    this.loadSettingsFromDb(db)
+  }
+
+  /**
+   * Returns the text-to-image similarity threshold from settings (or hardcoded default).
+   */
+  getTextToImageThreshold(db?: Database.Database): number {
+    if (!db) return CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT
+    const repo = new AppSettingsRepository(db)
+    return (
+      repo.getParsedValue<number>(
+        APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD,
+      ) ?? CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT
+    )
+  }
+
+  /**
+   * Returns the image-to-image similarity threshold from settings (or hardcoded default).
+   */
+  getImageToImageThreshold(db?: Database.Database): number {
+    if (!db) return CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT
+    const repo = new AppSettingsRepository(db)
+    return (
+      repo.getParsedValue<number>(
+        APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD,
+      ) ?? CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT
+    )
+  }
+
+  // ── Existing API (unchanged) ─────────────────────────────────────────────
 
   isInitialized(): boolean {
     return this.initialized
   }
 
   getEmbeddingDimension(): number {
-    if (this.modelName.includes('siglip')) return 768
-    return 512
+    return this.modelDimension
   }
 
   getModelName(): string {

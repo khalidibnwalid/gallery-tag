@@ -11,6 +11,9 @@ export interface SettingsApi {
     valueType?: InferValueTypeKey<T>,
   ): Promise<void>
   delete(key: string): Promise<void>
+  
+  regenerateThumbnails(folderPath: string): Promise<number>
+  reindexImagesClip(folderPath: string): Promise<number>
 }
 
 const settingsApi: SettingsApi = {
@@ -36,6 +39,14 @@ const settingsApi: SettingsApi = {
 
   delete(key: string): Promise<void> {
     return ipcRenderer.invoke('settings:delete', key)
+  },
+
+  regenerateThumbnails(folderPath: string): Promise<number> {
+    return ipcRenderer.invoke('settings:regenerate-thumbnails', folderPath)
+  },
+
+  reindexImagesClip(folderPath: string): Promise<number> {
+    return ipcRenderer.invoke('settings:reindex-clip', folderPath)
   },
 }
 
