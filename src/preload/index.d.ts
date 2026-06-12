@@ -17,6 +17,7 @@ declare global {
         revealInFileExplorer: (filePath: string) => void
         openPathInDefaultApp: (filePath: string) => void
         closeApp: () => void
+        saveTempFile: (base64Data: string, fileName?: string) => Promise<string>
       }
 
       images: {
