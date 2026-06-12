@@ -1,4 +1,5 @@
 import { useFolder } from '@/components/providers/FolderProvider'
+import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import {
@@ -14,11 +15,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
+import { cn } from '@/lib/utils'
 import { XIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import SearchBar from './SearchBar'
 
 export default function TopBar() {
+  const { isSearchDragging, aiSearchImage } = useSearch()
+
   return (
     <div className="absolute z-50 top-3 left-3 right-3 px-4 h-12 w-auto flex items-center justify-between gap-3">
       <ButtonGroup className="backdrop-blur-3xl bg-background/70 rounded-md overflow-hidden">
@@ -28,7 +32,13 @@ export default function TopBar() {
         <Button variant="outline">Help</Button>
       </ButtonGroup>
       <TopTitle />
-      <div className="w-1/3 backdrop-blur-3xl rounded-xl absolute left-1/2 -translate-x-1/2">
+      <div
+        className={cn(
+          'backdrop-blur-3xl rounded-xl absolute top-0 left-1/2 -translate-x-1/2 transition-all duration-300 w-1/3',
+          (isSearchDragging || aiSearchImage) &&
+            'shadow-lg shadow-indigo-500/5',
+        )}
+      >
         <SearchBar />
       </div>
       <div className="flex-1"></div>

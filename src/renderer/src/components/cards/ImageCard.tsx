@@ -6,10 +6,11 @@ import { TagData } from '@/lib/types/tag'
 import {
   CheckIcon,
   ClipboardIcon,
+  FileMagnifyingGlassIcon,
   FolderOpenIcon,
   PlusIcon,
   RocketLaunchIcon,
-  TagIcon,
+  TagIcon
 } from '@phosphor-icons/react'
 import clsx from 'clsx'
 import { MouseEvent, useRef, useState } from 'react'
@@ -186,6 +187,11 @@ function ImageBody({
             </div>
           </div>
         )}
+        {image.ai_distance !== undefined && (
+          <div className="absolute top-2 left-2 z-10 px-2 py-0.5 text-[10px] font-semibold font-mono rounded-md bg-indigo-900/90 text-indigo-200 border border-indigo-500/30 shadow-md backdrop-blur-xs select-none">
+            Sim: {Math.round(Math.max(0, 1 - (image.ai_distance / 2)) * 100)}% (d: {image.ai_distance.toFixed(3)})
+          </div>
+        )}
         {!imageError ? (
           <img
             ref={imgRef}
@@ -308,6 +314,7 @@ function ImageContextMenu({
 
   const { data: allTags } = useTags()
   const { mutateAsync: addTagsMutation } = useAddTagsToImageMutation()
+  const { setAiSearchImage } = useSearch()
 
   async function onPasteTags() {
     const text = await readFromClipboard()
@@ -342,6 +349,11 @@ function ImageContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuItem onClick={() => setAiSearchImage(image.filePath)}>
+          <FileMagnifyingGlassIcon className="size-5" />
+          Search Similar Images
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem
           onClick={async () => await copyToClipboard(image.filePath)}
         >

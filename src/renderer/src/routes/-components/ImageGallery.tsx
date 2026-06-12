@@ -15,6 +15,8 @@ export function ImageGallery() {
     excludedTags,
     isSearching,
     searchColor,
+    aiSearchText,
+    aiSearchImage,
   } = useSearch()
   const triggerFetchRef = useRef<HTMLDivElement>(null)
 
@@ -24,6 +26,8 @@ export function ImageGallery() {
     tags: filterTags,
     excludedTags,
     color: searchColor ?? undefined,
+    aiSearchText: aiSearchText || undefined,
+    aiSearchImage: aiSearchImage || undefined,
   }
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -58,7 +62,9 @@ export function ImageGallery() {
     return (
       <div className="flex flex-col items-center justify-center py-12 space-y-4">
         <p className="text-foreground text-lg">
-          {isSearching ? 'No search results found' : 'Empty Folder'}
+          {isSearching || aiSearchText || aiSearchImage
+            ? 'No search results found'
+            : 'Empty Folder'}
         </p>
       </div>
     )

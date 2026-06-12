@@ -106,6 +106,8 @@ export function useInfiniteImages(
     tags?: string[]
     excludedTags?: string[]
     color?: string
+    aiSearchText?: string
+    aiSearchImage?: string
   },
 ) {
   const { folderPath: contextFolderPath } = useFolder()

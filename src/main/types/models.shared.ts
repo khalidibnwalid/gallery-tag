@@ -16,6 +16,8 @@ export interface ImageModel {
   dominantColors?: string[]
   deletedAt?: string
   isDuplicate?: number
+  //debug use only
+  ai_distance?: number
 }
 
 export interface ImageColorModel {

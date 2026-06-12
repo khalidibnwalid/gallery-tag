@@ -1,8 +1,8 @@
+import { ColorPicker } from '@/components/features/ColorPicker'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ColorPicker } from '@/components/features/ColorPicker'
 import useDebounce from '@/lib/hooks/useDebounce'
 import {
   useCreateTagMutation,
@@ -10,13 +10,16 @@ import {
   useTagsSearchQuery,
 } from '@/lib/queries/tags'
 import { TagData } from '@/lib/types/tag'
+import { cn } from '@/lib/utils'
 import {
-  MagnifyingGlassIcon,
+  CameraIcon,
   PlusIcon,
+  SparkleIcon,
   TagIcon,
   XIcon,
 } from '@phosphor-icons/react'
-import { useState } from 'react'
+import clsx from 'clsx'
+import { useEffect, useState } from 'react'
 import AutocompleteList, {
   AutoCompleteItem,
 } from '../../components/AutoCompleteList'
@@ -29,19 +32,101 @@ const autoCompleteTypes = {
 type ItemType = keyof typeof autoCompleteTypes
 
 export default function SearchBar() {
-  const { setSearchQuery, setIsSearching, searchColor, setSearchColor } =
-    useSearch()
+  const {
+    setSearchQuery,
+    setIsSearching,
+    searchColor,
+    setSearchColor,
+    setAiSearchText,
+    aiSearchImage,
+    setAiSearchImage,
+    setIsSearchDragging,
+  } = useSearch()
   const { folderPath } = useFolder()
 
+  const [searchMode, setSearchMode] = useState<'keyword' | 'ai'>('keyword')
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, _setSearchValue] = useState('')
 
+  // Drag and Drop State
+  const [isDragging, setIsDragging] = useState(false)
+
   const debouncedSearch = useDebounce(search, 300)
+  const debouncedAiSearch = useDebounce(aiSearch, 300)
+
+  // Clipboard Paste Handler
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (!folderPath) return
+
+      // 1. Try to check for file uri-list first (copied file from File explorer)
+      const uriList = e.clipboardData?.getData('text/uri-list')
+      if (uriList) {
+        const lines = uriList
+          .split('\n')
+          .map(line => line.trim())
+          .filter(Boolean)
+        let found = false
+        for (const line of lines) {
+          if (line.startsWith('file://')) {
+            const filePath = decodeURIComponent(line.substring(7))
+            if (/\.(png|jpe?g|gif|webp|bmp|tiff)$/i.test(filePath)) {
+              setSearchMode('ai')
+              setAiSearchImage(filePath)
+              found = true
+              break
+            }
+          }
+        }
+        if (found) {
+          e.preventDefault()
+          return
+        }
+      }
+
+      // 2. Try to check for image data items (screenshots, copied image from web)
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (!file) continue
+
+          const reader = new FileReader()
+          reader.onload = async event => {
+            try {
+              const base64Data = event.target?.result as string
+              const tempFilePath =
+                await window.api.system.saveTempFile(base64Data)
+
+              setSearchMode('ai')
+              setAiSearchImage(tempFilePath)
+            } catch (err) {
+              console.error('Failed to handle pasted image:', err)
+            }
+          }
+          reader.readAsDataURL(file)
+          e.preventDefault()
+          break
+        }
+      }
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => {
+      window.removeEventListener('paste', handlePaste)
+    }
+  }, [folderPath])
 
   const setSearchValue = (value: string) => {
     _setSearchValue(value)
-    setIsOpen(value.length > 0)
-    debouncedSearch(value)
+    if (searchMode === 'keyword') {
+      setIsOpen(value.length > 0)
+      debouncedSearch(value)
+    } else {
+      debouncedAiSearch(value)
+    }
   }
 
   const { data: allTags = [] } = useTags()
@@ -57,14 +142,46 @@ export default function SearchBar() {
     setIsSearching(value.length > 0)
   }
 
-  const onClear = () => setSearchValue('')
+  function aiSearch(value: string = '') {
+    setAiSearchText(value)
+  }
+
+  const toggleSearchMode = () => {
+    const newMode = searchMode === 'keyword' ? 'ai' : 'keyword'
+    setSearchMode(newMode)
+    _setSearchValue('')
+    setSearchQuery('')
+    setAiSearchText('')
+    setAiSearchImage(null)
+    setIsSearching(false)
+  }
+
+  const handleImageSearch = async () => {
+    try {
+      const filePath = await window.api.system.openFileDialog()
+      if (filePath) {
+        setAiSearchImage(filePath)
+      }
+    } catch (error) {
+      console.error('Failed to open image file dialog:', error)
+    }
+  }
+
+  const onClear = () => {
+    _setSearchValue('')
+    if (searchMode === 'keyword') {
+      search('')
+    } else {
+      aiSearch('')
+    }
+    setAiSearchImage(null)
+  }
 
   const onSelect = async (item: AutoCompleteItem<ItemType>) => {
     switch (item.type) {
       case 'create-tag':
         try {
           await createTagMutation.mutateAsync({ name: searchValue })
-          // after creation, search for the new tag
           _setSearchValue(searchValue)
           search(searchValue)
           console.log('Tag created successfully:', searchValue)
@@ -99,7 +216,6 @@ export default function SearchBar() {
       ? [...tagItems]
       : allTags.map(tag => tagToItem(tag))
 
-  // create tag option
   if (
     searchValue.length > 0 &&
     searchValue.trim().length > 0 &&
@@ -115,29 +231,190 @@ export default function SearchBar() {
     })
   }
 
+  // Drag and Drop event handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!folderPath) return
+    setIsDragging(true)
+    setIsSearchDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    setIsSearchDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    setIsSearchDragging(false)
+    if (!folderPath) return
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      const isImg =
+        file.type.startsWith('image/') ||
+        /\.(png|jpe?g|gif|webp|bmp|tiff)$/i.test(file.name)
+      if (isImg) {
+        const electronFile = file as File & { path?: string }
+        if (electronFile.path) {
+          const filePath = electronFile.path
+          setSearchMode('ai')
+          setAiSearchImage(filePath)
+        } else {
+          // Fallback if path is missing: read file as base64 and save as temp file
+          const reader = new FileReader()
+          reader.onload = async event => {
+            try {
+              const base64Data = event.target?.result as string
+              const tempFilePath =
+                await window.api.system.saveTempFile(base64Data)
+              setSearchMode('ai')
+              setAiSearchImage(tempFilePath)
+            } catch (err) {
+              console.error('Failed to handle dropped file fallback:', err)
+            }
+          }
+          reader.readAsDataURL(file)
+        }
+      }
+    } else {
+      const uriList = e.dataTransfer.getData('text/uri-list')
+      if (uriList) {
+        const lines = uriList
+          .split('\n')
+          .map(line => line.trim())
+          .filter(Boolean)
+        for (const line of lines) {
+          if (line.startsWith('file://')) {
+            const filePath = decodeURIComponent(line.substring(7))
+            if (/\.(png|jpe?g|gif|webp|bmp|tiff)$/i.test(filePath)) {
+              setSearchMode('ai')
+              setAiSearchImage(filePath)
+              break
+            }
+          }
+        }
+      }
+    }
+  }
+
   return (
-    <div className="relative">
+    <div
+      className={clsx(
+        'relative w-full transition-all duration-300',
+        isDragging ? 'h-36' : 'h-12',
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-indigo-600/10 border-2 border-dashed border-indigo-500 rounded-xl backdrop-blur-xs pointer-events-none animate-pulse">
+          <CameraIcon
+            size={32}
+            weight="fill"
+            className="text-indigo-400 mb-2 animate-bounce"
+          />
+          <span className="text-sm font-semibold text-indigo-400">
+            Drop image to search with AI...
+          </span>
+        </div>
+      )}
+
       <Input
-        className="h-12 ps-11 text-lg! text-foreground bg-background/70!"
+        className={clsx(
+          'h-12 text-lg! text-foreground bg-background/70! transition-all duration-300',
+          aiSearchImage ? 'ps-[92px]' : 'ps-12',
+          searchMode === 'ai' &&
+            'ring-2 ring-indigo-500/50 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.15)]',
+        )}
         size="lg"
-        placeholder="Search..."
+        placeholder={
+          aiSearchImage
+            ? 'Refine search with text...'
+            : searchMode === 'ai'
+              ? 'Describe image content (AI Search)...'
+              : 'Search tags or filenames...'
+        }
         disabled={!folderPath}
         tabIndex={1}
         value={searchValue}
         onValueChange={setSearchValue}
-        onFocus={() => searchValue.length > 0 && setIsOpen(true)}
+        onFocus={() =>
+          searchMode === 'keyword' && searchValue.length > 0 && setIsOpen(true)
+        }
         onBlur={() => setTimeout(() => setIsOpen(false), 150)}
         startContent={
-          <MagnifyingGlassIcon size={24} className="backdrop-blur-none" />
+          <div className="flex items-center gap-2 select-none">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!folderPath}
+              onClick={toggleSearchMode}
+              className={cn(
+                'size-8 rounded-md transition-all duration-300',
+                searchMode === 'ai'
+                  ? 'bg-indigo-600/25 text-indigo-400 hover:bg-indigo-600/40 hover:text-indigo-300 shadow-[0_0_8px_rgba(99,102,241,0.2)]'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+              )}
+              title={
+                searchMode === 'ai'
+                  ? 'Switch to Keyword Search'
+                  : 'Switch to AI Semantic Search'
+              }
+            >
+              <SparkleIcon
+                size={18}
+                weight={searchMode === 'ai' ? 'fill' : 'regular'}
+              />
+            </Button>
+
+            {aiSearchImage && (
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation()
+                  setAiSearchImage(null)
+                }}
+                className="relative group size-8 rounded-md overflow-hidden border border-indigo-500/40 flex-shrink-0 animate-fade-in shadow-xs cursor-pointer"
+                title="Remove image search"
+              >
+                <img
+                  src={`file://${aiSearchImage}`}
+                  alt="Search target"
+                  className="size-full object-cover group-hover:opacity-40 transition-opacity"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                  <XIcon size={14} weight="bold" />
+                </div>
+              </button>
+            )}
+          </div>
         }
         endContent={
           <div className="flex items-center gap-2 select-none">
-            {searchValue.length > 0 && (
+            {searchMode === 'ai' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!folderPath}
+                onClick={handleImageSearch}
+                className="opacity-75 hover:opacity-100 text-indigo-400 hover:text-indigo-300 transition-colors"
+                title="Search by image (image-to-image)"
+              >
+                <CameraIcon size={20} weight="bold" />
+              </Button>
+            )}
+            {(searchValue.length > 0 || aiSearchImage) && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onClear}
-                className="opacity-70 hover:opacity-100 backdrop-blur-none"
+                className="opacity-70 hover:opacity-100 backdrop-blur-none cursor-pointer"
               >
                 <XIcon size={20} color="currentColor" />
               </Button>
@@ -168,12 +445,14 @@ export default function SearchBar() {
         }
       />
 
-      <AutocompleteList
-        types={autoCompleteTypes}
-        items={autoCompleteItems}
-        isOpen={isOpen}
-        onSelect={onSelect}
-      />
+      {searchMode === 'keyword' && (
+        <AutocompleteList
+          types={autoCompleteTypes}
+          items={autoCompleteItems}
+          isOpen={isOpen}
+          onSelect={onSelect}
+        />
+      )}
     </div>
   )
 }

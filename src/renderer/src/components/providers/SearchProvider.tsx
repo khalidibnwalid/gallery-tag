@@ -13,6 +13,12 @@ interface SearchProvider {
   setExcludedTags: React.Dispatch<React.SetStateAction<string[]>>
   searchColor: string | null
   setSearchColor: React.Dispatch<React.SetStateAction<string | null>>
+  aiSearchText: string
+  setAiSearchText: React.Dispatch<React.SetStateAction<string>>
+  aiSearchImage: string | null
+  setAiSearchImage: React.Dispatch<React.SetStateAction<string | null>>
+  isSearchDragging: boolean
+  setIsSearchDragging: React.Dispatch<React.SetStateAction<boolean>>
   clearSearch: () => void
 }
 
@@ -25,6 +31,9 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [filterTags, setFilterTags] = useState<string[]>([])
   const [excludedTags, setExcludedTags] = useState<string[]>([])
   const [searchColor, setSearchColor] = useState<string | null>(null)
+  const [aiSearchText, setAiSearchText] = useState('')
+  const [aiSearchImage, setAiSearchImage] = useState<string | null>(null)
+  const [isSearchDragging, setIsSearchDragging] = useState(false)
 
   const clearSearch = () => {
     setSearchQuery('')
@@ -33,6 +42,9 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setFilterTags([])
     setExcludedTags([])
     setSearchColor(null)
+    setAiSearchText('')
+    setAiSearchImage(null)
+    setIsSearchDragging(false)
   }
 
   return (
@@ -50,6 +62,12 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         setExcludedTags,
         searchColor,
         setSearchColor,
+        aiSearchText,
+        setAiSearchText,
+        aiSearchImage,
+        setAiSearchImage,
+        isSearchDragging,
+        setIsSearchDragging,
         clearSearch,
       }}
     >
