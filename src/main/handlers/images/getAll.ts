@@ -1,31 +1,17 @@
-import { notifier } from '@main/services/notifier.service'
-import { createThumbnails } from '@main/services/thumbnails.service'
 import { clipService } from '@main/services/clip.service'
-import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
-import {
-  EVENTS,
-  NOTIFIER_EVENTS,
-  NOTIFIER_EVENT_TYPES,
-} from '@main/types/constants.shared'
+import { SearchFilter } from '@main/types/api.shared'
 import { ImageModel, PaginatedResult } from '@main/types/models.shared'
-import {
-  NotifyImageThumbnailGeneratedPartPayload,
-  NotifyImageThumbnailGenerationCompletePayload,
-} from '@main/types/notifier.shared'
-import Batcher from '@main/utils/batcher'
-import {
-  CONFIG_DIR,
-  getAndInitConfig,
-  THUMBNAILS_DIR,
-} from '@main/utils/files/config'
+import { CONFIG_DIR, getAndInitConfig } from '@main/utils/files/config'
 import { FolderRepository } from '@main/utils/repositories/Folder'
 import { ImageRepository } from '@main/utils/repositories/Image'
 import { EXTENSIONS, getFilesByExtension } from '@main/utils/files/getFiles'
-import { computeFileHash } from '@main/utils/files/hashing'
-import { extractDominantColors } from '@main/utils/files/colorExtractor'
 import { join } from 'path'
-
-const THUMBNAIL_WIDTH = 512
+import {
+  scanNewFiles,
+  scanHashes,
+  scanColors,
+  scanEmbeddings,
+} from '@main/utils/files/scan'
 
 async function getAllBase(
   event: Electron.IpcMainInvokeEvent,
@@ -92,295 +78,23 @@ async function getAllBase(
       )
     }
 
-    // 1. Get missing images (candidates for hash-based recovery)
-    const missingImages = imageRepo.getMissingImages()
-
-    // 2. Identify new candidates (excludes already-active and just-recovered paths)
-    const newPaths = imageRepo.getPathsNotInImagesTable(currentPaths)
-    const newPathsSet = new Set(newPaths)
-    const newFilesRaw = imageFiles.filter(file =>
-      newPathsSet.has(file.fullPath),
+    // 1. Process new files (recovery & thumbnail generation)
+    await scanNewFiles(
+      imageRepo,
+      sender,
+      folderPath,
+      imageFiles,
+      currentPaths,
     )
 
-    // List of files that need to be inserted as new records
-    // Start with all new files, will filter out recovered ones
-    let filesToInsert = newFilesRaw.map(f => ({
-      ...f,
-      hash: undefined as string | undefined,
-      dominantColors: undefined as string[] | undefined,
-      isDuplicate: undefined as number | undefined,
-    }))
-
-    if (newPaths.length > 0) {
-      console.log(`Processing ${newPaths.length} new files...`)
-
-      // Compute hashes for new files to enable matching
-      // We use a concurrency limit if needed, but for now Promise.all is okay for reasonable batches
-      const newFilesWithHashAndColor = await Promise.all(
-        newFilesRaw.map(async file => ({
-          ...file,
-          hash: await computeFileHash(file.fullPath),
-          dominantColors: await extractDominantColors(file.fullPath),
-          isDuplicate: undefined as number | undefined,
-        })),
-      )
-
-      filesToInsert = newFilesWithHashAndColor
-
-      // Attempt recovery if there are missing images to match against
-      if (missingImages.length > 0) {
-        const missingHashMap = new Map<string, ImageModel>()
-
-        // Build generic map of hash -> image
-        for (const img of missingImages) {
-          if (img.hash) missingHashMap.set(img.hash, img)
-        }
-
-        const unmatchedFiles: typeof filesToInsert = []
-        let recoveredCount = 0
-
-        for (const file of filesToInsert) {
-          if (file.hash && missingHashMap.has(file.hash)) {
-            // Check if we have an active image in the DB with the same hash
-            const hasActive = imageRepo.hasActiveImageWithHash(file.hash)
-
-            if (!hasActive) {
-              // Match found and no active duplicate exists - recover the image record
-              const oldImage = missingHashMap.get(file.hash)!
-
-              imageRepo.recoverImage(oldImage.id, file)
-              console.log(
-                `Recovered image: ${oldImage.filePath} -> ${file.fullPath}`,
-              )
-
-              // Consume the match
-              missingHashMap.delete(file.hash)
-              recoveredCount++
-            } else {
-              // Active image with same hash exists: mark this as duplicate and let it be inserted
-              unmatchedFiles.push({
-                ...file,
-                isDuplicate: 1,
-              })
-            }
-          } else {
-            // No match found
-            unmatchedFiles.push(file)
-          }
-        }
-
-        if (recoveredCount > 0) {
-          console.log(
-            `Successfully recovered ${recoveredCount} images using hash matching`,
-          )
-        }
-
-        filesToInsert = unmatchedFiles
-      }
-
-      // Insert the truly new files
-      if (filesToInsert.length > 0) {
-        imageRepo.insertImages(filesToInsert)
-        console.log(`Inserted ${filesToInsert.length} new images into database`)
-
-        // Start thumbnail generation for inserted files
-        const imageUpdateBatcher = new Batcher<{
-          filePath: string
-          thumbnailPath: string
-          width?: number
-          height?: number
-        }>({
-          batchSize: 50,
-          debounceTime: 500,
-          callbackFn: images => {
-            sender.send(EVENTS.UPDATE_IMAGE, {
-              type: 'update',
-              payload: { images } satisfies ImageUpdatePayload,
-            })
-            imageRepo.updateThumbnailPaths(images)
-
-            notifier.notify<NotifyImageThumbnailGeneratedPartPayload>({
-              id: 'image-thumbnail-generated',
-              type: 'progress.part',
-              payload: {
-                data: images[images.length - 1],
-                total: filesToInsert.length,
-                sessionId: timeStamp.toString(),
-                order: processedCount,
-              },
-            })
-          },
-        })
-
-        let count = 0
-        let processedCount = 0
-        const timeStamp = Date.now()
-
-        createThumbnails({
-          tasks: filesToInsert.map(file => ({
-            imagePath: file.fullPath,
-            outputPath: join(
-              folderPath,
-              THUMBNAILS_DIR,
-              file.fileName + '_' + timeStamp + '_' + count++ + '_.webp',
-            ),
-          })),
-          onComplete: result => {
-            console.log(
-              `Thumbnail generation complete: ${result.totalProcessed} processed, ${result.totalFailed} failed`,
-            )
-            imageUpdateBatcher.flush()
-
-            notifier.notify<NotifyImageThumbnailGenerationCompletePayload>({
-              id: 'image-thumbnail-generated',
-              type: 'progress.complete',
-              payload: {
-                totalProcessed: result.totalProcessed,
-                totalFailed: result.totalFailed,
-                sessionId: timeStamp.toString(),
-              },
-            })
-          },
-          onProgress(currentResult) {
-            if (currentResult.error !== undefined) return
-
-            processedCount++
-            const payload = {
-              filePath: currentResult.imagePath,
-              thumbnailPath: currentResult.outputPath,
-              width: currentResult.originalWidth,
-              height: currentResult.originalHeight,
-              order: processedCount,
-              total: filesToInsert.length,
-            }
-            imageUpdateBatcher.add(payload)
-          },
-          onError: error => {
-            console.error('Error generating thumbnails:', error)
-          },
-          thumbnailOptions: { width: THUMBNAIL_WIDTH },
-        })
-      }
-    }
-
     // 4. Background: Backfill hashes for existing images (limit 50 per scan to avoid performance hit)
-    const unhashedImages = imageRepo.getImagesWithoutHash()
-    if (unhashedImages.length > 0) {
-      const batch = unhashedImages.slice(0, 50)
-      console.log(
-        `Backfilling hashes for ${batch.length} images (out of ${unhashedImages.length} remaining)...`,
-      )
-      // Fire and forget - do not await
-      Promise.allSettled(
-        batch.map(async img => {
-          try {
-            const hash = await computeFileHash(img.filePath)
-            imageRepo.updateImageHash(img.id, hash)
-          } catch (error) {
-            // Ignore errors for individual files
-          }
-        }),
-      ).then(() => {
-        console.log('Background hash backfill batch complete')
-      })
-    }
+    scanHashes(imageRepo)
 
     // 5. Background: Backfill dominant colors for existing images (limit 50 per scan)
-    const colorlessImages = imageRepo.getImagesWithoutDominantColors()
-    if (colorlessImages.length > 0) {
-      const batch = colorlessImages.slice(0, 50)
-      console.log(
-        `Backfilling dominant colors for ${batch.length} images (out of ${colorlessImages.length} remaining)...`,
-      )
-      // Fire and forget - do not await
-      Promise.allSettled(
-        batch.map(async img => {
-          try {
-            let colors = img.dominantColors
-            if (!colors || colors.length === 0) {
-              colors = await extractDominantColors(img.filePath)
-            }
-            imageRepo.updateImageDominantColors(img.id, colors)
-          } catch (error) {
-            // Ignore errors for individual files
-          }
-        }),
-      ).then(() => {
-        console.log('Background dominant colors backfill batch complete')
-      })
-    }
+    scanColors(imageRepo)
 
     // 6. Background: Compute CLIP embeddings for unembedded images
-    const processEmbeddings = async () => {
-      try {
-        const unembedded = imageRepo.getImagesWithoutEmbeddings()
-        if (unembedded.length === 0) return
-
-        console.log(
-          `CLIP: Starting embedding generation for ${unembedded.length} images...`,
-        )
-
-        await clipService.init(join(folderPath, CONFIG_DIR))
-
-        const sessionId = Date.now().toString()
-        let order = 0
-
-        notifier.notify({
-          id: NOTIFIER_EVENTS.IMAGES.EMBEDDING_GENERATED,
-          type: NOTIFIER_EVENT_TYPES.PROGRESS_PART,
-          payload: {
-            order: 0,
-            total: unembedded.length,
-            sessionId,
-          },
-        })
-
-        let totalProcessed = 0
-        let totalFailed = 0
-
-        for (const img of unembedded) {
-          try {
-            const embedding = await clipService.getImageEmbedding(img.filePath)
-            imageRepo.insertImageEmbedding(img.id, embedding)
-            totalProcessed++
-          } catch (error) {
-            console.error(
-              `Failed to generate embedding for ${img.filePath}:`,
-              error,
-            )
-            totalFailed++
-          }
-
-          order++
-          notifier.notify({
-            id: NOTIFIER_EVENTS.IMAGES.EMBEDDING_GENERATED,
-            type: NOTIFIER_EVENT_TYPES.PROGRESS_PART,
-            payload: {
-              order,
-              total: unembedded.length,
-              sessionId,
-            },
-          })
-        }
-
-        console.log(
-          `CLIP: Embedding generation complete. Processed ${totalProcessed}, failed ${totalFailed}`,
-        )
-        notifier.notify({
-          id: NOTIFIER_EVENTS.IMAGES.EMBEDDING_GENERATED,
-          type: NOTIFIER_EVENT_TYPES.PROGRESS_COMPLETE,
-          payload: {
-            totalProcessed,
-            totalFailed,
-            sessionId,
-          },
-        })
-      } catch (err) {
-        console.error('Error in background embedding generation:', err)
-      }
-    }
-
-    processEmbeddings()
+    scanEmbeddings(imageRepo, folderPath)
 
     let aiEmbedding: Float32Array | undefined = undefined
     if (filter?.aiSearchText) {
