@@ -3,6 +3,7 @@ import { FileInfo } from '@main/types/global'
 import { ImageModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
 import { hexToRgb, rgbToHsl } from '../colors'
+import { clipService } from '@main/services/clip.service'
 
 function mapImageRow(row: any): any {
   if (!row) return row
@@ -217,7 +218,8 @@ export class ImageRepository {
       ? 'INNER JOIN image_colors ic ON i.id = ic.image_id'
       : ''
     if (aiEmbedding) {
-      joinClause += ' INNER JOIN vec_images v ON i.id = v.image_id'
+      const vecTable = clipService.getVectorTableName()
+      joinClause += ` INNER JOIN ${vecTable} v ON i.id = v.image_id`
     }
 
     // Count query
@@ -386,13 +388,18 @@ export class ImageRepository {
     const runDelete = this.db.transaction(() => {
       const deleteColors = this.db.prepare('DELETE FROM image_colors WHERE image_id = ?')
       const deleteTags = this.db.prepare('DELETE FROM image_tags WHERE image_id = ?')
-      const deleteVec = this.db.prepare('DELETE FROM vec_images WHERE image_id = ?')
+      const vecTables = this.db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND (name = 'vec_images' OR name LIKE 'vec_images_%')")
+        .all() as { name: string }[]
+      const deleteVecStmts = vecTables.map(t => this.db.prepare(`DELETE FROM ${t.name} WHERE image_id = ?`))
       const deleteImage = this.db.prepare('DELETE FROM images WHERE id = ?')
 
       for (const id of ids) {
         deleteColors.run(id)
         deleteTags.run(id)
-        deleteVec.run(BigInt(id))
+        for (const stmt of deleteVecStmts) {
+          stmt.run(BigInt(id))
+        }
         deleteImage.run(id)
       }
     })
@@ -673,15 +680,16 @@ export class ImageRepository {
         hash,
         dominant_colors as dominantColors
       FROM images 
-      WHERE deleted_at IS NULL AND id NOT IN (SELECT image_id FROM vec_images)
+      WHERE deleted_at IS NULL AND id NOT IN (SELECT image_id FROM ${clipService.getVectorTableName()})
     `)
     const rows = stmt.all() as any[]
     return rows.map(mapImageRow)
   }
 
   insertImageEmbedding(imageId: number, embedding: Float32Array): void {
-    const deleteStmt = this.db.prepare('DELETE FROM vec_images WHERE image_id = ?')
-    const insertStmt = this.db.prepare('INSERT INTO vec_images (image_id, embedding) VALUES (?, ?)')
+    const vecTable = clipService.getVectorTableName()
+    const deleteStmt = this.db.prepare(`DELETE FROM ${vecTable} WHERE image_id = ?`)
+    const insertStmt = this.db.prepare(`INSERT INTO ${vecTable} (image_id, embedding) VALUES (?, ?)`)
     
     const runTransaction = this.db.transaction((id: number, emb: Float32Array) => {
       deleteStmt.run(BigInt(id))

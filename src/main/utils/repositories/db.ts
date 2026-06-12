@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import * as sqliteVec from 'sqlite-vec'
+import { clipService } from '@main/services/clip.service'
 
 /*
  * we have an annoying problem, the db place might be used in multiple places and might change in runtime,
@@ -85,10 +86,33 @@ class DBSingleton {
     // TODO: INDEXES for performance
     db.pragma('journal_mode = WAL')
 
+    const currentDim = clipService.getEmbeddingDimension()
+    const tableName = clipService.getVectorTableName()
+
+    // Check if the model-specific table exists and has a dimension mismatch
+    const tableInfo = db
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+      )
+      .get(tableName) as { sql: string } | undefined
+
+    if (tableInfo) {
+      const match = tableInfo.sql.match(/float\[(\d+)\]/)
+      if (match) {
+        const existingDim = parseInt(match[1], 10)
+        if (existingDim !== currentDim) {
+          console.log(
+            `Dimension mismatch for ${tableName}: existing=${existingDim}, new=${currentDim}. Dropping table to allow re-indexing...`,
+          )
+          db.exec(`DROP TABLE ${tableName}`)
+        }
+      }
+    }
+
     db.exec(`
-        CREATE VIRTUAL TABLE IF NOT EXISTS vec_images USING vec0(
+        CREATE VIRTUAL TABLE IF NOT EXISTS ${tableName} USING vec0(
           image_id integer primary key,
-          embedding float[512]
+          embedding float[${currentDim}]
         )
       `)
 
