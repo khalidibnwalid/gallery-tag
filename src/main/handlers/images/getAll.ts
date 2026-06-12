@@ -12,6 +12,7 @@ import {
   scanColors,
   scanEmbeddings,
 } from '@main/utils/files/scan'
+import { watcherService } from '@main/services/watcher.service'
 
 async function getAllBase(
   event: Electron.IpcMainInvokeEvent,
@@ -39,6 +40,11 @@ async function getAllBase(
 
     // Sync CLIP model selection from persisted settings before any embedding work
     clipService.loadSettingsFromDb(db)
+
+    // Start watching the active folder for changes
+    watcherService.watchFolder(folderPath, sender).catch(err => {
+      console.error('Failed to start folder watcher:', err)
+    })
 
     await folderRepo.syncFoldersFromDisk(folderPath)
 

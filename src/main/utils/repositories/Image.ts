@@ -371,6 +371,44 @@ export class ImageRepository {
     return rows.map(row => row.file_path)
   }
 
+  getImagesMissingFromPaths(currentPaths: string[]): { id: number; filePath: string }[] {
+    // temporary table for current paths
+    this.db
+      .prepare(
+        `
+      CREATE TEMPORARY TABLE IF NOT EXISTS temp_current_paths (
+        file_path TEXT PRIMARY KEY
+      )
+    `,
+      )
+      .run()
+
+    // clear any existing data
+    this.db.prepare('DELETE FROM temp_current_paths').run()
+
+    // Insert current paths
+    const insertStmt = this.db.prepare(
+      'INSERT INTO temp_current_paths (file_path) VALUES (?)',
+    )
+    const transaction = this.db.transaction((paths: string[]) => {
+      for (const path of paths) insertStmt.run(path)
+    })
+    transaction(currentPaths)
+
+    // Select active images not in current paths
+    const selectStmt = this.db.prepare(`
+      SELECT id, file_path as filePath FROM images
+      WHERE deleted_at IS NULL
+        AND file_path NOT IN (
+          SELECT file_path FROM temp_current_paths
+        )
+    `)
+    const result = selectStmt.all() as { id: number; filePath: string }[]
+
+    this.db.prepare('DROP TABLE temp_current_paths').run()
+    return result
+  }
+
   markMissingImagesAsDeleted(currentPaths: string[]) {
     // temporary table for current paths
     this.db

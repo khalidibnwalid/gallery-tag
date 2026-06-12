@@ -79,9 +79,7 @@ export function setupGlobalNotifier(queryClient?: QueryClient) {
               description: `Processed ${payload.totalProcessed} images${payload.totalFailed > 0 ? `, ${payload.totalFailed} failed` : ''}`,
             })
 
-            if (queryClient) {
-              queryClient.invalidateQueries()
-            }
+            queryClient?.invalidateQueries()
           }
           break
 
@@ -138,20 +136,24 @@ export function setupGlobalNotifier(queryClient?: QueryClient) {
               description: `Processed ${payload.totalProcessed} images for text & image search${payload.totalFailed > 0 ? `, ${payload.totalFailed} failed` : ''}`,
             })
 
-            if (queryClient) {
-              queryClient.invalidateQueries()
-            }
+            queryClient?.invalidateQueries()
           }
           break
 
         case 'clip-status':
           if (notification.type === 'status') {
-            const payload = notification.payload as { status: string; error?: string }
+            const payload = notification.payload as {
+              status: string
+              error?: string
+            }
             if (payload.status === 'loading') {
-              toast.loading('Initializing CLIP AI model (this may take a minute to download on first run)...', {
-                id: 'clip-loading-toast',
-                duration: Infinity
-              })
+              toast.loading(
+                'Initializing CLIP AI model (this may take a minute to download on first run)...',
+                {
+                  id: 'clip-loading-toast',
+                  duration: Infinity,
+                },
+              )
             } else if (payload.status === 'ready') {
               toast.dismiss('clip-loading-toast')
               toast.success('CLIP AI model ready for text & image searches!')
@@ -160,6 +162,10 @@ export function setupGlobalNotifier(queryClient?: QueryClient) {
               toast.error(`Failed to load CLIP model: ${payload.error}`)
             }
           }
+          break
+        case 'library-changed':
+          queryClient?.invalidateQueries()
+
           break
         default:
           break
