@@ -4,19 +4,32 @@ import { ImageModel } from '@main/types/models.shared'
 import Database from 'better-sqlite3'
 import { hexToRgb, rgbToHsl } from '../colors'
 import { clipService } from '@main/services/clip.service'
+import { toRelativePath, toAbsolutePath } from '../pathUtils'
 
-function mapImageRow(row: any): any {
-  if (!row) return row
-  return {
-    ...row,
-    dominantColors: row.dominantColors
-      ? JSON.parse(row.dominantColors)
-      : undefined,
+function makeMapImageRow(rootPath: string) {
+  return function mapImageRow(row: any): any {
+    if (!row) return row
+    return {
+      ...row,
+      // Resolve stored relative paths to absolute for the caller
+      filePath: row.filePath ? toAbsolutePath(rootPath, row.filePath) : row.filePath,
+      thumbnailPath: row.thumbnailPath ? toAbsolutePath(rootPath, row.thumbnailPath) : row.thumbnailPath,
+      dominantColors: row.dominantColors
+        ? JSON.parse(row.dominantColors)
+        : undefined,
+    }
   }
 }
 
 export class ImageRepository {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private rootPath: string,
+  ) {}
+
+  private get mapImageRow() {
+    return makeMapImageRow(this.rootPath)
+  }
 
   insertImages(
     images:
@@ -57,7 +70,7 @@ export class ImageRepository {
           }
 
           const result = insertStmt.run(
-            image.fullPath,
+            toRelativePath(this.rootPath, image.fullPath),
             image.fileName,
             image.extension,
             image.size,
@@ -111,7 +124,7 @@ export class ImageRepository {
       ORDER BY file_name
     `)
     const rows = stmt.all() as any[]
-    const data = rows.map(mapImageRow)
+    const data = rows.map(this.mapImageRow)
     return { data, total: data.length }
   }
 
@@ -146,7 +159,7 @@ export class ImageRepository {
       ORDER BY i.file_name
     `)
     const rows = stmt.all() as any[]
-    const data = rows.map(mapImageRow)
+    const data = rows.map(this.mapImageRow)
     return { data, total: data.length }
   }
 
@@ -172,9 +185,11 @@ export class ImageRepository {
       params.push(searchPattern, searchPattern)
     }
 
-    // Filter by folder path
+    // Filter by folder path (convert absolute filterPath to relative for DB comparison)
     if (filter?.filterPath) {
-      const folderPattern = `${filter.filterPath}%`
+      const relFilter = toRelativePath(this.rootPath, filter.filterPath)
+      // Root maps to '/' — match everything; subfolders match their relative prefix
+      const folderPattern = relFilter === '/' ? '/%' : `${relFilter}/%`
       whereClauses.push(`i.file_path LIKE ?`)
       params.push(folderPattern)
     }
@@ -320,7 +335,7 @@ export class ImageRepository {
     `)
 
     const rows = stmt.all(...cteParams, ...params, size, offset) as any[]
-    const data = rows.map(mapImageRow)
+    const data = rows.map(this.mapImageRow)
 
     return {
       data,
@@ -332,6 +347,9 @@ export class ImageRepository {
     if (currentPaths.length === 0) {
       return []
     }
+
+    // Convert absolute paths to relative for DB comparison
+    const relativePaths = currentPaths.map(p => toRelativePath(this.rootPath, p))
 
     this.db
       .prepare(
@@ -352,9 +370,9 @@ export class ImageRepository {
       for (const path of paths) insertStmt.run(path)
     })
 
-    transaction(currentPaths)
+    transaction(relativePaths)
 
-    // find paths not in the table as active images
+    // find relative paths not in the images table (or soft-deleted)
     const stmt = this.db.prepare(
       `
       SELECT tcp.file_path 
@@ -368,10 +386,14 @@ export class ImageRepository {
 
     this.db.prepare('DROP TABLE temp_check_paths').run()
 
-    return rows.map(row => row.file_path)
+    // Return absolute paths so callers can work with the filesystem
+    return rows.map(row => toAbsolutePath(this.rootPath, row.file_path))
   }
 
   getImagesMissingFromPaths(currentPaths: string[]): { id: number; filePath: string }[] {
+    // Convert absolute paths to relative for DB comparison
+    const relativePaths = currentPaths.map(p => toRelativePath(this.rootPath, p))
+
     // temporary table for current paths
     this.db
       .prepare(
@@ -386,16 +408,16 @@ export class ImageRepository {
     // clear any existing data
     this.db.prepare('DELETE FROM temp_current_paths').run()
 
-    // Insert current paths
+    // Insert relative paths
     const insertStmt = this.db.prepare(
       'INSERT INTO temp_current_paths (file_path) VALUES (?)',
     )
     const transaction = this.db.transaction((paths: string[]) => {
       for (const path of paths) insertStmt.run(path)
     })
-    transaction(currentPaths)
+    transaction(relativePaths)
 
-    // Select active images not in current paths
+    // Select active images not in current relative paths
     const selectStmt = this.db.prepare(`
       SELECT id, file_path as filePath FROM images
       WHERE deleted_at IS NULL
@@ -403,13 +425,20 @@ export class ImageRepository {
           SELECT file_path FROM temp_current_paths
         )
     `)
-    const result = selectStmt.all() as { id: number; filePath: string }[]
+    const rawResult = selectStmt.all() as { id: number; filePath: string }[]
 
     this.db.prepare('DROP TABLE temp_current_paths').run()
-    return result
+    // Resolve relative paths back to absolute for the caller
+    return rawResult.map(row => ({
+      id: row.id,
+      filePath: toAbsolutePath(this.rootPath, row.filePath),
+    }))
   }
 
   markMissingImagesAsDeleted(currentPaths: string[]) {
+    // Convert absolute paths to relative for DB comparison
+    const relativePaths = currentPaths.map(p => toRelativePath(this.rootPath, p))
+
     // temporary table for current paths
     this.db
       .prepare(
@@ -424,7 +453,7 @@ export class ImageRepository {
     // clear any existing data
     this.db.prepare('DELETE FROM temp_current_paths').run()
 
-    // Insert current paths in batches for better performance
+    // Insert relative paths
     const insertStmt = this.db.prepare(
       'INSERT INTO temp_current_paths (file_path) VALUES (?)',
     )
@@ -432,7 +461,7 @@ export class ImageRepository {
       for (const path of paths) insertStmt.run(path)
     })
 
-    transaction(currentPaths)
+    transaction(relativePaths)
 
     // Mark missing images as deleted
     const result = this.db
@@ -513,7 +542,9 @@ export class ImageRepository {
   getSoftDeletedImagesAtPaths(paths: string[]): ImageModel[] {
     if (paths.length === 0) return []
 
-    const placeholders = paths.map(() => '?').join(',')
+    // Convert absolute paths to relative for DB comparison
+    const relativePaths = paths.map(p => toRelativePath(this.rootPath, p))
+    const placeholders = relativePaths.map(() => '?').join(',')
     const stmt = this.db.prepare(`
       SELECT
         id,
@@ -535,8 +566,8 @@ export class ImageRepository {
       WHERE deleted_at IS NOT NULL
         AND file_path IN (${placeholders})
     `)
-    const rows = stmt.all(...paths) as any[]
-    return rows.map(mapImageRow)
+    const rows = stmt.all(...relativePaths) as any[]
+    return rows.map(this.mapImageRow)
   }
 
   getImageStats(): {
@@ -570,7 +601,10 @@ export class ImageRepository {
       SET thumbnail_path = ? 
       WHERE file_path = ?
     `)
-    stmt.run(thumbnailPath, imagePath)
+    stmt.run(
+      toRelativePath(this.rootPath, thumbnailPath),
+      toRelativePath(this.rootPath, imagePath),
+    )
   }
 
   updateThumbnailPaths(
@@ -592,10 +626,10 @@ export class ImageRepository {
     const transaction = this.db.transaction((updateList: typeof updates) => {
       for (const update of updateList) {
         stmt.run(
-          update.thumbnailPath,
+          toRelativePath(this.rootPath, update.thumbnailPath),
           update.width || null,
           update.height || null,
-          update.filePath,
+          toRelativePath(this.rootPath, update.filePath),
         )
       }
     })
@@ -624,7 +658,7 @@ export class ImageRepository {
     `)
 
     const rows = stmt.all() as any[]
-    return rows.map(mapImageRow)
+    return rows.map(this.mapImageRow)
   }
 
   recoverImage(
@@ -648,7 +682,7 @@ export class ImageRepository {
     `)
 
     stmt.run(
-      newFileInfo.fullPath,
+      toRelativePath(this.rootPath, newFileInfo.fullPath),
       newFileInfo.fileName,
       newFileInfo.extension,
       newFileInfo.size,
@@ -685,7 +719,7 @@ export class ImageRepository {
       WHERE hash IS NULL AND deleted_at IS NULL
     `)
     const rows = stmt.all() as any[]
-    return rows.map(mapImageRow)
+    return rows.map(this.mapImageRow)
   }
 
   updateImageHash(imageId: number, hash: string): void {
@@ -713,7 +747,7 @@ export class ImageRepository {
       WHERE (dominant_colors IS NULL OR id NOT IN (SELECT DISTINCT image_id FROM image_colors)) AND deleted_at IS NULL
     `)
     const rows = stmt.all() as any[]
-    return rows.map(mapImageRow)
+    return rows.map(this.mapImageRow)
   }
 
   private updateColorsInDb(imageId: number, colors: string[]): void {
@@ -771,7 +805,7 @@ export class ImageRepository {
       WHERE deleted_at IS NULL AND id NOT IN (SELECT image_id FROM ${clipService.getVectorTableName()})
     `)
     const rows = stmt.all() as any[]
-    return rows.map(mapImageRow)
+    return rows.map(this.mapImageRow)
   }
 
   insertImageEmbedding(imageId: number, embedding: Float32Array): void {
@@ -833,7 +867,7 @@ export class ImageRepository {
       WHERE id = ?
     `)
     const row = stmt.get(id)
-    return row ? mapImageRow(row) : undefined
+    return row ? this.mapImageRow(row) : undefined
   }
 
   getImagesByIds(ids: number[]): ImageModel[] {
@@ -860,7 +894,7 @@ export class ImageRepository {
       WHERE id IN (${placeholders})
     `)
     const rows = stmt.all(...ids)
-    return rows.map(row => mapImageRow(row))
+    return rows.map(row => this.mapImageRow(row))
   }
 
   updateImagePathAndName(id: number, newFilePath: string, newFileName: string): void {
@@ -869,7 +903,7 @@ export class ImageRepository {
       SET file_path = ?, file_name = ?
       WHERE id = ?
     `)
-    stmt.run(newFilePath, newFileName, id)
+    stmt.run(toRelativePath(this.rootPath, newFilePath), newFileName, id)
   }
 
   softDeleteImages(ids: number[]): void {
@@ -909,6 +943,6 @@ export class ImageRepository {
       ORDER BY file_name
     `)
     const rows = stmt.all() as any[]
-    return rows.map(mapImageRow)
+    return rows.map(this.mapImageRow)
   }
 }

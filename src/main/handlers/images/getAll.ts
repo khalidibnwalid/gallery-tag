@@ -36,8 +36,8 @@ async function getAllBase(
     )
 
     const { db } = await getAndInitConfig(folderPath)
-    const folderRepo = new FolderRepository(db)
-    const imageRepo = new ImageRepository(db)
+    const folderRepo = new FolderRepository(db, folderPath)
+    const imageRepo = new ImageRepository(db, folderPath)
 
     // Sync CLIP model selection from persisted settings before any embedding work
     clipService.loadSettingsFromDb(db)

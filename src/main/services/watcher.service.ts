@@ -75,8 +75,8 @@ class WatcherService {
   async syncFolder(folderPath: string, sender: Electron.WebContents) {
     await runExclusiveSync(folderPath, async () => {
       const { db: database } = await getAndInitConfig(folderPath)
-      const folderRepo = new FolderRepository(database)
-      const imageRepo = new ImageRepository(database)
+      const folderRepo = new FolderRepository(database, folderPath)
+      const imageRepo = new ImageRepository(database, folderPath)
 
       // 1. Sync folders from disk
       await folderRepo.syncFoldersFromDisk(folderPath)

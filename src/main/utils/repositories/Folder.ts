@@ -3,9 +3,13 @@ import { CONFIG_DIR } from '../files/config'
 import Database from 'better-sqlite3'
 import { readdir } from 'fs/promises'
 import { join } from 'path'
+import { toRelativePath, toAbsolutePath } from '../pathUtils'
 
 export class FolderRepository {
-  constructor(private db: Database.Database) {}
+  constructor(
+    private db: Database.Database,
+    private rootPath: string,
+  ) {}
 
   insertFolders(
     folders: { name: string; path: string; parentId: number | null }[],
@@ -45,6 +49,11 @@ export class FolderRepository {
 
     const folders = stmt.all() as FolderModel[]
 
+    // Resolve stored relative paths back to absolute before returning
+    folders.forEach(folder => {
+      folder.path = toAbsolutePath(this.rootPath, folder.path)
+    })
+
     // Build tree structure
     const folderMap = new Map<number, FolderModel>()
     const rootFolders: FolderModel[] = []
@@ -74,10 +83,10 @@ export class FolderRepository {
    * Helper to process directory structure from file paths or direct scanning
    */
   async syncFoldersFromDisk(rootPath: string): Promise<void> {
-    // Ensure root exists
-    const rootName = rootPath.split('/').pop() || 'Root'
+    // Root folder is always stored as "/" (portable)
+    const rootRelPath = '/'
     let rootId = (
-      this.db.prepare('SELECT id FROM folders WHERE path = ?').get(rootPath) as
+      this.db.prepare('SELECT id FROM folders WHERE path = ?').get(rootRelPath) as
         | { id: number }
         | undefined
     )?.id
@@ -87,16 +96,16 @@ export class FolderRepository {
         .prepare(
           'INSERT OR IGNORE INTO folders (name, path, parent_id) VALUES (?, ?, ?)',
         )
-        .run(rootName, rootPath, null)
+        .run('/', rootRelPath, null)
 
       rootId = result.lastInsertRowid as number
       if (result.changes === 0) {
         rootId = (
           this.db
             .prepare('SELECT id FROM folders WHERE path = ?')
-            .get(rootPath) as {
-            id: number
-          }
+            .get(rootRelPath) as {
+          id: number
+        }
         ).id
       }
     }
@@ -123,7 +132,7 @@ export class FolderRepository {
       }[]
       const pathMap = new Map<string, number>(existing.map(e => [e.path, e.id]))
 
-      if (!pathMap.has(rootPath)) pathMap.set(rootPath, rootId)
+      if (!pathMap.has(rootRelPath)) pathMap.set(rootRelPath, rootId)
 
       // Sort directories by path length ensures parents come before children generally
       directories.sort((a, b) => {
@@ -138,24 +147,26 @@ export class FolderRepository {
           continue
         }
         const fullPath = join(dir.parentPath, dir.name)
-        if (pathMap.has(fullPath)) continue
+        const relPath = toRelativePath(rootPath, fullPath)
+        if (pathMap.has(relPath)) continue
 
         console.log(
           `Processing folder: ${fullPath} (parent: ${dir.parentPath})`,
         )
 
         // check parent
-        const parentPath = dir.parentPath
-        const parentId = pathMap.get(parentPath)
+        const parentFullPath = dir.parentPath
+        const parentRelPath = toRelativePath(rootPath, parentFullPath)
+        const parentId = pathMap.get(parentRelPath)
 
         if (parentId) {
           const result = this.db
             .prepare(
               'INSERT OR IGNORE INTO folders (name, path, parent_id) VALUES (?, ?, ?)',
             )
-            .run(dir.name, fullPath, parentId)
+            .run(dir.name, relPath, parentId)
           if (result.changes > 0) {
-            pathMap.set(fullPath, result.lastInsertRowid as number)
+            pathMap.set(relPath, result.lastInsertRowid as number)
             console.log(
               `Inserted folder: ${fullPath} (id: ${result.lastInsertRowid})`,
             )
@@ -164,13 +175,13 @@ export class FolderRepository {
             const existingId = (
               this.db
                 .prepare('SELECT id FROM folders WHERE path = ?')
-                .get(fullPath) as { id: number }
+                .get(relPath) as { id: number }
             ).id
-            pathMap.set(fullPath, existingId)
+            pathMap.set(relPath, existingId)
           }
         } else {
           console.warn(
-            `Parent not found for ${fullPath} (parent path: ${parentPath})`,
+            `Parent not found for ${fullPath} (parent path: ${dir.parentPath})`,
           )
         }
       }

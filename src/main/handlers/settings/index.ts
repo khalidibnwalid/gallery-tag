@@ -5,7 +5,7 @@ import { db } from '@main/utils/repositories/db'
 import { ipcMain } from 'electron'
 import { createThumbnails, getThumbnailQuality } from '@main/services/thumbnails.service'
 import { scanEmbeddings } from '@main/utils/files/scan/scanEmbeddings'
-import { THUMBNAILS_DIR, CONFIG_DIR } from '@main/utils/files/config'
+import { THUMBNAILS_DIR, CONFIG_DIR, getRootPath } from '@main/utils/files/config'
 import { clipService } from '@main/services/clip.service'
 import { join, basename } from 'path'
 import fs from 'fs/promises'
@@ -106,8 +106,9 @@ export function registerSettingsHandlers() {
         if (connectedPaths.length === 0)
           throw new Error('No active database connection. Load a folder first.')
 
+        const rootPath = getRootPath(connectedPaths[0])
         const database = db.getDatabase(connectedPaths[0])
-        const imageRepo = new ImageRepository(database)
+        const imageRepo = new ImageRepository(database, rootPath)
 
         // 1. Wipe stored thumbnail paths
         const cleared = imageRepo.clearAllThumbnailPaths()
@@ -240,7 +241,7 @@ export function registerSettingsHandlers() {
           )
         `)
 
-        const imageRepo = new ImageRepository(database)
+        const imageRepo = new ImageRepository(database, getRootPath(connectedPaths[0]))
 
         // 3. Wipe existing embeddings so every image re-queues
         const cleared = imageRepo.clearAllEmbeddings()

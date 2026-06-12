@@ -1,6 +1,8 @@
 import { db } from '@main/utils/repositories/db'
 import { join, dirname } from 'path'
 import fs from 'fs/promises'
+import { getRootPath } from '@main/utils/files/config'
+import { toRelativePath, toAbsolutePath } from '@main/utils/pathUtils'
 
 export async function addFolderHandler(
   _event: Electron.IpcMainInvokeEvent,
@@ -11,15 +13,23 @@ export async function addFolderHandler(
   if (connectedPaths.length === 0) {
     throw new Error('No active database connection found. Please load a folder first.')
   }
-  const database = db.getDatabase(connectedPaths[0])
+  const dbPath = connectedPaths[0]
+  const database = db.getDatabase(dbPath)
+  const rootPath = getRootPath(dbPath)
 
-  const newFolderPath = join(parentPath, folderName)
+  const absParentPath = parentPath.startsWith('/') && !parentPath.startsWith(rootPath)
+    ? toAbsolutePath(rootPath, parentPath)
+    : parentPath
+
+  const absNewFolderPath = join(absParentPath, folderName)
+  const newFolderPath = toRelativePath(rootPath, absNewFolderPath)
 
   // 1. Create physical directory on disk
-  await fs.mkdir(newFolderPath, { recursive: true })
+  await fs.mkdir(absNewFolderPath, { recursive: true })
 
   // 2. Find parent ID in database
-  const parentRow = database.prepare('SELECT id FROM folders WHERE path = ?').get(parentPath) as
+  const parentRelPath = toRelativePath(rootPath, absParentPath)
+  const parentRow = database.prepare('SELECT id FROM folders WHERE path = ?').get(parentRelPath) as
     | { id: number }
     | undefined
   const parentId = parentRow ? parentRow.id : null
@@ -41,7 +51,7 @@ export async function addFolderHandler(
   return {
     id: folderId,
     name: folderName,
-    path: newFolderPath,
+    path: absNewFolderPath,
     parentId,
   }
 }
@@ -55,7 +65,9 @@ export async function renameFolderHandler(
   if (connectedPaths.length === 0) {
     throw new Error('No active database connection found. Please load a folder first.')
   }
-  const database = db.getDatabase(connectedPaths[0])
+  const dbPath = connectedPaths[0]
+  const database = db.getDatabase(dbPath)
+  const rootPath = getRootPath(dbPath)
 
   // Get current folder details
   const folder = database.prepare('SELECT name, path, parent_id as parentId FROM folders WHERE id = ?').get(folderId) as
@@ -67,14 +79,17 @@ export async function renameFolderHandler(
   }
 
   const parentPath = dirname(folder.path)
-  const newFolderPath = join(parentPath, newName)
+  const newFolderPath = join(parentPath, newName) // relative new path (e.g. "/BSS")
 
   if (folder.path === newFolderPath) {
-    return { id: folderId, name: folder.name, path: folder.path }
+    return { id: folderId, name: folder.name, path: toAbsolutePath(rootPath, folder.path) }
   }
 
+  const absOldPath = toAbsolutePath(rootPath, folder.path)
+  const absNewPath = toAbsolutePath(rootPath, newFolderPath)
+
   // 1. Rename physical directory on disk
-  await fs.rename(folder.path, newFolderPath)
+  await fs.rename(absOldPath, absNewPath)
 
   // 2. Execute updates in a database transaction
   const updateTransaction = database.transaction(() => {
@@ -121,6 +136,6 @@ export async function renameFolderHandler(
   return {
     id: folderId,
     name: newName,
-    path: newFolderPath,
+    path: absNewPath,
   }
 }

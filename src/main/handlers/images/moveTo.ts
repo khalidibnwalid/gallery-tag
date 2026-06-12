@@ -6,6 +6,7 @@ import { ImageUpdatePayload } from '@main/types/api.shared'
 import { join, basename, extname } from 'path'
 import fs from 'fs/promises'
 import { moveFile } from '@main/utils/files/move'
+import { getRootPath } from '@main/utils/files/config'
 
 export default async function moveToHandler(
   event: Electron.IpcMainInvokeEvent,
@@ -17,8 +18,9 @@ export default async function moveToHandler(
     throw new Error('No active database connection found. Please load a folder first.')
   }
   
+  const rootPath = getRootPath(connectedPaths[0])
   const database = db.getDatabase(connectedPaths[0])
-  const imageRepo = new ImageRepository(database)
+  const imageRepo = new ImageRepository(database, rootPath)
 
   const ids = Array.isArray(imageId) ? imageId : [imageId]
   const images = imageRepo.getImagesByIds(ids)

@@ -9,7 +9,7 @@ export async function getAllHandlers(
   try {
     if (!folderPath) throw new Error('folderPath is required')
     const { db: database } = await getAndInitConfig(folderPath)
-    const folderRepo = new FolderRepository(database)
+    const folderRepo = new FolderRepository(database, folderPath)
     return folderRepo.getAllFolders()
   } catch (error) {
     console.error('Error getting folders:', error)
