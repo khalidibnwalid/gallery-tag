@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
+import { useInfiniteImages } from '@/lib/queries/images'
 import { cn } from '@/lib/utils'
 import { XIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
@@ -118,11 +119,20 @@ function FileDropDown() {
 }
 
 function TopTitle() {
-  const { folderPath, paginatedImagesQuery } = useFolder()
-  const { isLoading, data } = paginatedImagesQuery
+  const { folderPath } = useFolder()
+  const {
+    filter,
+  } = useSearch()
+
+  const { isLoading, data } = useInfiniteImages(
+    folderPath ?? undefined,
+    50,
+    filter,
+  )
+
   if (!folderPath) return null
 
-  const totalCount = data?.pages[0]?.total || 0
+  const totalCount = data?.pages[0]?.total ?? 0
 
   return (
     <div

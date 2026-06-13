@@ -1,7 +1,7 @@
 import { TagSelector } from '@/components/features/TagsSelector'
-import { useFolder } from '@/components/providers/FolderProvider'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/lib/store/selection'
+import { ImageData } from '@/lib/types/image'
 import {
   CheckSquareIcon,
   SelectionIcon,
@@ -10,25 +10,25 @@ import {
   XIcon,
 } from '@phosphor-icons/react'
 
-export default function SubBar() {
+interface SubBarProps {
+  images: ImageData[]
+  total: number
+}
+
+export default function SubBar({ images, total }: SubBarProps) {
   const showBar = useSelectionStore(state => state.isSelectionMode)
   if (!showBar) return null
 
   return (
     <div className="absolute z-50 top-17 left-3 right-3 px-4 min-h-12 w-auto flex items-center justify-center">
       <div className="animate-fade-in flex items-center gap-1 text-lg! text-foreground bg-background/70! px-2 py-1 rounded-lg border-input border backdrop-blur-3xl">
-        <ImagesSelectionBar />
+        <ImagesSelectionBar images={images} total={total} />
       </div>
     </div>
   )
 }
 
-function ImagesSelectionBar() {
-  const { paginatedImagesQuery } = useFolder()
-  const images =
-    paginatedImagesQuery.data?.pages.flatMap(page => page.data) || []
-  const totalCount = paginatedImagesQuery.data?.pages[0]?.total || 0
-
+function ImagesSelectionBar({ images, total }: SubBarProps) {
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
   const selectedImageIds = useSelectionStore(state => state.selectedItems)
   const toggleSelectionMode = useSelectionStore(
@@ -39,19 +39,16 @@ function ImagesSelectionBar() {
 
   if (!isSelectionMode) return null
 
-  const isAllSelected =
+  const isAllLoaded =
     images.length > 0 && images.every(image => selectedImageIds.has(image.id))
+  const isAllSelected = isAllLoaded && selectedImageIds.size >= total
 
   const onSelectAll = () => {
-    if (images.length > 0) {
-      const allImageIds = images.map(image => image.id)
-      if (isAllSelected) {
-        clearSelection()
-        return
-      }
-
-      selectAll(allImageIds)
+    if (isAllSelected) {
+      clearSelection()
+      return
     }
+    if (images.length > 0) selectAll(images.map(image => image.id))
   }
 
   const selectedImageIdsArray = Array.from(selectedImageIds)
@@ -100,7 +97,7 @@ function ImagesSelectionBar() {
         </Button>
       </TagSelector>
       <Button variant="ghost" size="lg" className="animate-fade-in px-0.5">
-        {selectedImageIds.size} of {totalCount} selected
+        {selectedImageIds.size} of {total} selected
       </Button>
     </>
   )

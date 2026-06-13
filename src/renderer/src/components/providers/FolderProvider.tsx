@@ -1,5 +1,6 @@
 import useImages, { useInfiniteImages } from '@/lib/queries/images'
 import { useTags } from '@/lib/queries/tags'
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useContext, useState, useEffect } from 'react'
 
@@ -19,22 +20,10 @@ const FolderContext = createContext({} as FolderProvider)
 
 export function FolderProvider({ children }: { children: React.ReactNode }) {
   const [folderPath, setFolderPath] = useState<string | null>(null)
-  const [recentFolders, setRecentFolders] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('recent-folders')
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed)) {
-          return parsed.filter(
-            (p): p is string => typeof p === 'string' && p.trim().length > 0,
-          )
-        }
-      }
-    } catch (e) {
-      console.error(e)
-    }
-    return []
-  })
+  const [recentFolders, setRecentFolders] = useLocalStorage<string[]>(
+    'recent-folders',
+    [],
+  )
 
   const folderImagesQuery = useImages(folderPath!)
   const paginatedImagesQuery = useInfiniteImages(folderPath!)
@@ -42,17 +31,12 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
 
   const queryClient = useQueryClient()
 
-  // Track folder changes to update local storage list
+  // Track folder changes to update recent-folders list
   useEffect(() => {
     if (folderPath) {
-      setRecentFolders(prev => {
-        const next = [folderPath, ...prev.filter(p => p !== folderPath)].slice(
-          0,
-          5,
-        )
-        localStorage.setItem('recent-folders', JSON.stringify(next))
-        return next
-      })
+      setRecentFolders(prev =>
+        [folderPath, ...prev.filter(p => p !== folderPath)].slice(0, 5),
+      )
     }
   }, [folderPath])
 
@@ -62,11 +46,7 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
   }
 
   const removeRecentFolder = (path: string) => {
-    setRecentFolders(prev => {
-      const next = prev.filter(p => p !== path)
-      localStorage.setItem('recent-folders', JSON.stringify(next))
-      return next
-    })
+    setRecentFolders(prev => prev.filter(p => p !== path))
   }
 
   async function openFolderDialog(): Promise<string | null> {

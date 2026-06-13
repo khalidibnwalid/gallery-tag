@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState } from 'react'
 
+export interface ImageFilter {
+  text: string
+  filterPath?: string
+  tags: string[]
+  excludedTags: string[]
+  color?: string
+  aiSearchText?: string
+  aiSearchImage?: string
+}
+
 interface SearchProvider {
   searchQuery: string
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>
@@ -20,6 +30,7 @@ interface SearchProvider {
   isSearchDragging: boolean
   setIsSearchDragging: React.Dispatch<React.SetStateAction<boolean>>
   clearSearch: () => void
+  filter: ImageFilter
 }
 
 const SearchContext = createContext({} as SearchProvider)
@@ -34,6 +45,16 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [aiSearchText, setAiSearchText] = useState('')
   const [aiSearchImage, setAiSearchImage] = useState<string | null>(null)
   const [isSearchDragging, setIsSearchDragging] = useState(false)
+
+  const filter: ImageFilter = {
+    text: searchQuery,
+    filterPath: filterPath ?? undefined,
+    tags: filterTags,
+    excludedTags,
+    color: searchColor ?? undefined,
+    aiSearchText: aiSearchText || undefined,
+    aiSearchImage: aiSearchImage || undefined,
+  }
 
   const clearSearch = () => {
     setSearchQuery('')
@@ -69,6 +90,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         isSearchDragging,
         setIsSearchDragging,
         clearSearch,
+        filter,
       }}
     >
       {children}

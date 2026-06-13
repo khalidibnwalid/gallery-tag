@@ -64,14 +64,37 @@ export default function FolderTreeNode({
   )
 
   const isSelected = selectedPath === node.path
+  const isRoot = node.id === 1
 
   const onAddSubfolder = () => {
     setIsOpen(true)
     setIsCreatingSubfolder(true)
   }
 
-  const onRenameFolder = () => {
-    setIsEditing(true)
+  const onRenameFolder = () => setIsEditing(true)
+
+  const handleRename = (val: string) => {
+    if (val && val !== node.name) {
+      renameFolder.mutate(
+        { folderId: node.id, newName: val },
+        {
+          onSuccess: data => {
+            if (selectedPath) {
+              if (selectedPath === node.path) {
+                onSelect?.(data.path)
+              } else if (selectedPath.startsWith(node.path + '/')) {
+                const relativePart = selectedPath.slice(node.path.length)
+                onSelect?.(data.path + relativePart)
+              } else if (selectedPath.startsWith(node.path + '\\')) {
+                const relativePart = selectedPath.slice(node.path.length)
+                onSelect?.(data.path + relativePart)
+              }
+            }
+          },
+        },
+      )
+    }
+    setIsEditing(false)
   }
 
   return (
@@ -171,21 +194,13 @@ export default function FolderTreeNode({
                 onClick={e => e.stopPropagation()}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
-                    const val = e.currentTarget.value.trim()
-                    if (val && val !== node.name) {
-                      renameFolder.mutate({ folderId: node.id, newName: val })
-                    }
-                    setIsEditing(false)
+                    handleRename(e.currentTarget.value.trim())
                   } else if (e.key === 'Escape') {
                     setIsEditing(false)
                   }
                 }}
                 onBlur={e => {
-                  const val = e.currentTarget.value.trim()
-                  if (val && val !== node.name) {
-                    renameFolder.mutate({ folderId: node.id, newName: val })
-                  }
-                  setIsEditing(false)
+                  handleRename(e.currentTarget.value.trim())
                 }}
               />
             ) : (
@@ -203,17 +218,19 @@ export default function FolderTreeNode({
                   >
                     <PlusIcon className="size-3.5" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-5 hover:bg-muted/80 rounded shrink-0 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
-                    onClick={e => {
-                      e.stopPropagation()
-                      onRenameFolder()
-                    }}
-                  >
-                    <PencilIcon className="size-3.5" />
-                  </Button>
+                  {!isRoot && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-5 hover:bg-muted/80 rounded shrink-0 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={e => {
+                        e.stopPropagation()
+                        onRenameFolder()
+                      }}
+                    >
+                      <PencilIcon className="size-3.5" />
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -224,10 +241,12 @@ export default function FolderTreeNode({
             <FolderPlusIcon className="mr-2 size-4 text-muted-foreground" />
             Add Folder
           </ContextMenuItem>
-          <ContextMenuItem onClick={onRenameFolder}>
-            <PencilIcon className="mr-2 size-4 text-muted-foreground" />
-            Rename
-          </ContextMenuItem>
+          {!isRoot && (
+            <ContextMenuItem onClick={onRenameFolder}>
+              <PencilIcon className="mr-2 size-4 text-muted-foreground" />
+              Rename
+            </ContextMenuItem>
+          )}
         </ContextMenuContent>
       </ContextMenu>
       {isOpen && (hasChildren || isCreatingSubfolder) && (

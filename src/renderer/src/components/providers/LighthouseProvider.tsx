@@ -1,4 +1,3 @@
-import Lighthouse from '@/components/features/Lighthouse'
 import { ImageData } from '@/lib/types/image'
 import {
   createContext,

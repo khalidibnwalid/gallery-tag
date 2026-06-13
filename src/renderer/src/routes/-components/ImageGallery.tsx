@@ -2,33 +2,16 @@ import ImageCard from '@/components/cards/ImageCard'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Spinner } from '@/components/ui/spinner'
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 import { useInfiniteImages } from '@/lib/queries/images'
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import SubBar from './SubBar'
 
 export function ImageGallery() {
   const { folderPath } = useFolder()
-  const {
-    searchQuery,
-    filterPath,
-    filterTags,
-    excludedTags,
-    isSearching,
-    searchColor,
-    aiSearchText,
-    aiSearchImage,
-  } = useSearch()
+  const { isSearching, aiSearchText, aiSearchImage, filter } = useSearch()
+  const [gridDensity] = useLocalStorage<number | 'auto'>('grid-density', 'auto')
   const triggerFetchRef = useRef<HTMLDivElement>(null)
-
-  const filter = {
-    text: searchQuery,
-    filterPath: filterPath ?? undefined,
-    tags: filterTags,
-    excludedTags,
-    color: searchColor ?? undefined,
-    aiSearchText: aiSearchText || undefined,
-    aiSearchImage: aiSearchImage || undefined,
-  }
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteImages(folderPath ?? undefined, 50, filter)
@@ -72,8 +55,18 @@ export function ImageGallery() {
 
   return (
     <>
-      <SubBar />
-      <div className="pb-20 gap-4 masonry">
+      <SubBar images={images} total={data?.pages[0]?.total ?? 0} />
+      <div
+        className="pb-20 masonry"
+        style={
+          {
+            '--masonry-columns-rule':
+              gridDensity === 'auto'
+                ? 'repeat(auto-fill, minmax(400px, 1fr))'
+                : `repeat(${gridDensity}, 1fr)`,
+          } as React.CSSProperties
+        }
+      >
         {images.map((image, index) => (
           <ImageCard
             key={image.id || index}

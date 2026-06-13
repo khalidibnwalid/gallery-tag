@@ -131,9 +131,7 @@ export default function Lighthouse() {
   // -------------------------------------------------------------
   return createPortal(
     <div className="fixed inset-0 z-50 bg-zinc-950 flex text-foreground animate-fade-in overflow-hidden select-none">
-      {/* Left Block: Full-Height Image Viewport */}
       <div className="flex-1 h-screen relative flex items-center justify-center group">
-        {/* Floating Capsule Toolbar (Overlay) */}
         <FloatingToolbar
           zoom={zoom}
           zoomIn={zoomIn}
@@ -142,7 +140,6 @@ export default function Lighthouse() {
           toggleFullscreen={toggleFullscreen}
         />
 
-        {/* Main Interactive Zoom/Drag container */}
         <ImageViewport
           currentImage={currentImage?.filePath}
           zoom={zoom}
@@ -153,7 +150,6 @@ export default function Lighthouse() {
         />
       </div>
 
-      {/* Right Block: Attached Sidebar Details */}
       <SidebarDetails />
     </div>,
     document.body,
