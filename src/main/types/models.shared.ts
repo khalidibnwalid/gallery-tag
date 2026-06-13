@@ -1,5 +1,20 @@
 import { NOTIFIER_EVENT_TYPES, NOTIFIER_EVENTS } from './constants.shared'
 
+export interface ExifMetadata {
+  cameraMake?: string
+  cameraModel?: string
+  dateTaken?: string
+  exposureTime?: string
+  aperture?: string
+  iso?: number
+  focalLength?: string
+  lensModel?: string
+  software?: string
+  gpsLatitude?: number
+  gpsLongitude?: number
+  raw?: Record<string, string>
+}
+
 export interface ImageModel {
   id: number
   filePath: string
@@ -14,6 +29,7 @@ export interface ImageModel {
   height?: number
   hash?: string
   dominantColors?: string[]
+  exif?: ExifMetadata
   deletedAt?: string
   isDuplicate?: number
   //debug use only

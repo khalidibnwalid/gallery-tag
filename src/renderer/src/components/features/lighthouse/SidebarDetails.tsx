@@ -184,41 +184,7 @@ export function SidebarDetails() {
           )}
         </div>
 
-        <div className="border-t border-border/60 pt-4 flex flex-col gap-3">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
-            Metadata
-          </h3>
-          <div className="grid grid-cols-2 gap-y-2 text-xs">
-            <span className="text-muted-foreground select-none">
-              Dimensions
-            </span>
-            <span className="font-medium text-foreground text-right">
-              {currentImageDetail?.width && currentImageDetail?.height
-                ? `${currentImageDetail.width} × ${currentImageDetail.height}`
-                : 'Unknown'}
-            </span>
-
-            <span className="text-muted-foreground select-none">Size</span>
-            <span className="font-medium text-foreground text-right">
-              {formatBytes(currentImageDetail?.size)}
-            </span>
-
-            <span className="text-muted-foreground select-none">Format</span>
-            <span className="font-medium text-foreground text-right uppercase">
-              {currentImageDetail?.extension || 'Unknown'}
-            </span>
-
-            <span className="text-muted-foreground select-none">Created</span>
-            <span
-              className="font-medium text-foreground text-right truncate"
-              title={currentImageDetail?.createdAt}
-            >
-              {currentImageDetail?.createdAt
-                ? new Date(currentImageDetail.createdAt).toLocaleDateString()
-                : 'Unknown'}
-            </span>
-          </div>
-        </div>
+        <ImageMetadataDetails currentImageDetail={currentImageDetail} />
 
         {(prevImageDetail || nextImageDetail) && (
           <div className="border-t border-border/60 pt-4 flex flex-col gap-3 select-none">
@@ -331,5 +297,255 @@ export function SidebarDetails() {
         />
       )}
     </div>
+  )
+}
+
+interface CollapsibleSectionProps {
+  title: string
+  children: React.ReactNode
+  defaultOpen?: boolean
+}
+
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = false,
+}: CollapsibleSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  return (
+    <div className="border-t border-border/60 pt-4 flex flex-col gap-3">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full text-left py-0.5 group select-none hover:opacity-80 transition-opacity"
+      >
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {title}
+        </h3>
+        <span className="text-muted-foreground/60 group-hover:text-foreground transition-colors duration-150">
+          <svg
+            className={`w-3 h-3 transform transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2.5"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </span>
+      </button>
+      {isOpen && children}
+    </div>
+  )
+}
+
+interface MetadataFieldProps {
+  label: string
+  value: string | number | null | undefined
+  allowTruncate?: boolean
+  tooltip?: string
+  layout?: 'row' | 'col'
+}
+
+function MetadataField({
+  label,
+  value,
+  allowTruncate = false,
+  tooltip,
+  layout = 'row',
+}: MetadataFieldProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  if (value === null || value === undefined || value === '') return null
+
+  const valStr = String(value)
+  const isLong = allowTruncate && valStr.length > 80
+  const displayValue =
+    isLong && !isExpanded ? `${valStr.slice(0, 80)}...` : valStr
+
+  if (layout === 'col' || isLong) {
+    return (
+      <div className="flex flex-col gap-1 text-xs border-b border-border/20 last:border-b-0 py-1.5 w-full col-span-2">
+        <div className="flex justify-between items-start gap-3">
+          <span
+            className="text-muted-foreground select-none font-medium shrink-0 max-w-[120px] truncate"
+            title={tooltip || label}
+          >
+            {label}
+          </span>
+          <span className="font-medium text-foreground text-right break-all overflow-hidden max-w-full">
+            {displayValue}
+          </span>
+        </div>
+        {isLong && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-[10px] text-primary hover:text-primary/80 font-medium self-end transition-colors mt-0.5 select-none"
+          >
+            {isExpanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <span
+        className="text-muted-foreground select-none font-medium truncate"
+        title={tooltip || label}
+      >
+        {label}
+      </span>
+      <span
+        className="font-medium text-foreground text-right truncate"
+        title={tooltip || valStr}
+      >
+        {valStr}
+      </span>
+    </>
+  )
+}
+
+function ImageMetadataDetails({
+  currentImageDetail,
+}: {
+  currentImageDetail: ImageData | null
+}) {
+  if (!currentImageDetail) return null
+
+  const hasExifData = !!(
+    currentImageDetail.exif &&
+    (currentImageDetail.exif.cameraModel ||
+      currentImageDetail.exif.lensModel ||
+      currentImageDetail.exif.aperture ||
+      currentImageDetail.exif.dateTaken ||
+      currentImageDetail.exif.gpsLatitude ||
+      currentImageDetail.exif.software)
+  )
+
+  const hasRawExif = !!(
+    currentImageDetail.exif?.raw &&
+    Object.keys(currentImageDetail.exif.raw).length > 0
+  )
+
+  return (
+    <>
+      <CollapsibleSection title="Metadata" defaultOpen>
+        <div className="grid grid-cols-2 gap-y-2 text-xs">
+          <MetadataField
+            label="Dimensions"
+            value={
+              currentImageDetail.width && currentImageDetail.height
+                ? `${currentImageDetail.width} × ${currentImageDetail.height}`
+                : null
+            }
+          />
+          <MetadataField
+            label="Size"
+            value={formatBytes(currentImageDetail.size)}
+          />
+          <MetadataField
+            label="Format"
+            value={currentImageDetail.extension?.toUpperCase()}
+          />
+          <MetadataField
+            label="Created"
+            value={
+              currentImageDetail.createdAt
+                ? new Date(currentImageDetail.createdAt).toLocaleDateString()
+                : null
+            }
+            tooltip={currentImageDetail.createdAt}
+          />
+        </div>
+      </CollapsibleSection>
+
+      {hasExifData && currentImageDetail.exif && (
+        <CollapsibleSection title="Camera Info (EXIF)" defaultOpen>
+          <div className="grid grid-cols-2 gap-y-2 text-xs">
+            <MetadataField
+              label="Camera"
+              value={currentImageDetail.exif.cameraModel}
+              tooltip={`${currentImageDetail.exif.cameraMake || ''} ${currentImageDetail.exif.cameraModel}`}
+            />
+            <MetadataField
+              label="Lens"
+              value={currentImageDetail.exif.lensModel}
+            />
+            <MetadataField
+              label="Exposure"
+              value={
+                [
+                  currentImageDetail.exif.focalLength
+                    ? `${currentImageDetail.exif.focalLength}`
+                    : '',
+                  currentImageDetail.exif.aperture
+                    ? `f/${currentImageDetail.exif.aperture}`
+                    : '',
+                  currentImageDetail.exif.exposureTime
+                    ? `${currentImageDetail.exif.exposureTime}s`
+                    : '',
+                  currentImageDetail.exif.iso
+                    ? `ISO ${currentImageDetail.exif.iso}`
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' • ') || null
+              }
+            />
+            <MetadataField
+              label="Date Taken"
+              value={
+                currentImageDetail.exif.dateTaken
+                  ? new Date(currentImageDetail.exif.dateTaken).toLocaleString()
+                  : null
+              }
+            />
+            <MetadataField
+              label="GPS"
+              value={
+                currentImageDetail.exif.gpsLatitude !== undefined &&
+                currentImageDetail.exif.gpsLongitude !== undefined
+                  ? `${currentImageDetail.exif.gpsLatitude.toFixed(4)}°, ${currentImageDetail.exif.gpsLongitude.toFixed(4)}°`
+                  : null
+              }
+              tooltip={
+                currentImageDetail.exif.gpsLatitude !== undefined &&
+                currentImageDetail.exif.gpsLongitude !== undefined
+                  ? `${currentImageDetail.exif.gpsLatitude.toFixed(6)}°, ${currentImageDetail.exif.gpsLongitude.toFixed(6)}°`
+                  : undefined
+              }
+            />
+            <MetadataField
+              label="Software"
+              value={currentImageDetail.exif.software}
+            />
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {hasRawExif && currentImageDetail.exif?.raw && (
+        <CollapsibleSection
+          title={`All Metadata (${Object.keys(currentImageDetail.exif.raw).length})`}
+        >
+          <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-1">
+            {Object.entries(currentImageDetail.exif.raw)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([key, value]) => (
+                <MetadataField
+                  key={key}
+                  label={key}
+                  value={String(value)}
+                  allowTruncate
+                  layout="col"
+                />
+              ))}
+          </div>
+        </CollapsibleSection>
+      )}
+    </>
   )
 }

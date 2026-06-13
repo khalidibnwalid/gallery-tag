@@ -12,11 +12,16 @@ function makeMapImageRow(rootPath: string) {
     return {
       ...row,
       // Resolve stored relative paths to absolute for the caller
-      filePath: row.filePath ? toAbsolutePath(rootPath, row.filePath) : row.filePath,
-      thumbnailPath: row.thumbnailPath ? toAbsolutePath(rootPath, row.thumbnailPath) : row.thumbnailPath,
+      filePath: row.filePath
+        ? toAbsolutePath(rootPath, row.filePath)
+        : row.filePath,
+      thumbnailPath: row.thumbnailPath
+        ? toAbsolutePath(rootPath, row.thumbnailPath)
+        : row.thumbnailPath,
       dominantColors: row.dominantColors
         ? JSON.parse(row.dominantColors)
         : undefined,
+      exif: row.exif ? JSON.parse(row.exif) : undefined,
     }
   }
 }
@@ -37,11 +42,13 @@ export class ImageRepository {
           hash?: string
           dominantColors?: string[]
           isDuplicate?: number
+          exif?: string | null
         })[]
       | (FileInfo & {
           hash?: string
           dominantColors?: string[]
           isDuplicate?: number
+          exif?: string | null
         }),
   ): void {
     if (!Array.isArray(images)) {
@@ -50,8 +57,8 @@ export class ImageRepository {
 
     const insertStmt = this.db.prepare(`
       INSERT OR REPLACE INTO images 
-      (file_path, file_name, extension, size, modified_at, last_scanned, hash, dominant_colors, is_duplicate, deleted_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, NULL)
+      (file_path, file_name, extension, size, modified_at, last_scanned, hash, dominant_colors, exif, is_duplicate, deleted_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, NULL)
     `)
 
     const transaction = this.db.transaction(
@@ -60,6 +67,7 @@ export class ImageRepository {
           hash?: string
           dominantColors?: string[]
           isDuplicate?: number
+          exif?: string | null
         })[],
       ) => {
         for (const image of imageList) {
@@ -77,6 +85,7 @@ export class ImageRepository {
             image.modifiedAt.toISOString(),
             image.hash || null,
             image.dominantColors ? JSON.stringify(image.dominantColors) : null,
+            image.exif || null,
             isDup,
           )
 
@@ -117,6 +126,7 @@ export class ImageRepository {
         height,
         hash,
         dominant_colors as dominantColors,
+        exif,
         deleted_at as deletedAt,
         is_duplicate as isDuplicate
       FROM images 
@@ -147,6 +157,7 @@ export class ImageRepository {
         i.height,
         i.hash,
         i.dominant_colors as dominantColors,
+        i.exif,
         i.deleted_at as deletedAt,
         i.is_duplicate as isDuplicate,
 
@@ -276,7 +287,6 @@ export class ImageRepository {
       joinClause += ` INNER JOIN search_results v ON i.id = v.image_id`
     }
 
-
     // Count query
     const countStmt = this.db.prepare(`
       ${cteSql}
@@ -288,7 +298,9 @@ export class ImageRepository {
       ${whereSql}
     `)
 
-    const countResult = countStmt.get(...cteParams, ...params) as { total: number }
+    const countResult = countStmt.get(...cteParams, ...params) as {
+      total: number
+    }
     const total = countResult?.total || 0
 
     // Main query
@@ -319,6 +331,7 @@ export class ImageRepository {
         i.height,
         i.hash,
         i.dominant_colors as dominantColors,
+        i.exif,
         i.deleted_at as deletedAt,
         i.is_duplicate as isDuplicate
         ${selectColorDist}
@@ -349,7 +362,9 @@ export class ImageRepository {
     }
 
     // Convert absolute paths to relative for DB comparison
-    const relativePaths = currentPaths.map(p => toRelativePath(this.rootPath, p))
+    const relativePaths = currentPaths.map(p =>
+      toRelativePath(this.rootPath, p),
+    )
 
     this.db
       .prepare(
@@ -390,9 +405,13 @@ export class ImageRepository {
     return rows.map(row => toAbsolutePath(this.rootPath, row.file_path))
   }
 
-  getImagesMissingFromPaths(currentPaths: string[]): { id: number; filePath: string }[] {
+  getImagesMissingFromPaths(
+    currentPaths: string[],
+  ): { id: number; filePath: string }[] {
     // Convert absolute paths to relative for DB comparison
-    const relativePaths = currentPaths.map(p => toRelativePath(this.rootPath, p))
+    const relativePaths = currentPaths.map(p =>
+      toRelativePath(this.rootPath, p),
+    )
 
     // temporary table for current paths
     this.db
@@ -437,7 +456,9 @@ export class ImageRepository {
 
   markMissingImagesAsDeleted(currentPaths: string[]) {
     // Convert absolute paths to relative for DB comparison
-    const relativePaths = currentPaths.map(p => toRelativePath(this.rootPath, p))
+    const relativePaths = currentPaths.map(p =>
+      toRelativePath(this.rootPath, p),
+    )
 
     // temporary table for current paths
     this.db
@@ -560,6 +581,7 @@ export class ImageRepository {
         height,
         hash,
         dominant_colors as dominantColors,
+        exif,
         deleted_at as deletedAt,
         is_duplicate as isDuplicate
       FROM images
@@ -861,6 +883,7 @@ export class ImageRepository {
         height,
         hash,
         dominant_colors as dominantColors,
+        exif,
         deleted_at as deletedAt,
         is_duplicate as isDuplicate
       FROM images 
@@ -888,6 +911,7 @@ export class ImageRepository {
         height,
         hash,
         dominant_colors as dominantColors,
+        exif,
         deleted_at as deletedAt,
         is_duplicate as isDuplicate
       FROM images 
@@ -897,7 +921,11 @@ export class ImageRepository {
     return rows.map(row => this.mapImageRow(row))
   }
 
-  updateImagePathAndName(id: number, newFilePath: string, newFileName: string): void {
+  updateImagePathAndName(
+    id: number,
+    newFilePath: string,
+    newFileName: string,
+  ): void {
     const stmt = this.db.prepare(`
       UPDATE images 
       SET file_path = ?, file_name = ?
@@ -944,5 +972,33 @@ export class ImageRepository {
     `)
     const rows = stmt.all() as any[]
     return rows.map(this.mapImageRow)
+  }
+
+  getImagesWithoutExif(): ImageModel[] {
+    const stmt = this.db.prepare(`
+      SELECT 
+        id,
+        file_path as filePath,
+        file_name as fileName,
+        extension,
+        size,
+        created_at as createdAt,
+        modified_at as modifiedAt,
+        last_scanned as lastScanned,
+        thumbnail_path as thumbnailPath,
+        width,
+        height,
+        hash,
+        dominant_colors as dominantColors
+      FROM images 
+      WHERE exif IS NULL AND deleted_at IS NULL
+    `)
+    const rows = stmt.all() as any[]
+    return rows.map(this.mapImageRow)
+  }
+
+  updateImageExif(imageId: number, exif: string | null): void {
+    const stmt = this.db.prepare('UPDATE images SET exif = ? WHERE id = ?')
+    stmt.run(exif, imageId)
   }
 }

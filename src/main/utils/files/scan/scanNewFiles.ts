@@ -13,6 +13,7 @@ import { THUMBNAILS_DIR } from '@main/utils/files/config'
 import { ImageRepository } from '@main/utils/repositories/Image'
 import { computeFileHash } from '@main/utils/files/hashing'
 import { extractDominantColors } from '@main/utils/files/colorExtractor'
+import { extractExif } from '@main/utils/files/exif'
 import { join } from 'path'
 import Database from 'better-sqlite3'
 
@@ -34,14 +35,20 @@ export async function scanNewFiles(
 
   console.log(`Processing ${newPaths.length} new files...`)
 
-  // Compute hashes for new files to enable matching
+  // Compute hashes and extract EXIF for new files to enable matching and rich metadata
   const newFilesWithHashAndColor = await Promise.all(
-    newFilesRaw.map(async file => ({
-      ...file,
-      hash: await computeFileHash(file.fullPath),
-      dominantColors: await extractDominantColors(file.fullPath),
-      isDuplicate: undefined as number | undefined,
-    })),
+    newFilesRaw.map(async file => {
+      const hash = await computeFileHash(file.fullPath)
+      const dominantColors = await extractDominantColors(file.fullPath)
+      const exifData = await extractExif(file.fullPath)
+      return {
+        ...file,
+        hash,
+        dominantColors,
+        exif: exifData ? JSON.stringify(exifData) : null,
+        isDuplicate: undefined as number | undefined,
+      }
+    }),
   )
 
   let filesToInsert = newFilesWithHashAndColor

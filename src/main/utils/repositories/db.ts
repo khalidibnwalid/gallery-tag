@@ -147,6 +147,7 @@ class DBSingleton {
         height INTEGER,
         hash TEXT,
         dominant_colors TEXT,
+        exif TEXT,
         deleted_at DATETIME,
         is_duplicate INTEGER DEFAULT 0
       )

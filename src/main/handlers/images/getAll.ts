@@ -11,6 +11,7 @@ import {
   scanHashes,
   scanColors,
   scanEmbeddings,
+  scanExif,
 } from '@main/utils/files/scan'
 import { runExclusiveSync } from '../../utils/locks'
 import { watcherService } from '@main/services/watcher.service'
@@ -105,7 +106,10 @@ async function getAllBase(
       // 5. Background: Backfill dominant colors for existing images (limit 50 per scan)
       scanColors(imageRepo)
 
-      // 6. Background: Compute CLIP embeddings for unembedded images
+      // 6. Background: Backfill EXIF metadata for existing images (limit 50 per scan)
+      scanExif(imageRepo)
+
+      // 7. Background: Compute CLIP embeddings for unembedded images
       scanEmbeddings(imageRepo, folderPath)
     })
 
