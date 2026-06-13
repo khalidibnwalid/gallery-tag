@@ -233,6 +233,24 @@ export class ImageRepository {
     let isColorFiltered = false
     let colorDistExpr = ''
 
+    if (filter?.createdStart) {
+      whereClauses.push(`date(i.created_at) >= date(?)`)
+      params.push(filter.createdStart)
+    }
+    if (filter?.createdEnd) {
+      whereClauses.push(`date(i.created_at) <= date(?)`)
+      params.push(filter.createdEnd)
+    }
+
+    if (filter?.modifiedStart) {
+      whereClauses.push(`date(i.modified_at) >= date(?)`)
+      params.push(filter.modifiedStart)
+    }
+    if (filter?.modifiedEnd) {
+      whereClauses.push(`date(i.modified_at) <= date(?)`)
+      params.push(filter.modifiedEnd)
+    }
+
     if (filter?.color) {
       const targetRgb = hexToRgb(filter.color)
       if (targetRgb) {
@@ -308,7 +326,18 @@ export class ImageRepository {
       ? `, MIN(${colorDistExpr}) as color_dist`
       : ''
 
-    let orderBy = 'i.file_name'
+    let orderBy = 'i.file_name ASC'
+    if (filter?.sortBy) {
+      const order = filter.sortOrder === 'desc' ? 'DESC' : 'ASC'
+      if (filter.sortBy === 'createdAt') {
+        orderBy = `i.created_at ${order}`
+      } else if (filter.sortBy === 'modifiedAt') {
+        orderBy = `i.modified_at ${order}`
+      } else if (filter.sortBy === 'fileName') {
+        orderBy = `i.file_name ${order}`
+      }
+    }
+
     if (aiEmbedding) {
       orderBy = 'v.distance ASC'
     } else if (isColorFiltered) {

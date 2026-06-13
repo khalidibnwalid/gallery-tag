@@ -16,4 +16,12 @@ export interface SearchFilter {
 
   aiSearchText?: string
   aiSearchImage?: string
+
+  createdStart?: string
+  createdEnd?: string
+  modifiedStart?: string
+  modifiedEnd?: string
+
+  sortBy?: 'createdAt' | 'modifiedAt' | 'fileName'
+  sortOrder?: 'asc' | 'desc'
 }

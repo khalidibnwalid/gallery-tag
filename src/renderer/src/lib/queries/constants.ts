@@ -1,9 +1,11 @@
+import { SearchFilter } from '@main/types/api.shared'
+
 const QUERIES = {
   IMAGES: (folderPath?: string) =>
     folderPath ? (['images', folderPath] as const) : (['images'] as const),
   IMAGES_PAGINATED: (
     folderPath?: string,
-    filter?: { text?: string; filterPath?: string; tags?: string[] },
+    filter?: SearchFilter,
   ) => {
     const key: any[] = ['images', 'paginated']
     if (folderPath) key.push(folderPath)

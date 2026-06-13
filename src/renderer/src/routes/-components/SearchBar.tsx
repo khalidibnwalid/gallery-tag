@@ -1,4 +1,6 @@
 import { ColorPicker } from '@/components/features/ColorPicker'
+import { DateFilterPicker } from '@/components/features/DateFilterPicker'
+import { SortPicker } from '@/components/features/SortPicker'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
@@ -41,6 +43,13 @@ export default function SearchBar() {
     aiSearchImage,
     setAiSearchImage,
     setIsSearchDragging,
+    createdStart,
+    createdEnd,
+    modifiedStart,
+    modifiedEnd,
+    sortBy,
+    sortOrder,
+    clearSearch,
   } = useSearch()
   const { folderPath } = useFolder()
 
@@ -169,12 +178,7 @@ export default function SearchBar() {
 
   const onClear = () => {
     _setSearchValue('')
-    if (searchMode === 'keyword') {
-      search('')
-    } else {
-      aiSearch('')
-    }
-    setAiSearchImage(null)
+    clearSearch()
   }
 
   const onSelect = async (item: AutoCompleteItem<ItemType>) => {
@@ -409,7 +413,7 @@ export default function SearchBar() {
                 <CameraIcon size={20} weight="bold" />
               </Button>
             )}
-            {(searchValue.length > 0 || aiSearchImage) && (
+            {(searchValue.length > 0 || aiSearchImage || searchColor || createdStart || createdEnd || modifiedStart || modifiedEnd || sortBy !== 'fileName' || sortOrder !== 'asc') && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -419,6 +423,8 @@ export default function SearchBar() {
                 <XIcon size={20} color="currentColor" />
               </Button>
             )}
+            <SortPicker />
+            <DateFilterPicker />
             <ColorPicker
               value={searchColor}
               onChange={color => {

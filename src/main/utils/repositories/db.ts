@@ -203,6 +203,27 @@ class DBSingleton {
       CREATE INDEX IF NOT EXISTS idx_image_colors_rgb ON image_colors (r, g, b)
     `)
 
+    db.exec(`
+      -- Optimize duplicate scanning
+      CREATE INDEX IF NOT EXISTS idx_images_hash ON images (hash) WHERE deleted_at IS NULL;
+
+      -- Optimize filtering/sorting on active images
+      CREATE INDEX IF NOT EXISTS idx_images_created_at ON images (created_at) WHERE deleted_at IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_images_modified_at ON images (modified_at) WHERE deleted_at IS NULL;
+      CREATE INDEX IF NOT EXISTS idx_images_file_name ON images (file_name) WHERE deleted_at IS NULL;
+
+      -- Junction table optimization: filter images by tag
+      CREATE INDEX IF NOT EXISTS idx_image_tags_tag_id ON image_tags (tag_id);
+
+      -- Folder parent lookup and alphabetical sort optimization
+      CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders (parent_id);
+      CREATE INDEX IF NOT EXISTS idx_folders_name ON folders (name);
+
+      -- Case-insensitive tag matching and parent lookup optimization
+      CREATE INDEX IF NOT EXISTS idx_tags_name_nocase ON tags (name COLLATE NOCASE);
+      CREATE INDEX IF NOT EXISTS idx_tags_parent_id ON tags (parent_id);
+    `)
+
     console.log(`Database initialized: ${dbPath}`)
     return db
   }

@@ -8,6 +8,12 @@ export interface ImageFilter {
   color?: string
   aiSearchText?: string
   aiSearchImage?: string
+  createdStart?: string
+  createdEnd?: string
+  modifiedStart?: string
+  modifiedEnd?: string
+  sortBy?: 'createdAt' | 'modifiedAt' | 'fileName'
+  sortOrder?: 'asc' | 'desc'
 }
 
 interface SearchProvider {
@@ -29,6 +35,18 @@ interface SearchProvider {
   setAiSearchImage: React.Dispatch<React.SetStateAction<string | null>>
   isSearchDragging: boolean
   setIsSearchDragging: React.Dispatch<React.SetStateAction<boolean>>
+  createdStart: string
+  setCreatedStart: React.Dispatch<React.SetStateAction<string>>
+  createdEnd: string
+  setCreatedEnd: React.Dispatch<React.SetStateAction<string>>
+  modifiedStart: string
+  setModifiedStart: React.Dispatch<React.SetStateAction<string>>
+  modifiedEnd: string
+  setModifiedEnd: React.Dispatch<React.SetStateAction<string>>
+  sortBy: 'createdAt' | 'modifiedAt' | 'fileName'
+  setSortBy: React.Dispatch<React.SetStateAction<'createdAt' | 'modifiedAt' | 'fileName'>>
+  sortOrder: 'asc' | 'desc'
+  setSortOrder: React.Dispatch<React.SetStateAction<'asc' | 'desc'>>
   clearSearch: () => void
   filter: ImageFilter
 }
@@ -45,6 +63,12 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [aiSearchText, setAiSearchText] = useState('')
   const [aiSearchImage, setAiSearchImage] = useState<string | null>(null)
   const [isSearchDragging, setIsSearchDragging] = useState(false)
+  const [createdStart, setCreatedStart] = useState('')
+  const [createdEnd, setCreatedEnd] = useState('')
+  const [modifiedStart, setModifiedStart] = useState('')
+  const [modifiedEnd, setModifiedEnd] = useState('')
+  const [sortBy, setSortBy] = useState<'createdAt' | 'modifiedAt' | 'fileName'>('fileName')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const filter: ImageFilter = {
     text: searchQuery,
@@ -54,6 +78,12 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     color: searchColor ?? undefined,
     aiSearchText: aiSearchText || undefined,
     aiSearchImage: aiSearchImage || undefined,
+    createdStart: createdStart || undefined,
+    createdEnd: createdEnd || undefined,
+    modifiedStart: modifiedStart || undefined,
+    modifiedEnd: modifiedEnd || undefined,
+    sortBy: sortBy || undefined,
+    sortOrder: sortOrder || undefined,
   }
 
   const clearSearch = () => {
@@ -66,6 +96,12 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setAiSearchText('')
     setAiSearchImage(null)
     setIsSearchDragging(false)
+    setCreatedStart('')
+    setCreatedEnd('')
+    setModifiedStart('')
+    setModifiedEnd('')
+    setSortBy('fileName')
+    setSortOrder('asc')
   }
 
   return (
@@ -89,6 +125,18 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         setAiSearchImage,
         isSearchDragging,
         setIsSearchDragging,
+        createdStart,
+        setCreatedStart,
+        createdEnd,
+        setCreatedEnd,
+        modifiedStart,
+        setModifiedStart,
+        modifiedEnd,
+        setModifiedEnd,
+        sortBy,
+        setSortBy,
+        sortOrder,
+        setSortOrder,
         clearSearch,
         filter,
       }}

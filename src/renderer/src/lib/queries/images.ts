@@ -1,5 +1,5 @@
 import { useFolder } from '@/components/providers/FolderProvider'
-import { ImageUpdatePayload } from '@main/types/api.shared'
+import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
 import {
   QueryClient,
   useInfiniteQuery,
@@ -120,15 +120,7 @@ export default function useImages(folderPath?: string) {
 export function useInfiniteImages(
   folderPath?: string,
   pageSize: number = 50,
-  filter?: {
-    text?: string
-    filterPath?: string
-    tags?: string[]
-    excludedTags?: string[]
-    color?: string
-    aiSearchText?: string
-    aiSearchImage?: string
-  },
+  filter?: SearchFilter,
 ) {
   const { folderPath: contextFolderPath } = useFolder()
   folderPath ||= contextFolderPath || ''
