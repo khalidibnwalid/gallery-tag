@@ -1,7 +1,7 @@
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImageData } from '../types/image'
-import { TagData } from '../types/tag'
+import { SuggestedTagData, TagData } from '../types/tag'
 import QUERIES from './constants'
 
 export function useTags() {
@@ -33,6 +33,35 @@ export function useTagsSearchQuery(query: string, enabled: boolean = true) {
   })
 }
 
+export function useSuggestedTagsQuery({
+  imageId,
+  currentTags = [],
+  enabled = true,
+}: {
+  imageId?: number
+  currentTags?: string[]
+  enabled?: boolean
+}) {
+  return useQuery<SuggestedTagData[]>({
+    queryKey: QUERIES.TAGS_SUGGESTIONS(imageId, currentTags),
+    queryFn: async () => {
+      if (!imageId) return []
+      if (!window.api || !window.api.tags.getSuggestions) {
+        throw new Error('Tag suggestions API not available')
+      }
+
+      return await window.api.tags.getSuggestions({
+        imageId,
+        neighborCount: 20,
+        limit: 12,
+        excludeTagNames: currentTags,
+      })
+    },
+    staleTime: 60 * 1000,
+    enabled: enabled && !!imageId,
+  })
+}
+
 export function useCreateTagMutation() {
   const queryClient = useQueryClient()
 
@@ -54,6 +83,7 @@ export function useCreateTagMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
     },
   })
 }
@@ -66,66 +96,73 @@ function updateTagsInQueryCache(
 ) {
   const ids = new Set(imageIds)
 
-  queryClient.setQueriesData(
-    { queryKey: ['images'] },
-    (oldData: any) => {
-      if (!oldData) return oldData
+  queryClient.setQueriesData({ queryKey: ['images'] }, (oldData: any) => {
+    if (!oldData) return oldData
 
-      const updateImage = (image: ImageData) => {
-        if (!ids.has(image.id)) return image
+    const updateImage = (image: ImageData) => {
+      if (!ids.has(image.id)) return image
 
-        const currentTags = image.tags
-          ? image.tags.split(',').map(t => t.trim())
-          : []
+      const currentTags = image.tags
+        ? image.tags.split(',').map(t => t.trim())
+        : []
 
-        let newTagsString = image.tags
+      let newTagsString = image.tags
 
-        if (action === 'add') {
-          const newTagsToAppend = tags
-            .filter(tag => !currentTags.includes(tag.name))
-            .map(tag => tag.name)
-            .filter(Boolean)
-            .join(', ')
+      if (action === 'add') {
+        const newTagsToAppend = tags
+          .filter(tag => !currentTags.includes(tag.name))
+          .map(tag => tag.name)
+          .filter(Boolean)
+          .join(', ')
 
-          newTagsString = image.tags
-            ? newTagsToAppend
-              ? image.tags + ', ' + newTagsToAppend
-              : image.tags
-            : newTagsToAppend || image.tags
-        } else {
-          const tagsToRemove = new Set(tags.map(t => t.name))
-          const updatedTags = currentTags.filter(tagName => !tagsToRemove.has(tagName))
-          newTagsString = updatedTags.join(', ') || undefined
-        }
-
-        return {
-          ...image,
-          tags: newTagsString,
-        }
+        newTagsString = image.tags
+          ? newTagsToAppend
+            ? image.tags + ', ' + newTagsToAppend
+            : image.tags
+          : newTagsToAppend || image.tags
+      } else {
+        const tagsToRemove = new Set(tags.map(t => t.name))
+        const updatedTags = currentTags.filter(
+          tagName => !tagsToRemove.has(tagName),
+        )
+        newTagsString = updatedTags.join(', ') || undefined
       }
 
-      if (typeof oldData === 'object' && 'pages' in oldData && Array.isArray(oldData.pages)) {
-        return {
-          ...oldData,
-          pages: oldData.pages.map((page: any) => {
-            if (Array.isArray(page)) {
-              return page.map(updateImage)
-            } else if (page && typeof page === 'object' && Array.isArray(page.data)) {
-              return {
-                ...page,
-                data: page.data.map(updateImage),
-              }
+      return {
+        ...image,
+        tags: newTagsString,
+      }
+    }
+
+    if (
+      typeof oldData === 'object' &&
+      'pages' in oldData &&
+      Array.isArray(oldData.pages)
+    ) {
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page: any) => {
+          if (Array.isArray(page)) {
+            return page.map(updateImage)
+          } else if (
+            page &&
+            typeof page === 'object' &&
+            Array.isArray(page.data)
+          ) {
+            return {
+              ...page,
+              data: page.data.map(updateImage),
             }
-            return page
-          }),
-        }
-      } else if (Array.isArray(oldData)) {
-        return oldData.map(updateImage)
+          }
+          return page
+        }),
       }
+    } else if (Array.isArray(oldData)) {
+      return oldData.map(updateImage)
+    }
 
-      return oldData
-    },
-  )
+    return oldData
+  })
 }
 
 export function useAddTagsToImageMutation({
@@ -157,6 +194,7 @@ export function useAddTagsToImageMutation({
       updateTagsInQueryCache(queryClient, imageIds, tags, 'add')
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
       onSuccess?.(data)
     },
   })
@@ -201,6 +239,7 @@ export function useRemoveTagsFromImageMutation({
 
       updateTagsInQueryCache(queryClient, imageIds, tagsData, 'remove')
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
       onSuccess?.({ tagIds, imageIds })
     },
   })

@@ -1,4 +1,4 @@
-import { ImageModel } from './models.shared'
+import { ImageModel, TagModel } from './models.shared'
 
 type ImageUpdate = (Pick<ImageModel, 'id'> | Pick<ImageModel, 'filePath'>) &
   Partial<ImageModel>
@@ -24,4 +24,11 @@ export interface SearchFilter {
 
   sortBy?: 'createdAt' | 'modifiedAt' | 'fileName'
   sortOrder?: 'asc' | 'desc'
+}
+
+export interface SuggestedTag extends TagModel {
+  score: number
+  similaritySum: number
+  usageCount: number
+  idf: number
 }

@@ -8,9 +8,9 @@ import {
   CaretDownIcon,
   CaretRightIcon,
   CheckIcon,
-  CircleIcon,
   MagnifyingGlassIcon,
   ProhibitIcon,
+  TagIcon,
 } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 
@@ -37,22 +37,30 @@ export function TagsExplorer({ className }: { className?: string }) {
     )
   }, [sortedTags, searchQuery])
 
-  const handleTagToggle = (tagName: string) => {
+  const handleTagToggle = (
+    tagName: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
     if (!onSelectTags || !onExcludeTags) return
 
     const isSelected = selectedTags.includes(tagName)
     const isExcluded = excludedTags.includes(tagName)
 
-    if (isSelected) {
-      // Selected -> Excluded
+    if (event.ctrlKey || event.metaKey) {
       onSelectTags(selectedTags.filter(t => t !== tagName))
-      onExcludeTags([...excludedTags, tagName])
+      onExcludeTags(
+        isExcluded
+          ? excludedTags.filter(t => t !== tagName)
+          : [...excludedTags, tagName],
+      )
     } else if (isExcluded) {
-      // Excluded -> Unchecked
       onExcludeTags(excludedTags.filter(t => t !== tagName))
     } else {
-      // Unchecked -> Selected
-      onSelectTags([...selectedTags, tagName])
+      onSelectTags(
+        isSelected
+          ? selectedTags.filter(t => t !== tagName)
+          : [...selectedTags, tagName],
+      )
     }
   }
 
@@ -107,7 +115,7 @@ export function TagsExplorer({ className }: { className?: string }) {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="px-3 py-3 space-y-1">
+            <div className="px-3 py-3">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Spinner className="size-5" />
@@ -117,34 +125,42 @@ export function TagsExplorer({ className }: { className?: string }) {
                   {searchQuery ? 'No matching tags' : 'No tags found'}
                 </div>
               ) : (
-                filteredTags.map(tag => {
-                  const isSelected = selectedTags.includes(tag.name)
-                  const isExcluded = excludedTags.includes(tag.name)
+                <div className="flex flex-wrap gap-2">
+                  {filteredTags.map(tag => {
+                    const isSelected = selectedTags.includes(tag.name)
+                    const isExcluded = excludedTags.includes(tag.name)
 
-                  return (
-                    <Button
-                      key={tag.id}
-                      variant="ghost"
-                      className={cn(
-                        'w-full justify-start h-9 px-3 text-sm font-semibold rounded-md transition-all duration-150',
-                        isSelected &&
-                          'bg-primary! text-primary-foreground hover:!bg-primary/80',
-                        isExcluded &&
-                          'bg-destructive! text-destructive-foreground',
-                      )}
-                      onClick={() => handleTagToggle(tag.name)}
-                    >
-                      {isSelected ? (
-                        <CheckIcon className="size-4 mr-2" weight="bold" />
-                      ) : isExcluded ? (
-                        <ProhibitIcon className="size-4 mr-2" weight="bold" />
-                      ) : (
-                        <CircleIcon className="size-4 mr-2 text-muted-foreground" />
-                      )}
-                      <span className="truncate">{tag.name}</span>
-                    </Button>
-                  )
-                })
+                    return (
+                      <Button
+                        key={tag.id}
+                        variant="ghost"
+                        className={cn(
+                          'h-8 max-w-full justify-start gap-1.5  hover:opacity-70 bg-primary/5 rounded-full px-3 text-sm font-semibold transition-all duration-150',
+                          isSelected &&
+                            'bg-primary! text-primary-foreground hover:text-primary-foreground',
+                          isExcluded &&
+                            'bg-destructive! text-destructive-foreground',
+                        )}
+                        onClick={event => handleTagToggle(tag.name, event)}
+                      >
+                        {isSelected ? (
+                          <CheckIcon
+                            className="size-3.5 shrink-0"
+                            weight="bold"
+                          />
+                        ) : isExcluded ? (
+                          <ProhibitIcon
+                            className="size-3.5 shrink-0"
+                            weight="bold"
+                          />
+                        ) : (
+                          <TagIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="min-w-0 truncate">{tag.name}</span>
+                      </Button>
+                    )
+                  })}
+                </div>
               )}
             </div>
           </div>

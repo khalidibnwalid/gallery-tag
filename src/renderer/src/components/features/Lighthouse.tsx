@@ -35,6 +35,8 @@ export default function Lighthouse() {
     if (!isOpen) return
 
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return
+
       switch (e.key) {
         case 'Escape':
           onClose()
@@ -150,7 +152,7 @@ export default function Lighthouse() {
         />
       </div>
 
-      <SidebarDetails />
+      <SidebarDetails key={currentImage?.id} />
     </div>,
     document.body,
   )

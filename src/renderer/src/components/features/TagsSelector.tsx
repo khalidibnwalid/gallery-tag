@@ -1,13 +1,14 @@
 import {
   useAddTagsToImageMutation,
   useRemoveTagsFromImageMutation,
+  useSuggestedTagsQuery,
   useTags,
 } from '@/lib/queries/tags'
 import { ImageData } from '@/lib/types/image'
 import { TagData } from '@/lib/types/tag'
-import { CheckIcon, TagIcon, XIcon } from '@phosphor-icons/react'
+import { PlusIcon, SparkleIcon, TagIcon } from '@phosphor-icons/react'
 import clsx from 'clsx'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
@@ -28,14 +29,37 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const { data: allTags = [], isLoading } = useTags()
+  const singleImageId = imageIds.length === 1 ? imageIds[0] : undefined
+  const { data: suggestedTags = [], isLoading: isSuggestionsLoading } =
+    useSuggestedTagsQuery({
+      imageId: singleImageId,
+      currentTags,
+      enabled: open && !searchQuery.trim(),
+    })
 
   const currentTagsData =
     (allTags?.filter(tag => currentTags.includes(tag.name)) as TagData[]) || []
 
-  const filteredTags =
-    allTags?.filter(tag =>
-      tag.name.toLowerCase().includes(searchQuery.toLowerCase()),
-    ) || []
+  const filteredTags = useMemo(
+    () =>
+      allTags?.filter(tag =>
+        tag.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      ) || [],
+    [allTags, searchQuery],
+  )
+
+  const displayedTags = useMemo(() => {
+    const search = searchQuery.trim().toLowerCase()
+    const filteredSuggestedTags = suggestedTags.filter(tag =>
+      search ? tag.name.toLowerCase().includes(search) : true,
+    )
+    const suggestedTagIds = new Set(filteredSuggestedTags.map(tag => tag.id))
+
+    return [
+      ...filteredSuggestedTags,
+      ...filteredTags.filter(tag => !suggestedTagIds.has(tag.id)),
+    ]
+  }, [filteredTags, searchQuery, suggestedTags])
 
   // for user feedback purposes
   // the addedTagsIds is not needed since we got currentTags, but it's easier this way using Set.has(id) method
@@ -48,7 +72,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
 
   // all selectable options (tags + create option)
   const allOptions = [
-    ...filteredTags,
+    ...displayedTags,
     ...(searchQuery.length > 0 &&
     !allTags?.some(tag => tag.name.toLowerCase() === searchQuery.toLowerCase())
       ? [{ name: searchQuery, isCreate: true }]
@@ -80,6 +104,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
     })
 
   const isPending = isAddingPending || isRemovingPending
+  const isBusy = isPending || isLoading || isSuggestionsLoading
 
   const onTagSelect = async (tag: TagData | string) => {
     if (isPending || (typeof tag === 'string' && !tag.trim())) return
@@ -107,6 +132,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (!open) return
+    e.stopPropagation()
 
     switch (e.key) {
       case 'ArrowDown':
@@ -153,7 +179,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
   // reset index when options change
   useEffect(() => {
     setSelectedIndex(0)
-  }, [filteredTags.length, searchQuery])
+  }, [displayedTags.length, searchQuery])
 
   useEffect(() => {
     if (open) return
@@ -176,7 +202,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
           <Input
             placeholder="Search or Create tags..."
             startContent={
-              isPending ? (
+              isBusy ? (
                 <Spinner />
               ) : (
                 <TagIcon className="size-4 text-muted-foreground" />
@@ -187,61 +213,74 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
             className="h-10 w-full"
           />
 
-          <ScrollArea className="max-h-48 flex flex-col overflow-y-auto">
+          <ScrollArea className="max-h-56 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <Spinner className="size-8" />
               </div>
-            ) : filteredTags.length > 0 ||
+            ) : displayedTags.length > 0 ||
               (searchQuery.length > 0 &&
                 !allTags?.some(
                   tag => tag.name.toLowerCase() === searchQuery.toLowerCase(),
                 )) ? (
-              <div className="space-y-1">
-                {filteredTags.map((tag, index) => (
-                  <Button
-                    key={tag.id}
-                    ref={el => {
-                      optionRefs.current[index] = el
-                    }}
-                    variant={selectedIndex === index ? 'outline' : 'ghost'}
-                    size="sm"
-                    className={clsx(
-                      'w-full justify-start h-10 px-4 font-bold',
-                      addedTagsIds.has(tag.id) && 'bg-success! text-foreground',
-                      deletedTagsIds.has(tag.id) &&
-                        'bg-destructive! text-foreground',
-                    )}
-                    onClick={() => onTagSelect(tag)}
-                    disabled={isPending}
-                  >
-                    {addedTagsIds.has(tag.id) && (
-                      <CheckIcon className="size-4" weight="bold" />
-                    )}
-                    {deletedTagsIds.has(tag.id) && (
-                      <XIcon className="size-4" weight="bold" />
-                    )}
-                    {tag.name}
-                  </Button>
-                ))}
+              <div className="flex flex-wrap gap-2">
+                {displayedTags.map((tag, index) => {
+                  const isAdded = addedTagsIds.has(tag.id)
+                  const isDeleted = deletedTagsIds.has(tag.id)
+                  const isSuggested =
+                    !searchQuery.trim() &&
+                    suggestedTags.some(suggested => suggested.id === tag.id)
+
+                  return (
+                    <Button
+                      key={tag.id}
+                      ref={el => {
+                        optionRefs.current[index] = el
+                      }}
+                      variant={selectedIndex === index ? 'outline' : 'ghost'}
+                      size="sm"
+                      className={clsx(
+                        'h-8 max-w-full justify-start gap-1.5 bg-primary/5  hover:opacity-70 rounded-full px-3 font-bold',
+                        isAdded && 'bg-success! text-foreground',
+                        isDeleted && 'bg-destructive! text-foreground',
+                      )}
+                      onClick={() => onTagSelect(tag)}
+                      disabled={isPending}
+                    >
+                      {isSuggested && !isAdded && (
+                        <SparkleIcon
+                          className="size-3.5 shrink-0"
+                          weight="bold"
+                        />
+                      )}
+                      {!isSuggested && !isAdded && (
+                        <PlusIcon className="size-3.5 shrink-0" weight="bold" />
+                      )}
+                      <span className="min-w-0 truncate">{tag.name}</span>
+                    </Button>
+                  )
+                })}
                 {searchQuery.trim().length > 0 &&
                   !allTags?.some(
                     tag => tag.name.toLowerCase() === searchQuery.toLowerCase(),
                   ) && (
                     <Button
                       ref={el => {
-                        optionRefs.current[filteredTags.length] = el
+                        optionRefs.current[displayedTags.length] = el
                       }}
                       variant={
-                        selectedIndex === filteredTags.length
+                        selectedIndex === displayedTags.length
                           ? 'outline'
                           : 'ghost'
                       }
                       size="sm"
-                      className="w-full justify-start h-10 px-4 font-bold"
+                      className="h-8 max-w-full justify-start gap-1.5 rounded-full px-3 font-bold"
                       onClick={() => onTagSelect(searchQuery)}
                     >
-                      Create "{searchQuery}"
+                      <PlusIcon className="size-3.5 shrink-0" weight="bold" />
+                      <span className="min-w-0 truncate">
+                        Create "{searchQuery}"
+                      </span>
                     </Button>
                   )}
               </div>

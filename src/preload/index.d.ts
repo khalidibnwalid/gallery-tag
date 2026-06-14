@@ -1,4 +1,8 @@
-import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
+import {
+  ImageUpdatePayload,
+  SearchFilter,
+  SuggestedTag,
+} from '@main/types/api.shared'
 import {
   FolderModel,
   ImageModel,
@@ -38,15 +42,29 @@ declare global {
         onUpdate: (
           callback: ({ images }: ImageUpdatePayload) => void,
         ) => () => void
-        moveTo: (imageId: number | number[], targetFolderPath: string) => Promise<ImageModel | ImageModel[]>
+        moveTo: (
+          imageId: number | number[],
+          targetFolderPath: string,
+        ) => Promise<ImageModel | ImageModel[]>
         rename: (imageId: number, newName: string) => Promise<ImageModel>
         delete: (imageId: number | number[]) => Promise<void>
       }
 
       folders: {
         getAll: (folderPath: string) => Promise<FolderModel[]>
-        add: (parentPath: string, folderName: string) => Promise<{ id: number; name: string; path: string; parentId: number | null }>
-        rename: (folderId: number, newName: string) => Promise<{ id: number; name: string; path: string }>
+        add: (
+          parentPath: string,
+          folderName: string,
+        ) => Promise<{
+          id: number
+          name: string
+          path: string
+          parentId: number | null
+        }>
+        rename: (
+          folderId: number,
+          newName: string,
+        ) => Promise<{ id: number; name: string; path: string }>
       }
 
       tags: {
@@ -57,6 +75,17 @@ declare global {
         remove: (tagIds: number[], imagesIds: number[]) => Promise<void>
         getAll: () => Promise<TagModel[]>
         getBySearch: (query: string) => Promise<TagModel[]>
+        getSuggestions: ({
+          imageId,
+          limit,
+          neighborCount,
+          excludeTagNames,
+        }: {
+          imageId: number
+          limit?: number
+          neighborCount?: number
+          excludeTagNames?: string[]
+        }) => Promise<SuggestedTag[]>
       }
 
       general: {

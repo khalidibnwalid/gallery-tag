@@ -315,7 +315,7 @@ function ImageBody({
                 {visibleTags.map(tag => (
                   <Badge
                     key={tag}
-                    className="text-md bg-muted text-foreground/90 font-bold"
+                    className="text-sm px-3 py-1 bg-muted text-foreground/90 font-bold rounded-full"
                   >
                     {tag}
                   </Badge>

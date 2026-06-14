@@ -10,7 +10,6 @@ import {
   FolderOpenIcon,
   ImagesIcon,
   PencilIcon,
-  PlusIcon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -129,7 +128,7 @@ export function SidebarDetails() {
                   className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded transition-colors cursor-pointer select-none"
                   title="Edit tags"
                 >
-                  <PlusIcon className="size-4" />
+                  <PencilIcon className="size-4" />
                 </button>
               </TagSelector>
             )}
@@ -139,7 +138,7 @@ export function SidebarDetails() {
               {tagChips.map(tag => (
                 <span
                   key={tag}
-                  className="px-2.5 py-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-md font-medium"
+                  className="px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary border border-primary/20 font-medium"
                 >
                   {tag}
                 </span>

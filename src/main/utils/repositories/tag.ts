@@ -1,4 +1,6 @@
 import { TagModel } from '@main/types/models.shared'
+import { SuggestedTag } from '@main/types/api.shared'
+import { clipService } from '@main/services/clip.service'
 import Database from 'better-sqlite3'
 
 export class TagRepository {
@@ -157,5 +159,138 @@ export class TagRepository {
         deleteStmt.run(imageId, tagId)
       }
     }
+  }
+
+  getSuggestedTagsForImage({
+    imageId,
+    neighborCount = 20,
+    limit = 12,
+    excludeTagNames = [],
+  }: {
+    imageId: number
+    neighborCount?: number
+    limit?: number
+    excludeTagNames?: string[]
+  }): SuggestedTag[] {
+    const vecTable = clipService.getVectorTableName()
+    const sourceEmbedding = this.db
+      .prepare(`SELECT embedding FROM ${vecTable} WHERE image_id = ?`)
+      .get(imageId) as { embedding?: Buffer | Float32Array } | undefined
+
+    if (!sourceEmbedding?.embedding) return []
+    const embeddingBuffer = Buffer.isBuffer(sourceEmbedding.embedding)
+      ? sourceEmbedding.embedding
+      : Buffer.from(
+          sourceEmbedding.embedding.buffer,
+          sourceEmbedding.embedding.byteOffset,
+          sourceEmbedding.embedding.byteLength,
+        )
+
+    const safeNeighborCount = Math.max(10, Math.min(neighborCount, 50))
+    const safeLimit = Math.max(1, Math.min(limit, 50))
+    const normalizedExcludedNames = excludeTagNames
+      .map(tag => tag.trim().toLowerCase())
+      .filter(Boolean)
+
+    const excludeSql =
+      normalizedExcludedNames.length > 0
+        ? `AND LOWER(t.name) NOT IN (${normalizedExcludedNames.map(() => '?').join(',')})`
+        : ''
+
+    const neighborRows = this.db
+      .prepare(
+        `
+        WITH nearest AS (
+          SELECT image_id, distance
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        )
+        SELECT
+          t.id,
+          t.name,
+          t.color,
+          t.created_at as createdAt,
+          t.parent_id as parentId,
+          n.image_id as imageId,
+          n.distance
+        FROM nearest n
+        JOIN images i ON i.id = n.image_id
+        JOIN image_tags it ON it.image_id = n.image_id
+        JOIN tags t ON t.id = it.tag_id
+        WHERE n.image_id != ?
+          AND i.deleted_at IS NULL
+          ${excludeSql}
+        ORDER BY n.distance ASC
+        `,
+      )
+      .all(
+        embeddingBuffer,
+        safeNeighborCount + 1,
+        imageId,
+        ...normalizedExcludedNames,
+      ) as (TagModel & { imageId: number; distance: number })[]
+
+    if (neighborRows.length === 0) return []
+
+    const totalImagesResult = this.db
+      .prepare(
+        `
+        SELECT COUNT(*) as total
+        FROM images
+        WHERE deleted_at IS NULL
+      `,
+      )
+      .get() as { total: number } | undefined
+    const totalImages = Math.max(totalImagesResult?.total || 0, 1)
+
+    const candidateTagIds = [...new Set(neighborRows.map(row => row.id))]
+    const tagFrequencyRows = this.db
+      .prepare(
+        `
+        SELECT it.tag_id as tagId, COUNT(DISTINCT it.image_id) as imageCount
+        FROM image_tags it
+        JOIN images i ON i.id = it.image_id
+        WHERE i.deleted_at IS NULL
+          AND it.tag_id IN (${candidateTagIds.map(() => '?').join(',')})
+        GROUP BY it.tag_id
+      `,
+      )
+      .all(...candidateTagIds) as { tagId: number; imageCount: number }[]
+
+    const globalTagFrequency = new Map(
+      tagFrequencyRows.map(row => [row.tagId, row.imageCount]),
+    )
+    const scores = new Map<number, SuggestedTag>()
+
+    for (const row of neighborRows) {
+      const similarity = Math.max(0, 1 - row.distance)
+      if (similarity <= 0) continue
+
+      const existing = scores.get(row.id)
+      const globalImageCount = globalTagFrequency.get(row.id) || 0
+      const idf = Math.log((1 + totalImages) / (1 + globalImageCount)) + 1
+
+      if (existing) {
+        existing.similaritySum += similarity
+        existing.usageCount += 1
+        existing.score = existing.similaritySum * idf
+      } else {
+        scores.set(row.id, {
+          id: row.id,
+          name: row.name,
+          color: row.color,
+          createdAt: row.createdAt,
+          parentId: row.parentId,
+          similaritySum: similarity,
+          usageCount: 1,
+          idf,
+          score: similarity * idf,
+        })
+      }
+    }
+
+    return [...scores.values()]
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, safeLimit)
   }
 }

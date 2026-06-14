@@ -3,10 +3,7 @@ import { SearchFilter } from '@main/types/api.shared'
 const QUERIES = {
   IMAGES: (folderPath?: string) =>
     folderPath ? (['images', folderPath] as const) : (['images'] as const),
-  IMAGES_PAGINATED: (
-    folderPath?: string,
-    filter?: SearchFilter,
-  ) => {
+  IMAGES_PAGINATED: (folderPath?: string, filter?: SearchFilter) => {
     const key: any[] = ['images', 'paginated']
     if (folderPath) key.push(folderPath)
     if (filter !== undefined) key.push(filter)
@@ -25,6 +22,10 @@ const QUERIES = {
     query
       ? (['tags', 'search', query] as const)
       : (['tags', 'search'] as const),
+  TAGS_SUGGESTIONS: (imageId?: number, currentTags?: string[]) =>
+    imageId
+      ? (['tags', 'suggestions', imageId, currentTags] as const)
+      : (['tags', 'suggestions'] as const),
 }
 
 export default QUERIES
