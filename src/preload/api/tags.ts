@@ -11,6 +11,14 @@ const tagsApi = {
     return ipcRenderer.invoke('tags:remove', { tagIds, imagesIds })
   },
 
+  rename(tagId: number, newName: string): Promise<TagModel> {
+    return ipcRenderer.invoke('tags:rename', { tagId, newName })
+  },
+
+  delete(tagId: number): Promise<void> {
+    return ipcRenderer.invoke('tags:delete', { tagId })
+  },
+
   getAll(): Promise<TagModel[]> {
     return ipcRenderer.invoke('tags:get-all')
   },

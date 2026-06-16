@@ -73,6 +73,8 @@ declare global {
           imagesIds: number[],
         ) => Promise<TagModel[]>
         remove: (tagIds: number[], imagesIds: number[]) => Promise<void>
+        rename: (tagId: number, newName: string) => Promise<TagModel>
+        delete: (tagId: number) => Promise<void>
         getAll: () => Promise<TagModel[]>
         getBySearch: (query: string) => Promise<TagModel[]>
         getSuggestions: ({

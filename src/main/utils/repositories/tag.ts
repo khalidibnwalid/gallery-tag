@@ -161,6 +161,27 @@ export class TagRepository {
     }
   }
 
+  renameTag(tagId: number, newName: string): TagModel | undefined {
+    const stmt = this.db.prepare(`
+      UPDATE tags
+      SET name = ?
+      WHERE id = ?
+      RETURNING id, name, color, created_at as createdAt
+    `)
+    return stmt.get(newName, tagId) as TagModel | undefined
+  }
+
+  removeTagFromAllImages(tagId: number): void {
+    this.db.prepare(`DELETE FROM image_tags WHERE tag_id = ?`).run(tagId)
+  }
+
+  deleteTag(tagId: number): boolean {
+    this.removeTagFromAllImages(tagId)
+    const stmt = this.db.prepare(`DELETE FROM tags WHERE id = ?`)
+    const result = stmt.run(tagId)
+    return result.changes > 0
+  }
+
   getSuggestedTagsForImage({
     imageId,
     neighborCount = 20,

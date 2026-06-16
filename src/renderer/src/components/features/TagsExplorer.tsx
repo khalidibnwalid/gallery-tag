@@ -1,16 +1,29 @@
 import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { useTags } from '@/lib/queries/tags'
+import {
+  useDeleteTagMutation,
+  useRenameTagMutation,
+  useTags,
+} from '@/lib/queries/tags'
 import { cn } from '@/lib/utils'
 import {
   CaretDownIcon,
   CaretRightIcon,
   CheckIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
   ProhibitIcon,
   TagIcon,
+  TrashIcon,
   XIcon,
 } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
@@ -26,7 +39,12 @@ export function TagsExplorer({ className }: { className?: string }) {
   } = useSearch()
   const [isExpanded, setIsExpanded] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [renamingTagId, setRenamingTagId] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [deleteTag, setDeleteTag] = useState<{ id: number; name: string } | null>(null)
   const { data: tags, isLoading } = useTags()
+  const renameMutation = useRenameTagMutation()
+  const deleteMutation = useDeleteTagMutation()
 
   const sortedTags = useMemo(() => {
     if (!tags) return []
@@ -71,6 +89,33 @@ export function TagsExplorer({ className }: { className?: string }) {
     e.stopPropagation()
     onSelectTags?.([])
     onExcludeTags?.([])
+  }
+
+  const handleRename = (tag: { id: number; name: string }) => {
+    setRenamingTagId(tag.id)
+    setRenameValue(tag.name)
+  }
+
+  const submitRename = () => {
+    if (renamingTagId !== null && renameValue.trim()) {
+      renameMutation.mutate({
+        tagId: renamingTagId,
+        newName: renameValue.trim(),
+      })
+    }
+    setRenamingTagId(null)
+    setRenameValue('')
+  }
+
+  const handleDelete = (tag: { id: number; name: string }) => {
+    setDeleteTag(tag)
+  }
+
+  const confirmDelete = () => {
+    if (deleteTag) {
+      deleteMutation.mutate({ tagId: deleteTag.id })
+    }
+    setDeleteTag(null)
   }
 
   const hasSelection = selectedTags.length > 0 || excludedTags.length > 0
@@ -123,14 +168,14 @@ export function TagsExplorer({ className }: { className?: string }) {
             </button>
           </div>
           {hasSelection && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-5 px-1.5 text-[10px] uppercase font-bold text-destructive hover:text-primary/80"
-            onClick={clearSelection}
-          >
-            <XIcon size={16} />
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-[10px] uppercase font-bold text-destructive hover:text-primary/80"
+              onClick={clearSelection}
+            >
+              <XIcon size={16} />
+            </Button>
           )}
         </span>
       </div>
@@ -166,33 +211,81 @@ export function TagsExplorer({ className }: { className?: string }) {
                     const isExcluded = excludedTags.includes(tag.name)
 
                     return (
-                      <Button
-                        key={tag.id}
-                        variant="ghost"
-                        className={cn(
-                          'h-8 max-w-full justify-start gap-1.5  hover:opacity-70 bg-primary/5 rounded-full px-3 text-sm font-semibold transition-all duration-150',
-                          isSelected &&
-                            'bg-primary! text-primary-foreground hover:text-primary-foreground',
-                          isExcluded &&
-                            'bg-destructive! text-destructive-foreground',
-                        )}
-                        onClick={event => handleTagToggle(tag.name, event)}
-                      >
-                        {isSelected ? (
-                          <CheckIcon
-                            className="size-3.5 shrink-0"
-                            weight="bold"
-                          />
-                        ) : isExcluded ? (
-                          <ProhibitIcon
-                            className="size-3.5 shrink-0"
-                            weight="bold"
-                          />
+                      <div key={tag.id}>
+                        {renamingTagId === tag.id ? (
+                          <form
+                            onSubmit={e => {
+                              e.preventDefault()
+                              submitRename()
+                            }}
+                            className="flex items-center"
+                          >
+                            <Input
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onBlur={submitRename}
+                              onKeyDown={e => {
+                                if (e.key === 'Escape') {
+                                  setRenamingTagId(null)
+                                  setRenameValue('')
+                                }
+                              }}
+                              className="h-8 text-sm rounded-full px-3"
+                              autoFocus
+                            />
+                          </form>
                         ) : (
-                          <TagIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                          <ContextMenu>
+                            <ContextMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className={cn(
+                                  'h-8 max-w-full justify-start gap-1.5 hover:opacity-70 bg-primary/5 rounded-full px-3 text-sm font-semibold transition-all duration-150',
+                                  isSelected &&
+                                    'bg-primary! text-primary-foreground hover:text-primary-foreground',
+                                  isExcluded &&
+                                    'bg-destructive! text-destructive-foreground',
+                                )}
+                                onClick={event =>
+                                  handleTagToggle(tag.name, event)
+                                }
+                              >
+                                {isSelected ? (
+                                  <CheckIcon
+                                    className="size-3.5 shrink-0"
+                                    weight="bold"
+                                  />
+                                ) : isExcluded ? (
+                                  <ProhibitIcon
+                                    className="size-3.5 shrink-0"
+                                    weight="bold"
+                                  />
+                                ) : (
+                                  <TagIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                                )}
+                                <span className="min-w-0 truncate">
+                                  {tag.name}
+                                </span>
+                              </Button>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent className="min-w-[110px]">
+                              <ContextMenuItem
+                                onClick={() => handleRename(tag)}
+                              >
+                                <PencilSimpleIcon className="size-3.5" />
+                                Rename
+                              </ContextMenuItem>
+                              <ContextMenuItem
+                                variant="destructive"
+                                onClick={() => handleDelete(tag)}
+                              >
+                                <TrashIcon className="size-3.5" />
+                                Delete
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
                         )}
-                        <span className="min-w-0 truncate">{tag.name}</span>
-                      </Button>
+                      </div>
                     )
                   })}
                 </div>
@@ -201,6 +294,15 @@ export function TagsExplorer({ className }: { className?: string }) {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        open={deleteTag !== null}
+        onOpenChange={open => !open && setDeleteTag(null)}
+        title={`Delete "${deleteTag?.name ?? ''}"`}
+        description="This will remove it from all images."
+        actionLabel="Delete"
+        onAction={confirmDelete}
+      />
     </div>
   )
 }

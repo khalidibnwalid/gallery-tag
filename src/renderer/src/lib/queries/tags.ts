@@ -89,6 +89,54 @@ export function useCreateTagMutation() {
   })
 }
 
+export function useRenameTagMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      tagId,
+      newName,
+    }: {
+      tagId: number
+      newName: string
+    }): Promise<TagData> => {
+      if (!window.api || !window.api.tags.rename) {
+        throw new Error('Rename tag API not available')
+      }
+      return await window.api.tags.rename(tagId, newName)
+    },
+    onSuccess: (_, { tagId }) => {
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
+      queryClient.setQueriesData({ queryKey: ['images'] }, (oldData: any) => {
+        if (!oldData) return oldData
+        // Tag rename doesn't change tags on images directly; just invalidate
+        return oldData
+      })
+    },
+  })
+}
+
+export function useDeleteTagMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ tagId }: { tagId: number }): Promise<void> => {
+      if (!window.api || !window.api.tags.delete) {
+        throw new Error('Delete tag API not available')
+      }
+      await window.api.tags.delete(tagId)
+    },
+    onSuccess: (_, { tagId }) => {
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
+      queryClient.invalidateQueries({ queryKey: ['images'] })
+    },
+  })
+}
+
 function updateTagsInQueryCache(
   queryClient: any,
   imageIds: number[],
