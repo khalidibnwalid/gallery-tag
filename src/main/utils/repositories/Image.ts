@@ -208,13 +208,25 @@ export class ImageRepository {
     // Filter by tags
     if (filter?.tags && filter.tags.length > 0) {
       const placeholders = filter.tags.map(() => '?').join(',')
-      whereClauses.push(`i.id IN (
-        SELECT it.image_id
-        FROM image_tags it
-        JOIN tags t ON it.tag_id = t.id
-        WHERE t.name IN (${placeholders})
-      )`)
-      params.push(...filter.tags)
+      if (filter.tagMode === 'AND') {
+        whereClauses.push(`i.id IN (
+          SELECT it.image_id
+          FROM image_tags it
+          JOIN tags t ON it.tag_id = t.id
+          WHERE t.name IN (${placeholders})
+          GROUP BY it.image_id
+          HAVING COUNT(DISTINCT t.name) = ?
+        )`)
+        params.push(...filter.tags, filter.tags.length)
+      } else {
+        whereClauses.push(`i.id IN (
+          SELECT it.image_id
+          FROM image_tags it
+          JOIN tags t ON it.tag_id = t.id
+          WHERE t.name IN (${placeholders})
+        )`)
+        params.push(...filter.tags)
+      }
     }
 
     // Filter by excluded tags

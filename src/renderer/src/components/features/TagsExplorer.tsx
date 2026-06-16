@@ -11,6 +11,7 @@ import {
   MagnifyingGlassIcon,
   ProhibitIcon,
   TagIcon,
+  XIcon,
 } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 
@@ -18,6 +19,8 @@ export function TagsExplorer({ className }: { className?: string }) {
   const {
     filterTags: selectedTags = [],
     excludedTags = [],
+    tagMode,
+    setTagMode: onSetTagMode,
     setFilterTags: onSelectTags,
     setExcludedTags: onExcludeTags,
   } = useSearch()
@@ -88,16 +91,48 @@ export function TagsExplorer({ className }: { className?: string }) {
           {isExpanded ? <CaretDownIcon /> : <CaretRightIcon />}
           Tags
         </span>
-        {hasSelection && (
+        <span className="flex items-center gap-1">
+          <div className="flex bg-muted rounded-full p-1">
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                onSetTagMode('AND')
+              }}
+              className={cn(
+                'cursor-pointer px-2 py-1 text-[10px] font-bold uppercase rounded-full transition-colors',
+                tagMode === 'AND'
+                  ? 'bg-primary text-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              AND
+            </button>
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                onSetTagMode('OR')
+              }}
+              className={cn(
+                'cursor-pointer px-2 py-1 text-[10px] font-bold uppercase rounded-full transition-colors',
+                tagMode === 'OR'
+                  ? 'bg-primary text-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              OR
+            </button>
+          </div>
+          {hasSelection && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-5 px-1.5 text-[10px] uppercase font-bold text-primary hover:text-primary/80"
+            className="h-5 px-1.5 text-[10px] uppercase font-bold text-destructive hover:text-primary/80"
             onClick={clearSelection}
           >
-            Clear ({selectedTags.length + excludedTags.length})
+            <XIcon size={16} />
           </Button>
-        )}
+          )}
+        </span>
       </div>
 
       {isExpanded && (

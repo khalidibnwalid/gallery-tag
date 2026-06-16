@@ -57,7 +57,8 @@ export function useSuggestedTagsQuery({
         excludeTagNames: currentTags,
       })
     },
-    staleTime: 60 * 1000,
+    staleTime: 0,
+    gcTime: 0,
     enabled: enabled && !!imageId,
   })
 }

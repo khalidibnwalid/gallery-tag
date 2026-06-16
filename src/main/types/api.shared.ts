@@ -11,6 +11,7 @@ export interface SearchFilter {
   text?: string
   filterPath?: string
   tags?: string[]
+  tagMode?: 'AND' | 'OR'
   excludedTags?: string[]
   color?: string
 

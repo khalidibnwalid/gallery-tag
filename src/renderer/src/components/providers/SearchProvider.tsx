@@ -4,6 +4,7 @@ export interface ImageFilter {
   text: string
   filterPath?: string
   tags: string[]
+  tagMode: 'AND' | 'OR'
   excludedTags: string[]
   color?: string
   aiSearchText?: string
@@ -25,6 +26,8 @@ interface SearchProvider {
   setFilterPath: React.Dispatch<React.SetStateAction<string | null>>
   filterTags: string[]
   setFilterTags: React.Dispatch<React.SetStateAction<string[]>>
+  tagMode: 'AND' | 'OR'
+  setTagMode: React.Dispatch<React.SetStateAction<'AND' | 'OR'>>
   excludedTags: string[]
   setExcludedTags: React.Dispatch<React.SetStateAction<string[]>>
   searchColor: string | null
@@ -44,7 +47,9 @@ interface SearchProvider {
   modifiedEnd: string
   setModifiedEnd: React.Dispatch<React.SetStateAction<string>>
   sortBy: 'createdAt' | 'modifiedAt' | 'fileName'
-  setSortBy: React.Dispatch<React.SetStateAction<'createdAt' | 'modifiedAt' | 'fileName'>>
+  setSortBy: React.Dispatch<
+    React.SetStateAction<'createdAt' | 'modifiedAt' | 'fileName'>
+  >
   sortOrder: 'asc' | 'desc'
   setSortOrder: React.Dispatch<React.SetStateAction<'asc' | 'desc'>>
   clearSearch: () => void
@@ -58,6 +63,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [isSearching, setIsSearching] = useState(false)
   const [filterPath, setFilterPath] = useState<string | null>(null)
   const [filterTags, setFilterTags] = useState<string[]>([])
+  const [tagMode, setTagMode] = useState<'AND' | 'OR'>('OR')
   const [excludedTags, setExcludedTags] = useState<string[]>([])
   const [searchColor, setSearchColor] = useState<string | null>(null)
   const [aiSearchText, setAiSearchText] = useState('')
@@ -67,13 +73,16 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [createdEnd, setCreatedEnd] = useState('')
   const [modifiedStart, setModifiedStart] = useState('')
   const [modifiedEnd, setModifiedEnd] = useState('')
-  const [sortBy, setSortBy] = useState<'createdAt' | 'modifiedAt' | 'fileName'>('fileName')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortBy, setSortBy] = useState<'createdAt' | 'modifiedAt' | 'fileName'>(
+    'modifiedAt',
+  )
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const filter: ImageFilter = {
     text: searchQuery,
     filterPath: filterPath ?? undefined,
     tags: filterTags,
+    tagMode,
     excludedTags,
     color: searchColor ?? undefined,
     aiSearchText: aiSearchText || undefined,
@@ -91,6 +100,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setIsSearching(false)
     setFilterPath(null)
     setFilterTags([])
+    setTagMode('OR')
     setExcludedTags([])
     setSearchColor(null)
     setAiSearchText('')
@@ -115,6 +125,8 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         setFilterPath,
         filterTags,
         setFilterTags,
+        tagMode,
+        setTagMode,
         excludedTags,
         setExcludedTags,
         searchColor,
