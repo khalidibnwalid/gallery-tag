@@ -4,7 +4,7 @@ import { useSearch } from '@/components/providers/SearchProvider'
 import { Spinner } from '@/components/ui/spinner'
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 import { useInfiniteImages } from '@/lib/queries/images'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import SubBar from './SubBar'
 
 export function ImageGallery() {
@@ -12,6 +12,35 @@ export function ImageGallery() {
   const { isSearching, aiSearchText, aiSearchImage, filter } = useSearch()
   const [gridDensity] = useLocalStorage<number | 'auto'>('grid-density', 'auto')
   const triggerFetchRef = useRef<HTMLDivElement>(null)
+  const masonryRef = useRef<HTMLDivElement>(null)
+
+  const filterKey = JSON.stringify([
+    filter?.tags,
+    filter?.tagMode,
+    filter?.excludedTags,
+    filter?.text,
+    filter?.color,
+    filter?.aiSearchText,
+    filter?.aiSearchImage,
+    filter?.filterPath,
+    filter?.sortBy,
+    filter?.sortOrder,
+  ])
+
+  useEffect(() => {
+    const scrollContainer = masonryRef.current?.closest(
+      '[data-slot="scroll-area-viewport"]',
+    )
+    if (scrollContainer) {
+      scrollContainer.scrollTop = 0
+    } else {
+      masonryRef.current?.scrollIntoView({
+        behavior: 'auto',
+        block: 'start',
+        inline: 'start',
+      })
+    }
+  }, [filterKey])
 
   const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteImages(folderPath ?? undefined, 50, filter)
@@ -57,6 +86,7 @@ export function ImageGallery() {
     <>
       <SubBar images={images} total={data?.pages[0]?.total ?? 0} />
       <div
+        ref={masonryRef}
         className="pb-20 masonry"
         style={
           {
@@ -73,10 +103,11 @@ export function ImageGallery() {
             image={image}
             index={index}
             allSearchImages={images}
+            fetchNextPage={fetchNextPage}
+            hasNextPage={hasNextPage}
           />
         ))}
       </div>
-
       <div
         ref={triggerFetchRef}
         className="h-10 flex items-center justify-center"

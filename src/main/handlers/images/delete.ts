@@ -4,6 +4,7 @@ import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { deleteFileToTrash } from '@main/utils/files/delete'
 import { getRootPath } from '@main/utils/files/config'
+import { BrowserWindow } from 'electron'
 
 export default async function deleteImagesHandler(
   event: Electron.IpcMainInvokeEvent,
@@ -53,5 +54,16 @@ export default async function deleteImagesHandler(
         })),
       } satisfies ImageUpdatePayload,
     })
+  }
+
+  // Focus window after dialog dismissal to prevent focus/input freeze issues on Linux
+  try {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window && !window.isDestroyed()) {
+      window.blur()
+      window.focus()
+    }
+  } catch (focusErr) {
+    console.error('Failed to refocus window:', focusErr)
   }
 }

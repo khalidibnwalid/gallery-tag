@@ -4,19 +4,30 @@ import {
   ReactNode,
   useCallback,
   useContext,
+  useRef,
   useState,
 } from 'react'
+
+export interface LighthouseOptions {
+  fetchNextPage?: () => void
+  hasNextPage?: boolean
+}
 
 interface Context {
   isOpen: boolean
   images: ImageData[]
   currentIndex: number
-  openLighthouse: (images: ImageData[], startIndex?: number) => void
+  openLighthouse: (
+    images: ImageData[],
+    startIndex?: number,
+    options?: LighthouseOptions,
+  ) => void
   closeLighthouse: () => void
   goToNext: () => void
   goToPrevious: () => void
   goToIndex: (index: number) => void
   insertAndGoToImage: (image: ImageData) => void
+  syncImages: (newImages: ImageData[]) => void
 }
 
 const LighthouseContext = createContext<Context | undefined>(undefined)
@@ -58,16 +69,25 @@ function useLighthouseState(): Context {
     currentIndex: 0,
   })
 
-  const openLighthouse = useCallback((images: ImageData[], startIndex = 0) => {
-    if (images.length === 0) return
+  const optionsRef = useRef<LighthouseOptions>({})
+  const isOpenRef = useRef(false)
 
-    const validIndex = Math.max(0, Math.min(startIndex, images.length - 1))
-    setState({
-      isOpen: true,
-      images,
-      currentIndex: validIndex,
-    })
-  }, [])
+  isOpenRef.current = state.isOpen
+
+  const openLighthouse = useCallback(
+    (images: ImageData[], startIndex = 0, options?: LighthouseOptions) => {
+      if (images.length === 0) return
+
+      optionsRef.current = options ?? {}
+      const validIndex = Math.max(0, Math.min(startIndex, images.length - 1))
+      setState({
+        isOpen: true,
+        images,
+        currentIndex: validIndex,
+      })
+    },
+    [],
+  )
 
   const closeLighthouse = useCallback(() => {
     setState(prev => ({
@@ -79,21 +99,23 @@ function useLighthouseState(): Context {
   const goToNext = useCallback(() => {
     setState(prev => {
       if (prev.images.length === 0) return prev
-      return {
-        ...prev,
-        currentIndex: (prev.currentIndex + 1) % prev.images.length,
+      const nextIndex = prev.currentIndex + 1
+      if (nextIndex >= prev.images.length) {
+        if (optionsRef.current.hasNextPage) {
+          optionsRef.current.fetchNextPage?.()
+        }
+        return prev
       }
+      return { ...prev, currentIndex: nextIndex }
     })
   }, [])
 
   const goToPrevious = useCallback(() => {
     setState(prev => {
       if (prev.images.length === 0) return prev
-      return {
-        ...prev,
-        currentIndex:
-          (prev.currentIndex - 1 + prev.images.length) % prev.images.length,
-      }
+      const prevIndex = prev.currentIndex - 1
+      if (prevIndex < 0) return prev
+      return { ...prev, currentIndex: prevIndex }
     })
   }, [])
 
@@ -109,7 +131,9 @@ function useLighthouseState(): Context {
 
   const insertAndGoToImage = useCallback((image: ImageData) => {
     setState(prev => {
-      const existingIndex = prev.images.findIndex(img => img.filePath === image.filePath)
+      const existingIndex = prev.images.findIndex(
+        img => img.filePath === image.filePath,
+      )
       if (existingIndex !== -1) {
         return {
           ...prev,
@@ -127,6 +151,25 @@ function useLighthouseState(): Context {
     })
   }, [])
 
+  const syncImages = useCallback((newImages: ImageData[]) => {
+    if (!isOpenRef.current) return
+    if (newImages.length === 0) return
+
+    setState(prev => {
+      if (newImages.length <= prev.currentIndex) return prev
+
+      const currentImage = prev.images[prev.currentIndex]
+      const newIndex = newImages.findIndex(
+        img => img.filePath === currentImage?.filePath,
+      )
+      return {
+        ...prev,
+        images: newImages,
+        currentIndex: newIndex >= 0 ? newIndex : prev.currentIndex,
+      }
+    })
+  }, [])
+
   return {
     isOpen: state.isOpen,
     images: state.images,
@@ -137,5 +180,6 @@ function useLighthouseState(): Context {
     goToPrevious,
     goToIndex,
     insertAndGoToImage,
+    syncImages,
   }
 }

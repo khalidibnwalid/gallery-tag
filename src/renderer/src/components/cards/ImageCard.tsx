@@ -16,11 +16,14 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react'
 import clsx from 'clsx'
-import { MouseEvent, useRef, useState, useEffect } from 'react'
+import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { TagSelector } from '../features/TagsSelector'
 import { Virtualize } from '../features/Virtualize'
 import { useFolder } from '../providers/FolderProvider'
-import { useLighthouse } from '../providers/LighthouseProvider'
+import {
+  LighthouseOptions,
+  useLighthouse,
+} from '../providers/LighthouseProvider'
 import { useSearch } from '../providers/SearchProvider'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
@@ -44,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog'
+import { AlertDialog } from '../ui/alert-dialog'
 
 const TAG_DISPLAY_LIMIT = 5
 
@@ -51,6 +55,8 @@ interface Props {
   image: ImageData
   index: number
   allSearchImages?: ImageData[]
+  fetchNextPage?: () => void
+  hasNextPage?: boolean
 }
 
 export default function ImageCard(props: Props) {
@@ -81,6 +87,8 @@ export default function ImageCard(props: Props) {
         index={props.index}
         setImageDimensions={setImageDimensions}
         allSearchImages={props.allSearchImages}
+        fetchNextPage={props.fetchNextPage}
+        hasNextPage={props.hasNextPage}
       />
     </Virtualize>
   )
@@ -91,6 +99,8 @@ function ImageBody({
   index,
   setImageDimensions,
   allSearchImages,
+  fetchNextPage,
+  hasNextPage,
 }: Props & {
   setImageDimensions: React.Dispatch<
     React.SetStateAction<{
@@ -102,7 +112,7 @@ function ImageBody({
   const {
     folderImagesQuery: { data: allImages },
   } = useFolder()
-  const { openLighthouse } = useLighthouse()
+  const { openLighthouse, syncImages } = useLighthouse()
   const { setSearchColor, setIsSearching } = useSearch()
 
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
@@ -129,6 +139,18 @@ function ImageBody({
   const visibleTags = showAllTags
     ? allTags
     : allTags.slice(0, TAG_DISPLAY_LIMIT)
+
+  // Sync lighthouse images when the paginated array grows
+  const lighthouseOptions: LighthouseOptions = {
+    fetchNextPage,
+    hasNextPage,
+  }
+
+  useEffect(() => {
+    if (allSearchImages && allSearchImages.length > 0) {
+      syncImages(allSearchImages)
+    }
+  }, [allSearchImages, syncImages])
 
   // maintain aspect ratio on unload
   // only if we don't have the dimensions from the db
@@ -175,6 +197,7 @@ function ImageBody({
       openLighthouse(
         allSearchImages,
         startIndex >= 0 ? startIndex : 0,
+        lighthouseOptions,
       )
     } else if (allImages && allImages.length > 0) {
       const startIndex = allImages.findIndex(
@@ -406,90 +429,100 @@ function ImageContextMenu({
     }
   }
 
-  const handleDelete = () => {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  const handleDeleteAction = () => {
     const targetImageIds =
       isSelectionMode && selectedItems.has(image.id)
         ? Array.from(selectedItems)
         : [image.id]
 
-    if (
-      confirm(
-        `Are you sure you want to move ${
-          targetImageIds.length === 1
-            ? 'this image'
-            : `${targetImageIds.length} images`
-        } to trash?`,
-      )
-    ) {
-      deleteMutation.mutate(targetImageIds, {
-        onSuccess: () => {
-          if (isSelectionMode) {
-            useSelectionStore.getState().clearSelection()
-          }
-        },
-      })
-    }
+    deleteMutation.mutate(targetImageIds, {
+      onSuccess: () => {
+        if (isSelectionMode) {
+          useSelectionStore.getState().clearSelection()
+        }
+        setIsDeleteDialogOpen(false)
+      },
+    })
   }
 
   const isCurrentSelectionDeleted =
     isSelectionMode && selectedItems.has(image.id)
 
+  const deleteCount = isCurrentSelectionDeleted ? selectedItems.size : 1
+  const deleteMessage =
+    deleteCount === 1
+      ? 'Are you sure you want to move this image to trash?'
+      : `Are you sure you want to move ${deleteCount} images to trash?`
+
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent onCloseAutoFocus={e => e.preventDefault()}>
-        <ContextMenuItem onClick={() => setAiSearchImage(image.filePath)}>
-          <FileMagnifyingGlassIcon className="size-5" />
-          Search Similar Images
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={async () => await copyToClipboard(image.filePath)}
-        >
-          <ClipboardIcon className="size-5" />
-          Copy Image Path
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={() => window.api.system.revealInFileExplorer(image.filePath)}
-        >
-          <FolderOpenIcon className="size-5" />
-          Show in System Explorer
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => window.api.system.openPathInDefaultApp(image.filePath)}
-        >
-          <RocketLaunchIcon className="size-5" />
-          Open with Default App
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onClick={onRename} disabled={isSelectionMode}>
-          <PencilIcon className="size-5" />
-          Rename
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={handleDelete}
-          className="text-destructive focus:text-destructive focus:bg-destructive/20 "
-        >
-          <TrashIcon className="size-5 text-destructive" />
-          {isCurrentSelectionDeleted
-            ? `Delete ${selectedItems.size} Selected Images`
-            : 'Delete Image'}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onClick={async () => await copyToClipboard(image?.tags || '')}
-          disabled={!image.tags}
-        >
-          <TagIcon className="size-5" />
-          Copy Tags
-        </ContextMenuItem>
-        <ContextMenuItem onClick={async () => await onPasteTags()}>
-          <PlusIcon className="size-5" />
-          Paste Tags
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuContent onCloseAutoFocus={e => e.preventDefault()}>
+          <ContextMenuItem onClick={() => setAiSearchImage(image.filePath)}>
+            <FileMagnifyingGlassIcon className="size-5" />
+            Search Similar Images
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={async () => await copyToClipboard(image.filePath)}
+          >
+            <ClipboardIcon className="size-5" />
+            Copy Image Path
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => window.api.system.revealInFileExplorer(image.filePath)}
+          >
+            <FolderOpenIcon className="size-5" />
+            Show in System Explorer
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => window.api.system.openPathInDefaultApp(image.filePath)}
+          >
+            <RocketLaunchIcon className="size-5" />
+            Open with Default App
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={onRename} disabled={isSelectionMode}>
+            <PencilIcon className="size-5" />
+            Rename
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="text-destructive focus:text-destructive focus:bg-destructive/20 "
+          >
+            <TrashIcon className="size-5 text-destructive" />
+            {isCurrentSelectionDeleted
+              ? `Delete ${selectedItems.size} Selected Images`
+              : 'Delete Image'}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={async () => await copyToClipboard(image?.tags || '')}
+            disabled={!image.tags}
+          >
+            <TagIcon className="size-5" />
+            Copy Tags
+          </ContextMenuItem>
+          <ContextMenuItem onClick={async () => await onPasteTags()}>
+            <PlusIcon className="size-5" />
+            Paste Tags
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Move to Trash"
+        description={deleteMessage}
+        actionLabel={deleteCount === 1 ? 'Delete Image' : `Delete ${deleteCount} Images`}
+        onAction={handleDeleteAction}
+      />
+    </>
   )
 }
 
