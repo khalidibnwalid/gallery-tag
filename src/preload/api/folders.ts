@@ -8,6 +8,8 @@ const foldersApi = {
     ipcRenderer.invoke('folders:add', parentPath, folderName),
   rename: (folderId: number, newName: string): Promise<{ id: number; name: string; path: string }> =>
     ipcRenderer.invoke('folders:rename', folderId, newName),
+  delete: (folderId: number): Promise<void> =>
+    ipcRenderer.invoke('folders:delete', folderId),
 }
 
 export default foldersApi

@@ -53,6 +53,7 @@ export interface FolderModel {
   parentId: number | null
   path: string
   createdAt: string
+  deletedAt?: string
   children?: FolderModel[]
 }
 

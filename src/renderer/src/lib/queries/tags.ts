@@ -105,7 +105,7 @@ export function useRenameTagMutation() {
       }
       return await window.api.tags.rename(tagId, newName)
     },
-    onSuccess: (_, { tagId }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
@@ -128,7 +128,7 @@ export function useDeleteTagMutation() {
       }
       await window.api.tags.delete(tagId)
     },
-    onSuccess: (_, { tagId }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })

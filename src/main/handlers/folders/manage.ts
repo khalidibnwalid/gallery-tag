@@ -1,25 +1,36 @@
-import { db } from '@main/utils/repositories/db'
-import { join, dirname } from 'path'
-import fs from 'fs/promises'
 import { getRootPath } from '@main/utils/files/config'
-import { toRelativePath, toAbsolutePath } from '@main/utils/pathUtils'
+import { deleteFileToTrash } from '@main/utils/files/delete'
+import { toAbsolutePath, toRelativePath } from '@main/utils/pathUtils'
+import { db } from '@main/utils/repositories/db'
+import { FolderRepository } from '@main/utils/repositories/Folder'
+import { BrowserWindow } from 'electron'
+import fs from 'fs/promises'
+import { dirname, join } from 'path'
 
 export async function addFolderHandler(
   _event: Electron.IpcMainInvokeEvent,
   parentPath: string,
   folderName: string,
-): Promise<{ id: number; name: string; path: string; parentId: number | null }> {
+): Promise<{
+  id: number
+  name: string
+  path: string
+  parentId: number | null
+}> {
   const connectedPaths = db.getConnectedPaths()
   if (connectedPaths.length === 0) {
-    throw new Error('No active database connection found. Please load a folder first.')
+    throw new Error(
+      'No active database connection found. Please load a folder first.',
+    )
   }
   const dbPath = connectedPaths[0]
   const database = db.getDatabase(dbPath)
   const rootPath = getRootPath(dbPath)
 
-  const absParentPath = parentPath.startsWith('/') && !parentPath.startsWith(rootPath)
-    ? toAbsolutePath(rootPath, parentPath)
-    : parentPath
+  const absParentPath =
+    parentPath.startsWith('/') && !parentPath.startsWith(rootPath)
+      ? toAbsolutePath(rootPath, parentPath)
+      : parentPath
 
   const absNewFolderPath = join(absParentPath, folderName)
   const newFolderPath = toRelativePath(rootPath, absNewFolderPath)
@@ -29,20 +40,24 @@ export async function addFolderHandler(
 
   // 2. Find parent ID in database
   const parentRelPath = toRelativePath(rootPath, absParentPath)
-  const parentRow = database.prepare('SELECT id FROM folders WHERE path = ?').get(parentRelPath) as
-    | { id: number }
-    | undefined
+  const parentRow = database
+    .prepare('SELECT id FROM folders WHERE path = ?')
+    .get(parentRelPath) as { id: number } | undefined
   const parentId = parentRow ? parentRow.id : null
 
   // 3. Insert folder record into database
   const result = database
-    .prepare('INSERT OR IGNORE INTO folders (name, path, parent_id) VALUES (?, ?, ?)')
+    .prepare(
+      'INSERT OR IGNORE INTO folders (name, path, parent_id) VALUES (?, ?, ?)',
+    )
     .run(folderName, newFolderPath, parentId)
 
   let folderId = result.lastInsertRowid as number
   if (result.changes === 0) {
     // Query ID of existing folder
-    const existing = database.prepare('SELECT id FROM folders WHERE path = ?').get(newFolderPath) as {
+    const existing = database
+      .prepare('SELECT id FROM folders WHERE path = ?')
+      .get(newFolderPath) as {
       id: number
     }
     folderId = existing.id
@@ -63,14 +78,20 @@ export async function renameFolderHandler(
 ): Promise<{ id: number; name: string; path: string }> {
   const connectedPaths = db.getConnectedPaths()
   if (connectedPaths.length === 0) {
-    throw new Error('No active database connection found. Please load a folder first.')
+    throw new Error(
+      'No active database connection found. Please load a folder first.',
+    )
   }
   const dbPath = connectedPaths[0]
   const database = db.getDatabase(dbPath)
   const rootPath = getRootPath(dbPath)
 
   // Get current folder details
-  const folder = database.prepare('SELECT name, path, parent_id as parentId FROM folders WHERE id = ?').get(folderId) as
+  const folder = database
+    .prepare(
+      'SELECT name, path, parent_id as parentId FROM folders WHERE id = ?',
+    )
+    .get(folderId) as
     | { name: string; path: string; parentId: number | null }
     | undefined
 
@@ -82,7 +103,11 @@ export async function renameFolderHandler(
   const newFolderPath = join(parentPath, newName) // relative new path (e.g. "/BSS")
 
   if (folder.path === newFolderPath) {
-    return { id: folderId, name: folder.name, path: toAbsolutePath(rootPath, folder.path) }
+    return {
+      id: folderId,
+      name: folder.name,
+      path: toAbsolutePath(rootPath, folder.path),
+    }
   }
 
   const absOldPath = toAbsolutePath(rootPath, folder.path)
@@ -94,14 +119,19 @@ export async function renameFolderHandler(
   // 2. Execute updates in a database transaction
   const updateTransaction = database.transaction(() => {
     // A. Update the folder itself
-    database.prepare('UPDATE folders SET name = ?, path = ? WHERE id = ?').run(newName, newFolderPath, folderId)
+    database
+      .prepare('UPDATE folders SET name = ?, path = ? WHERE id = ?')
+      .run(newName, newFolderPath, folderId)
 
     // B. Update nested subfolders
     const prefix = folder.path + '/'
     const prefixBackslash = folder.path + '\\'
     const subfolders = database
       .prepare('SELECT id, path FROM folders WHERE path LIKE ? OR path LIKE ?')
-      .all(folder.path + '/%', folder.path + '\\%') as { id: number; path: string }[]
+      .all(folder.path + '/%', folder.path + '\\%') as {
+      id: number
+      path: string
+    }[]
 
     for (const sub of subfolders) {
       let relative = ''
@@ -111,13 +141,20 @@ export async function renameFolderHandler(
         relative = sub.path.slice(prefixBackslash.length)
       }
       const newSubPath = join(newFolderPath, relative)
-      database.prepare('UPDATE folders SET path = ? WHERE id = ?').run(newSubPath, sub.id)
+      database
+        .prepare('UPDATE folders SET path = ? WHERE id = ?')
+        .run(newSubPath, sub.id)
     }
 
     // C. Update physical images' file paths inside database
     const images = database
-      .prepare('SELECT id, file_path FROM images WHERE file_path LIKE ? OR file_path LIKE ?')
-      .all(folder.path + '/%', folder.path + '\\%') as { id: number; file_path: string }[]
+      .prepare(
+        'SELECT id, file_path FROM images WHERE file_path LIKE ? OR file_path LIKE ?',
+      )
+      .all(folder.path + '/%', folder.path + '\\%') as {
+      id: number
+      file_path: string
+    }[]
 
     for (const img of images) {
       let relative = ''
@@ -127,7 +164,9 @@ export async function renameFolderHandler(
         relative = img.file_path.slice(prefixBackslash.length)
       }
       const newImgPath = join(newFolderPath, relative)
-      database.prepare('UPDATE images SET file_path = ? WHERE id = ?').run(newImgPath, img.id)
+      database
+        .prepare('UPDATE images SET file_path = ? WHERE id = ?')
+        .run(newImgPath, img.id)
     }
   })
 
@@ -137,5 +176,54 @@ export async function renameFolderHandler(
     id: folderId,
     name: newName,
     path: absNewPath,
+  }
+}
+
+export async function deleteFolderHandler(
+  event: Electron.IpcMainInvokeEvent,
+  folderId: number,
+): Promise<void> {
+  const connectedPaths = db.getConnectedPaths()
+  if (connectedPaths.length === 0) {
+    throw new Error(
+      'No active database connection found. Please load a folder first.',
+    )
+  }
+  const dbPath = connectedPaths[0]
+  const database = db.getDatabase(dbPath)
+  const rootPath = getRootPath(dbPath)
+
+  // Get current folder details
+  const folder = database
+    .prepare('SELECT path FROM folders WHERE id = ?')
+    .get(folderId) as { path: string } | undefined
+
+  if (!folder) {
+    throw new Error(`Folder with ID ${folderId} not found.`)
+  }
+
+  const absFolderPath = toAbsolutePath(rootPath, folder.path)
+
+  // 1. Move physical directory to OS trash/recycle bin first
+  try {
+    await deleteFileToTrash(absFolderPath)
+  } catch (err: any) {
+    console.error(`Failed to move folder to trash: ${absFolderPath}`, err)
+    throw new Error(`Failed to trash folder: ${err.message}`)
+  }
+
+  // 2. Soft delete inside database
+  const folderRepo = new FolderRepository(database, rootPath)
+  folderRepo.softDeleteFolder(folderId)
+
+  // Focus window after trashing to prevent focus/input freeze issues on Linux
+  try {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window && !window.isDestroyed()) {
+      window.blur()
+      window.focus()
+    }
+  } catch (focusErr) {
+    console.error('Failed to refocus window:', focusErr)
   }
 }

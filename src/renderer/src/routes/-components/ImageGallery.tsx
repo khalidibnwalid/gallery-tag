@@ -4,7 +4,7 @@ import { useSearch } from '@/components/providers/SearchProvider'
 import { Spinner } from '@/components/ui/spinner'
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 import { useInfiniteImages } from '@/lib/queries/images'
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import SubBar from './SubBar'
 
 export function ImageGallery() {

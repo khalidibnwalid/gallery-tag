@@ -74,3 +74,25 @@ export function useRenameFolderMutation() {
     },
   })
 }
+
+export function useDeleteFolderMutation() {
+  const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
+
+  return useMutation({
+    mutationFn: async (folderId: number) => {
+      if (!window.api || !window.api.folders.delete) {
+        throw new Error('Folders delete API not available')
+      }
+      return await window.api.folders.delete(folderId)
+    },
+    onSuccess: () => {
+      toast.success('Folder moved to trash')
+      queryClient.invalidateQueries({ queryKey: ['folders', folderPath] })
+      queryClient.invalidateQueries({ queryKey: ['images'] })
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to delete folder')
+    },
+  })
+}

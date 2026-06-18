@@ -16,7 +16,7 @@ import {
   TrashIcon,
 } from '@phosphor-icons/react'
 import clsx from 'clsx'
-import { MouseEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { MouseEvent, useEffect, useRef, useState } from 'react'
 import { TagSelector } from '../features/TagsSelector'
 import { Virtualize } from '../features/Virtualize'
 import { useFolder } from '../providers/FolderProvider'

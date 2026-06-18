@@ -9,6 +9,7 @@ import { useTimeout } from '@/lib/hooks/useTimeout'
 import {
   useAddFolderMutation,
   useRenameFolderMutation,
+  useDeleteFolderMutation,
 } from '@/lib/queries/folders'
 import { useMoveImagesMutation } from '@/lib/queries/images'
 import { useSelectionStore } from '@/lib/store/selection'
@@ -21,9 +22,11 @@ import {
   FolderPlusIcon,
   PencilIcon,
   PlusIcon,
+  TrashIcon,
 } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 
 export default function FolderTreeNode({
   node,
@@ -39,10 +42,12 @@ export default function FolderTreeNode({
   const addFolder = useAddFolderMutation()
   const renameFolder = useRenameFolderMutation()
   const moveImages = useMoveImagesMutation()
+  const deleteFolder = useDeleteFolderMutation()
   const [isDragOver, setIsDragOver] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isCreatingSubfolder, setIsCreatingSubfolder] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const hasChildren = node.children && node.children.length > 0
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -247,6 +252,15 @@ export default function FolderTreeNode({
               Rename
             </ContextMenuItem>
           )}
+          {!isRoot && (
+            <ContextMenuItem
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="text-destructive focus:text-destructive focus:bg-destructive/20"
+            >
+              <TrashIcon className="mr-2 size-4 text-destructive" />
+              Delete
+            </ContextMenuItem>
+          )}
         </ContextMenuContent>
       </ContextMenu>
       {isOpen && (hasChildren || isCreatingSubfolder) && (
@@ -299,6 +313,28 @@ export default function FolderTreeNode({
           )}
         </div>
       )}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Folder"
+        description={`Are you sure you want to delete the folder "${node.name}" and all its contents? This will move it to the trash.`}
+        actionLabel="Delete Folder"
+        onAction={() => {
+          deleteFolder.mutate(node.id, {
+            onSuccess: () => {
+              if (
+                selectedPath &&
+                (selectedPath === node.path ||
+                  selectedPath.startsWith(node.path + '/') ||
+                  selectedPath.startsWith(node.path + '\\'))
+              ) {
+                onSelect?.(null)
+              }
+              setIsDeleteDialogOpen(false)
+            },
+          })
+        }}
+      />
     </div>
   )
 }

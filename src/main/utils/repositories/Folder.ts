@@ -42,8 +42,10 @@ export class FolderRepository {
         name,
         parent_id as parentId,
         path,
-        created_at as createdAt
+        created_at as createdAt,
+        deleted_at as deletedAt
       FROM folders
+      WHERE deleted_at IS NULL
       ORDER BY name
     `)
 
@@ -125,12 +127,16 @@ export class FolderRepository {
 
       // Optimization: Read all existing folders into a map [path -> id]
       const existing = this.db
-        .prepare('SELECT path, id FROM folders')
+        .prepare('SELECT path, id, deleted_at FROM folders')
         .all() as {
         path: string
         id: number
+        deleted_at: string | null
       }[]
       const pathMap = new Map<string, number>(existing.map(e => [e.path, e.id]))
+      const deletedPaths = new Map<string, number>(
+        existing.filter(e => e.deleted_at !== null).map(e => [e.path, e.id])
+      )
 
       if (!pathMap.has(rootRelPath)) pathMap.set(rootRelPath, rootId)
 
@@ -148,7 +154,16 @@ export class FolderRepository {
         }
         const fullPath = join(dir.parentPath, dir.name)
         const relPath = toRelativePath(rootPath, fullPath)
-        if (pathMap.has(relPath)) continue
+        if (pathMap.has(relPath)) {
+          // If the folder is currently soft-deleted but exists on disk, recover it
+          if (deletedPaths.has(relPath)) {
+            this.db
+              .prepare('UPDATE folders SET deleted_at = NULL WHERE id = ?')
+              .run(pathMap.get(relPath))
+            console.log(`Recovered soft-deleted folder from disk: ${fullPath}`)
+          }
+          continue
+        }
 
         console.log(
           `Processing folder: ${fullPath} (parent: ${dir.parentPath})`,
@@ -188,5 +203,44 @@ export class FolderRepository {
     } catch (e) {
       console.error('Error syncing folders', e)
     }
+  }
+
+  softDeleteFolder(folderId: number): void {
+    const folder = this.db
+      .prepare('SELECT path FROM folders WHERE id = ?')
+      .get(folderId) as { path: string } | undefined
+    if (!folder) return
+
+    const deleteTransaction = this.db.transaction(() => {
+      // 1. Soft delete this folder itself
+      this.db.prepare('UPDATE folders SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(folderId)
+
+      // 2. Soft delete nested subfolders and their images
+      if (folder.path !== '/') {
+        // Soft delete subfolders
+        this.db
+          .prepare(`
+            UPDATE folders 
+            SET deleted_at = CURRENT_TIMESTAMP 
+            WHERE path LIKE ? OR path LIKE ?
+          `)
+          .run(folder.path + '/%', folder.path + '\\%')
+
+        // Soft delete all images inside this folder and its subfolders
+        this.db
+          .prepare(`
+            UPDATE images 
+            SET deleted_at = CURRENT_TIMESTAMP 
+            WHERE file_path LIKE ? OR file_path LIKE ?
+          `)
+          .run(folder.path + '/%', folder.path + '\\%')
+      } else {
+        // If root path, soft delete everything
+        this.db.prepare('UPDATE folders SET deleted_at = CURRENT_TIMESTAMP').run()
+        this.db.prepare('UPDATE images SET deleted_at = CURRENT_TIMESTAMP').run()
+      }
+    })
+
+    deleteTransaction()
   }
 }

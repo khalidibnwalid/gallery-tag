@@ -7,6 +7,8 @@ import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { getAndInitConfig, CONFIG_DIR } from '@main/utils/files/config'
 import { EXTENSIONS, getFilesByExtension } from '@main/utils/files/getFiles'
+import { toAbsolutePath } from '@main/utils/pathUtils'
+import fs from 'fs/promises'
 import {
   scanNewFiles,
   scanHashes,
@@ -80,6 +82,26 @@ class WatcherService {
 
       // 1. Sync folders from disk
       await folderRepo.syncFoldersFromDisk(folderPath)
+
+      // 1b. Check if any database folders are missing on disk, and soft-delete them
+      const activeFolders = database
+        .prepare('SELECT id, path FROM folders WHERE deleted_at IS NULL')
+        .all() as { id: number; path: string }[]
+
+      for (const f of activeFolders) {
+        if (f.path === '/') continue
+        const absPath = toAbsolutePath(folderPath, f.path)
+        let exists = false
+        try {
+          const stat = await fs.stat(absPath)
+          exists = stat.isDirectory()
+        } catch {}
+
+        if (!exists) {
+          console.log(`Watcher: Folder ${absPath} went missing from disk. Soft-deleting...`)
+          folderRepo.softDeleteFolder(f.id)
+        }
+      }
 
       // 2. Scan images
       const imageFiles = await getFilesByExtension(
