@@ -178,7 +178,8 @@ export class ImageRepository {
     offset: number = 0,
     size: number = 50,
     filter?: SearchFilter,
-    aiEmbedding?: Float32Array,
+    textEmbedding?: Float32Array,
+    imageEmbedding?: Float32Array,
   ): {
     data: (ImageModel & { tags?: string })[]
     total: number
@@ -276,35 +277,93 @@ export class ImageRepository {
     let cteSql = ''
     let cteParams: any[] = []
 
-    // Filter by AI vector similarity using sqlite-vec MATCH via CTE
-    if (aiEmbedding) {
+    if (textEmbedding && imageEmbedding) {
+      const vecTable = clipService.getVectorTableName()
+      cteSql = `
+        WITH image_search AS (
+          SELECT image_id, distance AS img_dist
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        ),
+        search_results AS (
+          SELECT 
+            s.image_id,
+            s.img_dist,
+            vec_distance_cosine(v.embedding, ?) AS text_dist
+          FROM image_search s
+          INNER JOIN ${vecTable} v ON s.image_id = v.image_id
+        )
+      `
+      cteParams.push(
+        Buffer.from(
+          imageEmbedding.buffer,
+          imageEmbedding.byteOffset,
+          imageEmbedding.byteLength,
+        ),
+        1000,
+        Buffer.from(
+          textEmbedding.buffer,
+          textEmbedding.byteOffset,
+          textEmbedding.byteLength,
+        ),
+      )
+
+      const imgThreshold = clipService.getImageToImageThreshold(this.db)
+      const textThreshold = clipService.getTextToImageThreshold(this.db)
+      const maxImgDistance = 1.0 - imgThreshold
+      const maxTextDistance = 1.0 - textThreshold
+
+      whereClauses.push('v.img_dist <= ?')
+      params.push(maxImgDistance)
+
+      whereClauses.push('v.text_dist <= ?')
+      params.push(maxTextDistance)
+    } else if (textEmbedding) {
       const vecTable = clipService.getVectorTableName()
       cteSql = `
         WITH search_results AS (
-          SELECT image_id, distance
+          SELECT image_id, distance AS text_dist
           FROM ${vecTable}
           WHERE embedding MATCH ? AND k = ?
         )
       `
       cteParams.push(
         Buffer.from(
-          aiEmbedding.buffer,
-          aiEmbedding.byteOffset,
-          aiEmbedding.byteLength,
+          textEmbedding.buffer,
+          textEmbedding.byteOffset,
+          textEmbedding.byteLength,
         ),
         1000,
       )
 
-      // Get threshold based on search type (text vs image)
-      let threshold = 0.0
-      if (filter?.aiSearchText) {
-        threshold = clipService.getTextToImageThreshold(this.db)
-      } else if (filter?.aiSearchImage) {
-        threshold = clipService.getImageToImageThreshold(this.db)
-      }
-      const maxDistance = 1.0 - threshold
-      whereClauses.push('v.distance <= ?')
-      params.push(maxDistance)
+      const textThreshold = clipService.getTextToImageThreshold(this.db)
+      const maxTextDistance = 1.0 - textThreshold
+
+      whereClauses.push('v.text_dist <= ?')
+      params.push(maxTextDistance)
+    } else if (imageEmbedding) {
+      const vecTable = clipService.getVectorTableName()
+      cteSql = `
+        WITH search_results AS (
+          SELECT image_id, distance AS img_dist
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        )
+      `
+      cteParams.push(
+        Buffer.from(
+          imageEmbedding.buffer,
+          imageEmbedding.byteOffset,
+          imageEmbedding.byteLength,
+        ),
+        1000,
+      )
+
+      const imgThreshold = clipService.getImageToImageThreshold(this.db)
+      const maxImgDistance = 1.0 - imgThreshold
+
+      whereClauses.push('v.img_dist <= ?')
+      params.push(maxImgDistance)
     }
 
     const whereSql =
@@ -313,7 +372,8 @@ export class ImageRepository {
     let joinClause = isColorFiltered
       ? 'INNER JOIN image_colors ic ON i.id = ic.image_id'
       : ''
-    if (aiEmbedding) {
+    const hasEmbedding = !!(textEmbedding || imageEmbedding)
+    if (hasEmbedding) {
       joinClause += ` INNER JOIN search_results v ON i.id = v.image_id`
     }
 
@@ -350,10 +410,23 @@ export class ImageRepository {
       }
     }
 
-    if (aiEmbedding) {
-      orderBy = 'v.distance ASC'
+    if (textEmbedding && imageEmbedding) {
+      orderBy = 'v.text_dist ASC'
+    } else if (textEmbedding) {
+      orderBy = 'v.text_dist ASC'
+    } else if (imageEmbedding) {
+      orderBy = 'v.img_dist ASC'
     } else if (isColorFiltered) {
       orderBy = 'color_dist ASC'
+    }
+
+    let selectDistance = ''
+    if (textEmbedding && imageEmbedding) {
+      selectDistance = ', v.text_dist as ai_distance'
+    } else if (textEmbedding) {
+      selectDistance = ', v.text_dist as ai_distance'
+    } else if (imageEmbedding) {
+      selectDistance = ', v.img_dist as ai_distance'
     }
 
     const stmt = this.db.prepare(`
@@ -376,7 +449,7 @@ export class ImageRepository {
         i.deleted_at as deletedAt,
         i.is_duplicate as isDuplicate
         ${selectColorDist}
-        ${aiEmbedding ? ', v.distance as ai_distance' : ''},
+        ${selectDistance},
         GROUP_CONCAT(t.name) as tags
       FROM images i
       ${joinClause}

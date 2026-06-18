@@ -156,16 +156,31 @@ function useLighthouseState(): Context {
     if (newImages.length === 0) return
 
     setState(prev => {
-      if (newImages.length <= prev.currentIndex) return prev
-
       const currentImage = prev.images[prev.currentIndex]
+      if (!currentImage) return prev
+
       const newIndex = newImages.findIndex(
-        img => img.filePath === currentImage?.filePath,
+        img => img.filePath === currentImage.filePath,
       )
+
+      // The current image is a recommended image that isn't in the new images list.
+      // To keep the user's current context, we preserve the current images list,
+      // but we can update any images in it that exist in newImages (to get updated tags/metadata).
+      if (newIndex === -1) {
+        const updatedImages = prev.images.map(prevImg => {
+          const match = newImages.find(img => img.filePath === prevImg.filePath)
+          return match ? match : prevImg
+        })
+        return {
+          ...prev,
+          images: updatedImages,
+        }
+      }
+
       return {
         ...prev,
         images: newImages,
-        currentIndex: newIndex >= 0 ? newIndex : prev.currentIndex,
+        currentIndex: newIndex,
       }
     })
   }, [])

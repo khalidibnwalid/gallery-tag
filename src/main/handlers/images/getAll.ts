@@ -113,15 +113,22 @@ async function getAllBase(
       scanEmbeddings(imageRepo, folderPath)
     })
 
-    let aiEmbedding: Float32Array | undefined = undefined
-    if (filter?.aiSearchText) {
-      console.log(`AI Text Search: "${filter.aiSearchText}"`)
+    let textEmbedding: Float32Array | undefined = undefined
+    let imageEmbedding: Float32Array | undefined = undefined
+    const hasText = !!filter?.aiSearchText
+    const hasImage = !!filter?.aiSearchImage
+
+    if (hasText || hasImage) {
       await clipService.init(join(folderPath, CONFIG_DIR))
-      aiEmbedding = await clipService.getTextEmbedding(filter.aiSearchText)
-    } else if (filter?.aiSearchImage) {
-      console.log(`AI Image Search: "${filter.aiSearchImage}"`)
-      await clipService.init(join(folderPath, CONFIG_DIR))
-      aiEmbedding = await clipService.getImageEmbedding(filter.aiSearchImage)
+
+      if (hasText) {
+        console.log(`AI Text Search: "${filter!.aiSearchText}"`)
+        textEmbedding = await clipService.getTextEmbedding(filter!.aiSearchText!)
+      }
+      if (hasImage) {
+        console.log(`AI Image Search: "${filter!.aiSearchImage}"`)
+        imageEmbedding = await clipService.getImageEmbedding(filter!.aiSearchImage!)
+      }
     }
 
     if (isPaginated) {
@@ -129,7 +136,8 @@ async function getAllBase(
         offset!,
         size!,
         filter,
-        aiEmbedding,
+        textEmbedding,
+        imageEmbedding,
       )
       const hasMore = offset! + size! < total
 
