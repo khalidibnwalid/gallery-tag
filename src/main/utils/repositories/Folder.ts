@@ -43,7 +43,9 @@ export class FolderRepository {
         parent_id as parentId,
         path,
         created_at as createdAt,
-        deleted_at as deletedAt
+        deleted_at as deletedAt,
+        icon,
+        color
       FROM folders
       WHERE deleted_at IS NULL
       ORDER BY name

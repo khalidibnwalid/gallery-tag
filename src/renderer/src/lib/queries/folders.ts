@@ -96,3 +96,31 @@ export function useDeleteFolderMutation() {
     },
   })
 }
+
+export function useCustomizeFolderMutation() {
+  const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
+
+  return useMutation({
+    mutationFn: async ({
+      folderId,
+      icon,
+      color,
+    }: {
+      folderId: number
+      icon: string | null
+      color: string | null
+    }) => {
+      if (!window.api || !window.api.folders.customize) {
+        throw new Error('Folders customize API not available')
+      }
+      return await window.api.folders.customize(folderId, icon, color)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders', folderPath] })
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to customize folder')
+    },
+  })
+}

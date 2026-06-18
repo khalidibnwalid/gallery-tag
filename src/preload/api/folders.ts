@@ -10,6 +10,8 @@ const foldersApi = {
     ipcRenderer.invoke('folders:rename', folderId, newName),
   delete: (folderId: number): Promise<void> =>
     ipcRenderer.invoke('folders:delete', folderId),
+  customize: (folderId: number, icon: string | null, color: string | null): Promise<void> =>
+    ipcRenderer.invoke('folders:customize', folderId, icon, color),
 }
 
 export default foldersApi

@@ -66,6 +66,11 @@ declare global {
           newName: string,
         ) => Promise<{ id: number; name: string; path: string }>
         delete: (folderId: number) => Promise<void>
+        customize: (
+          folderId: number,
+          icon: string | null,
+          color: string | null,
+        ) => Promise<void>
       }
 
       tags: {

@@ -54,6 +54,8 @@ export interface FolderModel {
   path: string
   createdAt: string
   deletedAt?: string
+  icon?: string | null
+  color?: string | null
   children?: FolderModel[]
 }
 

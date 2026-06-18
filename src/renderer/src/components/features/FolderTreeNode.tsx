@@ -4,12 +4,17 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuSeparator,
 } from '@/components/ui/context-menu'
 import { useTimeout } from '@/lib/hooks/useTimeout'
 import {
   useAddFolderMutation,
   useRenameFolderMutation,
   useDeleteFolderMutation,
+  useCustomizeFolderMutation,
 } from '@/lib/queries/folders'
 import { useMoveImagesMutation } from '@/lib/queries/images'
 import { useSelectionStore } from '@/lib/store/selection'
@@ -23,10 +28,57 @@ import {
   PencilIcon,
   PlusIcon,
   TrashIcon,
+  HeartIcon,
+  StarIcon,
+  ImageIcon,
+  VideoCameraIcon,
+  UserIcon,
+  UsersIcon,
+  MapPinIcon,
+  TagIcon,
+  CalendarIcon,
+  CameraIcon,
+  LightbulbIcon,
+  BriefcaseIcon,
+  PaletteIcon,
+  GlobeIcon,
+  LockIcon,
 } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { AlertDialog } from '@/components/ui/alert-dialog'
+
+const FOLDER_ICONS = {
+  folder: { label: 'Folder', icon: FolderIcon },
+  image: { label: 'Photos', icon: ImageIcon },
+  camera: { label: 'Camera', icon: CameraIcon },
+  video: { label: 'Videos', icon: VideoCameraIcon },
+  heart: { label: 'Favorites', icon: HeartIcon },
+  star: { label: 'Star', icon: StarIcon },
+  user: { label: 'Person', icon: UserIcon },
+  users: { label: 'People', icon: UsersIcon },
+  mappin: { label: 'Places', icon: MapPinIcon },
+  tag: { label: 'Tag', icon: TagIcon },
+  calendar: { label: 'Events', icon: CalendarIcon },
+  lightbulb: { label: 'Ideas', icon: LightbulbIcon },
+  briefcase: { label: 'Work', icon: BriefcaseIcon },
+  palette: { label: 'Art', icon: PaletteIcon },
+  globe: { label: 'Travel', icon: GlobeIcon },
+  lock: { label: 'Private', icon: LockIcon },
+} as const
+
+const FOLDER_COLORS = [
+  { name: 'Default', hex: '' },
+  { name: 'Red', hex: '#ef4444' },
+  { name: 'Orange', hex: '#f97316' },
+  { name: 'Amber', hex: '#f59e0b' },
+  { name: 'Green', hex: '#22c55e' },
+  { name: 'Teal', hex: '#14b8a6' },
+  { name: 'Blue', hex: '#3b82f6' },
+  { name: 'Indigo', hex: '#6366f1' },
+  { name: 'Purple', hex: '#a855f7' },
+  { name: 'Pink', hex: '#ec4899' },
+]
 
 export default function FolderTreeNode({
   node,
@@ -43,6 +95,7 @@ export default function FolderTreeNode({
   const renameFolder = useRenameFolderMutation()
   const moveImages = useMoveImagesMutation()
   const deleteFolder = useDeleteFolderMutation()
+  const customizeFolder = useCustomizeFolderMutation()
   const [isDragOver, setIsDragOver] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -184,13 +237,20 @@ export default function FolderTreeNode({
                 <div className="w-[13px] h-[13px]" />
               )}
             </span>
-            <FolderIcon
-              className={cn(
-                'mr-2 size-[18px] shrink-0',
-                isSelected ? 'text-primary-foreground' : 'text-primary',
-              )}
-              weight={isOpen || isSelected ? 'fill' : 'duotone'}
-            />
+            {(() => {
+              const IconData = node.icon && FOLDER_ICONS[node.icon as keyof typeof FOLDER_ICONS]
+              const IconComponent = IconData ? IconData.icon : FolderIcon
+              return (
+                <IconComponent
+                  className={cn(
+                    'mr-2 size-[18px] shrink-0',
+                    isSelected ? 'text-primary-foreground' : 'text-primary',
+                  )}
+                  style={!isSelected && node.color ? { color: node.color } : undefined}
+                  weight={isOpen || isSelected ? 'fill' : 'duotone'}
+                />
+              )
+            })()}
             {isEditing ? (
               <input
                 ref={inputRef}
@@ -251,6 +311,64 @@ export default function FolderTreeNode({
               <PencilIcon className="mr-2 size-4 text-muted-foreground" />
               Rename
             </ContextMenuItem>
+          )}
+          {!isRoot && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <FolderIcon className="mr-2 size-4 text-muted-foreground" />
+                  Change Icon
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-48 max-h-80 overflow-y-auto">
+                  {Object.entries(FOLDER_ICONS).map(([key, item]) => {
+                    const CurrentIcon = item.icon
+                    return (
+                      <ContextMenuItem
+                        key={key}
+                        onClick={() => {
+                          customizeFolder.mutate({
+                            folderId: node.id,
+                            icon: key === 'folder' ? null : key,
+                            color: node.color || null,
+                          })
+                        }}
+                      >
+                        <CurrentIcon className="mr-2 size-4 text-muted-foreground" />
+                        {item.label}
+                      </ContextMenuItem>
+                    )
+                  })}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSub>
+                <ContextMenuSubTrigger>
+                  <PaletteIcon className="mr-2 size-4 text-muted-foreground" />
+                  Change Color
+                </ContextMenuSubTrigger>
+                <ContextMenuSubContent className="w-40">
+                  {FOLDER_COLORS.map(colorItem => (
+                    <ContextMenuItem
+                      key={colorItem.name}
+                      onClick={() => {
+                        customizeFolder.mutate({
+                          folderId: node.id,
+                          icon: node.icon || null,
+                          color: colorItem.hex || null,
+                        })
+                      }}
+                    >
+                      <span
+                        className="mr-2 size-3.5 rounded-full border border-foreground/20 shrink-0"
+                        style={{ backgroundColor: colorItem.hex || 'currentColor' }}
+                      />
+                      {colorItem.name}
+                    </ContextMenuItem>
+                  ))}
+                </ContextMenuSubContent>
+              </ContextMenuSub>
+              <ContextMenuSeparator />
+            </>
           )}
           {!isRoot && (
             <ContextMenuItem

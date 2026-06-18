@@ -227,3 +227,21 @@ export async function deleteFolderHandler(
     console.error('Failed to refocus window:', focusErr)
   }
 }
+
+export async function customizeFolderHandler(
+  _event: Electron.IpcMainInvokeEvent,
+  folderId: number,
+  icon: string | null,
+  color: string | null,
+): Promise<void> {
+  const connectedPaths = db.getConnectedPaths()
+  if (connectedPaths.length === 0) {
+    throw new Error('No active database connection found. Please load a folder first.')
+  }
+  const dbPath = connectedPaths[0]
+  const database = db.getDatabase(dbPath)
+
+  database
+    .prepare('UPDATE folders SET icon = ?, color = ? WHERE id = ?')
+    .run(icon, color, folderId)
+}
