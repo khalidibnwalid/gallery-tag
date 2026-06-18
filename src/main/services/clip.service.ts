@@ -114,8 +114,6 @@ class ClipService {
     )
   }
 
-  // ── Existing API (unchanged) ─────────────────────────────────────────────
-
   isInitialized(): boolean {
     return this.initialized
   }
