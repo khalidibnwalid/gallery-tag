@@ -9,16 +9,28 @@ import { TagData } from '@/lib/types/tag'
 import { PlusIcon, SparkleIcon, TagIcon } from '@phosphor-icons/react'
 import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
-import { ScrollArea } from '../ui/scroll-area'
-import { Spinner } from '../ui/spinner'
+import { Button } from '../../ui/button'
+import { Input } from '../../ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover'
+import { ScrollArea } from '../../ui/scroll-area'
+import { Spinner } from '../../ui/spinner'
 
 interface Props {
   children: React.ReactNode
   imageIds: ImageData['id'] | ImageData['id'][]
   currentTags?: TagData['name'][]
+}
+
+const getAncestors = (tagId: number, allTags: TagData[]): number[] => {
+  const ancestors: number[] = []
+  let currentId: number | null = tagId
+  while (currentId !== null) {
+    const tag = allTags.find(t => t.id === currentId)
+    if (!tag || !tag.parentId) break
+    ancestors.push(tag.parentId)
+    currentId = tag.parentId
+  }
+  return ancestors
 }
 
 export function TagSelector({ children, currentTags = [], imageIds }: Props) {
@@ -37,8 +49,10 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
       enabled: open && !searchQuery.trim(),
     })
 
-  const currentTagsData =
-    (allTags?.filter(tag => currentTags.includes(tag.name)) as TagData[]) || []
+  const currentTagsKey = currentTags.join(',')
+  const currentTagsData = useMemo(() => {
+    return (allTags?.filter(tag => currentTags.includes(tag.name)) as TagData[]) || []
+  }, [allTags, currentTagsKey])
 
   const filteredTags = useMemo(
     () =>
@@ -63,9 +77,19 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
 
   // for user feedback purposes
   // the addedTagsIds is not needed since we got currentTags, but it's easier this way using Set.has(id) method
-  const [addedTagsIds, setAddedTagsIds] = useState<Set<TagData['id']>>(
-    new Set(currentTagsData.map(tag => tag.id)),
-  )
+  const [addedTagsIds, setAddedTagsIds] = useState<Set<TagData['id']>>(() => {
+    const initialSet = new Set<TagData['id']>()
+    currentTagsData.forEach(tag => {
+      initialSet.add(tag.id)
+      let currentParentId: number | undefined = tag.parentId ?? undefined
+      while (currentParentId) {
+        initialSet.add(currentParentId)
+        const parentTag = allTags.find(t => t.id === currentParentId)
+        currentParentId = parentTag?.parentId ?? undefined
+      }
+    })
+    return initialSet
+  })
   const [deletedTagsIds, setDeletedTagsIds] = useState<Set<TagData['id']>>(
     new Set(),
   )
@@ -82,10 +106,20 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
   const { mutateAsync: addTagsAsync, isPending: isAddingPending } =
     useAddTagsToImageMutation({
       onSuccess: tags => {
-        setAddedTagsIds(prev => new Set([...prev, ...tags.map(tag => tag.id)]))
+        setAddedTagsIds(prev => {
+          const next = new Set(prev)
+          tags.forEach(tag => {
+            next.add(tag.id)
+            getAncestors(tag.id, allTags).forEach(ancestorId => next.add(ancestorId))
+          })
+          return next
+        })
         setDeletedTagsIds(prev => {
           const next = new Set(prev)
-          tags.forEach(tag => next.delete(tag.id))
+          tags.forEach(tag => {
+            next.delete(tag.id)
+            getAncestors(tag.id, allTags).forEach(ancestorId => next.delete(ancestorId))
+          })
           return next
         })
       },
@@ -186,9 +220,16 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
 
     setSearchQuery('')
     setSelectedIndex(-1)
-    setAddedTagsIds(new Set(currentTagsData.map(tag => tag.id)))
+
+    const initialSet = new Set<TagData['id']>()
+    currentTagsData.forEach(tag => {
+      initialSet.add(tag.id)
+      getAncestors(tag.id, allTags).forEach(ancestorId => initialSet.add(ancestorId))
+    })
+
+    setAddedTagsIds(initialSet)
     setDeletedTagsIds(new Set())
-  }, [open])
+  }, [open, currentTagsData, allTags])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

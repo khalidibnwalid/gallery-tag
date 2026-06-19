@@ -239,11 +239,12 @@ export function useAddTagsToImageMutation({
       const result = await window.api.tags.add(tags, imageIds)
       return result
     },
-    onSuccess: (data, { tags, imageIds }) => {
-      updateTagsInQueryCache(queryClient, imageIds, tags, 'add')
+    onSuccess: (data, { imageIds }) => {
+      updateTagsInQueryCache(queryClient, imageIds, data, 'add')
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
+      queryClient.invalidateQueries({ queryKey: ['images'] })
       onSuccess?.(data)
     },
   })
@@ -290,6 +291,31 @@ export function useRemoveTagsFromImageMutation({
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
       onSuccess?.({ tagIds, imageIds })
+    },
+  })
+}
+
+export function useSetTagParentMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      tagId,
+      parentId,
+    }: {
+      tagId: number
+      parentId: number | null
+    }): Promise<TagData> => {
+      if (!window.api || !window.api.tags.setParent) {
+        throw new Error('Set tag parent API not available')
+      }
+      return await window.api.tags.setParent(tagId, parentId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
+      queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
+      queryClient.invalidateQueries({ queryKey: ['images'] })
     },
   })
 }

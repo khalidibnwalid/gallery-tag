@@ -1,5 +1,5 @@
 import { RenameImageDialog } from '@/components/cards/ImageCard'
-import { TagSelector } from '@/components/features/TagsSelector'
+import { TagSelector } from '@/components/features/tags/TagsSelector'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useLighthouse } from '@/components/providers/LighthouseProvider'
 import { useSearch } from '@/components/providers/SearchProvider'

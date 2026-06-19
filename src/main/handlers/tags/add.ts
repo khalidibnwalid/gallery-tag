@@ -26,7 +26,7 @@ export default async function addHandler(
 
     const tagRepo = new TagRepository(database)
 
-    let newTags: Pick<TagModel, 'name' | 'color'>[] = []
+    let newTags: (Pick<TagModel, 'name' | 'color'> & { parentId?: number })[] = []
     let processedTags: TagModel[] = []
     let insertedTags: TagModel[] = []
 
@@ -35,7 +35,11 @@ export default async function addHandler(
       if ('id' in tag) {
         processedTags.push(tag as TagModel)
       } else {
-        newTags.push({ name: tag.name.trim(), color: tag.color })
+        newTags.push({
+          name: tag.name.trim(),
+          color: tag.color,
+          parentId: (tag as any).parentId
+        })
       }
     }
 
@@ -45,16 +49,22 @@ export default async function addHandler(
     }
 
     const tagIds = processedTags.map(tag => tag.id)
+    const resolvedTagIds = tagRepo.getAllAncestors(tagIds)
 
     // Add tags to images in the junction table
-    if (imagesIds && imagesIds.length > 0)
+    if (imagesIds && imagesIds.length > 0) {
       tagRepo.addTagsToImages(tagIds, imagesIds)
+    }
+
+    const allAddedTags = resolvedTagIds
+      .map(id => tagRepo.getTagById(id))
+      .filter((t): t is TagModel => !!t)
 
     console.log(
-      `Successfully added ${tagIds.length} tags to ${imagesIds?.length || 0} images`,
+      `Successfully added ${allAddedTags.length} tags (including ancestors) to ${imagesIds?.length || 0} images`,
     )
 
-    return processedTags
+    return allAddedTags
   } catch (error) {
     console.error('Error adding tags:', error)
     throw error

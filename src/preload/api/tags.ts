@@ -15,6 +15,10 @@ const tagsApi = {
     return ipcRenderer.invoke('tags:rename', { tagId, newName })
   },
 
+  setParent(tagId: number, parentId: number | null): Promise<TagModel> {
+    return ipcRenderer.invoke('tags:set-parent', { tagId, parentId })
+  },
+
   delete(tagId: number): Promise<void> {
     return ipcRenderer.invoke('tags:delete', { tagId })
   },

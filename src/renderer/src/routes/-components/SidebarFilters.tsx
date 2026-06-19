@@ -1,5 +1,5 @@
 import { FolderTree } from '@/components/features/FolderTree'
-import { TagsExplorer } from '@/components/features/TagsExplorer'
+import { TagsExplorer } from '@/components/features/tags/TagsExplorer'
 import { useSettingsStore } from '@/lib/store/settings'
 import { cn } from '@/lib/utils'
 

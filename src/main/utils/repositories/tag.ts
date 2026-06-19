@@ -8,8 +8,8 @@ export class TagRepository {
 
   getOrCreateTags(
     tagsData: (
-      | { id: undefined; name: string; color?: string }
-      | { id: number; name?: string; color?: string }
+      | { id: undefined; name: string; color?: string; parentId?: number }
+      | { id: number; name?: string; color?: string; parentId?: number }
     )[],
   ): TagModel[] {
     const transaction = this.db.transaction(() => {
@@ -17,12 +17,12 @@ export class TagRepository {
       const pendingNames: string[] = []
 
       const insertStmt = this.db.prepare(`
-        INSERT OR IGNORE INTO tags (name, color)
-        SELECT ?, ?
+        INSERT OR IGNORE INTO tags (name, color, parent_id)
+        SELECT ?, ?, ?
         WHERE NOT EXISTS (
           SELECT 1 FROM tags WHERE LOWER(name) = LOWER(?)
         )
-        RETURNING *
+        RETURNING id, name, color, created_at as createdAt, parent_id as parentId
       `)
 
       for (const tagData of tagsData) {
@@ -36,6 +36,7 @@ export class TagRepository {
           const newTag = insertStmt.get(
             tagData.name,
             tagData.color || null,
+            tagData.parentId || null,
             tagData.name,
           ) as TagModel | undefined
 
@@ -64,7 +65,8 @@ export class TagRepository {
         id,
         name,
         color,
-        created_at as createdAt
+        created_at as createdAt,
+        parent_id as parentId
       FROM tags
       WHERE id = ?
     `)
@@ -84,7 +86,8 @@ export class TagRepository {
         id,
         name,
         color,
-        created_at as createdAt
+        created_at as createdAt,
+        parent_id as parentId
       FROM tags
       WHERE name IN (${placeholders})
     `)
@@ -103,7 +106,8 @@ export class TagRepository {
         id,
         name,
         color,
-        created_at as createdAt
+        created_at as createdAt,
+        parent_id as parentId
       FROM tags 
       ORDER BY name
     `)
@@ -117,7 +121,8 @@ export class TagRepository {
         id,
         name,
         color,
-        created_at as createdAt
+        created_at as createdAt,
+        parent_id as parentId
       FROM tags 
       WHERE name LIKE ?
       ORDER BY name
@@ -127,10 +132,28 @@ export class TagRepository {
     return stmt.all(searchPattern) as TagModel[]
   }
 
+  getAllAncestors(tagIds: number[]): number[] {
+    if (tagIds.length === 0) return []
+    const placeholders = tagIds.map(() => '?').join(',')
+    const stmt = this.db.prepare(`
+      WITH RECURSIVE ancestors(id, parent_id) AS (
+        SELECT id, parent_id FROM tags WHERE id IN (${placeholders})
+        UNION ALL
+        SELECT t.id, t.parent_id FROM tags t
+        JOIN ancestors a ON t.id = a.parent_id
+      )
+      SELECT DISTINCT id FROM ancestors WHERE id IS NOT NULL
+    `)
+    const rows = stmt.all(...tagIds) as { id: number }[]
+    return rows.map(r => r.id)
+  }
+
   addTagsToImages(tagIds: number[], imageIds: number[]): void {
     if (tagIds.length === 0 || imageIds.length === 0) {
       return
     }
+
+    const resolvedTagIds = this.getAllAncestors(tagIds)
 
     const insertStmt = this.db.prepare(`
       INSERT OR IGNORE INTO image_tags (image_id, tag_id)
@@ -138,10 +161,36 @@ export class TagRepository {
     `)
 
     for (const imageId of imageIds) {
-      for (const tagId of tagIds) {
+      for (const tagId of resolvedTagIds) {
         insertStmt.run(imageId, tagId)
       }
     }
+  }
+
+  setParent(tagId: number, parentId: number | null): TagModel | undefined {
+    const stmt = this.db.prepare(`
+      UPDATE tags
+      SET parent_id = ?
+      WHERE id = ?
+      RETURNING id, name, color, created_at as createdAt, parent_id as parentId
+    `)
+
+    if (parentId !== null) {
+      if (tagId === parentId) {
+        throw new Error("A tag cannot be its own parent")
+      }
+      let currentParentId: number | null = parentId
+      while (currentParentId !== null) {
+        const parent = this.getTagById(currentParentId)
+        if (!parent) break
+        if (parent.parentId === tagId) {
+          throw new Error("Circular parent-child relationship detected")
+        }
+        currentParentId = parent.parentId || null
+      }
+    }
+
+    return stmt.get(parentId, tagId) as TagModel | undefined
   }
 
   removeTagsFromImages(tagIds: number[], imageIds: number[]): void {

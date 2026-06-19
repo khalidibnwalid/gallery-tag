@@ -1,4 +1,4 @@
-import { TagSelector } from '@/components/features/TagsSelector'
+import { TagSelector } from '@/components/features/tags/TagsSelector'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/lib/store/selection'
 import { ImageData } from '@/lib/types/image'

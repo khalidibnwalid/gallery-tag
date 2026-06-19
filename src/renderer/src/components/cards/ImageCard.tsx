@@ -17,7 +17,7 @@ import {
 } from '@phosphor-icons/react'
 import clsx from 'clsx'
 import { MouseEvent, useEffect, useRef, useState } from 'react'
-import { TagSelector } from '../features/TagsSelector'
+import { TagSelector } from '../features/tags/TagsSelector'
 import { Virtualize } from '../features/Virtualize'
 import { useFolder } from '../providers/FolderProvider'
 import {
@@ -203,10 +203,7 @@ function ImageBody({
       const startIndex = allImages.findIndex(
         img => img.filePath === image.filePath,
       )
-      openLighthouse(
-        allImages,
-        startIndex >= 0 ? startIndex : 0,
-      )
+      openLighthouse(allImages, startIndex >= 0 ? startIndex : 0)
     } else {
       openLighthouse([image], 0)
     }
@@ -474,13 +471,17 @@ function ImageContextMenu({
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
-            onClick={() => window.api.system.revealInFileExplorer(image.filePath)}
+            onClick={() =>
+              window.api.system.revealInFileExplorer(image.filePath)
+            }
           >
             <FolderOpenIcon className="size-5" />
             Show in System Explorer
           </ContextMenuItem>
           <ContextMenuItem
-            onClick={() => window.api.system.openPathInDefaultApp(image.filePath)}
+            onClick={() =>
+              window.api.system.openPathInDefaultApp(image.filePath)
+            }
           >
             <RocketLaunchIcon className="size-5" />
             Open with Default App
@@ -519,7 +520,9 @@ function ImageContextMenu({
         onOpenChange={setIsDeleteDialogOpen}
         title="Move to Trash"
         description={deleteMessage}
-        actionLabel={deleteCount === 1 ? 'Delete Image' : `Delete ${deleteCount} Images`}
+        actionLabel={
+          deleteCount === 1 ? 'Delete Image' : `Delete ${deleteCount} Images`
+        }
         onAction={handleDeleteAction}
       />
     </>
