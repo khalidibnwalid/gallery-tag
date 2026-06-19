@@ -177,14 +177,14 @@ export class TagRepository {
 
     if (parentId !== null) {
       if (tagId === parentId) {
-        throw new Error("A tag cannot be its own parent")
+        throw new Error('A tag cannot be its own parent')
       }
       let currentParentId: number | null = parentId
       while (currentParentId !== null) {
         const parent = this.getTagById(currentParentId)
         if (!parent) break
         if (parent.parentId === tagId) {
-          throw new Error("Circular parent-child relationship detected")
+          throw new Error('Circular parent-child relationship detected')
         }
         currentParentId = parent.parentId || null
       }
@@ -281,6 +281,7 @@ export class TagRepository {
           t.color,
           t.created_at as createdAt,
           t.parent_id as parentId,
+          COALESCE(t.global_usage_count, 0) as globalUsageCount,
           n.image_id as imageId,
           n.distance
         FROM nearest n
@@ -298,7 +299,11 @@ export class TagRepository {
         safeNeighborCount + 1,
         imageId,
         ...normalizedExcludedNames,
-      ) as (TagModel & { imageId: number; distance: number })[]
+      ) as (TagModel & {
+      imageId: number
+      distance: number
+      globalUsageCount: number
+    })[]
 
     if (neighborRows.length === 0) return []
 
@@ -313,37 +318,20 @@ export class TagRepository {
       .get() as { total: number } | undefined
     const totalImages = Math.max(totalImagesResult?.total || 0, 1)
 
-    const candidateTagIds = [...new Set(neighborRows.map(row => row.id))]
-    const tagFrequencyRows = this.db
-      .prepare(
-        `
-        SELECT it.tag_id as tagId, COUNT(DISTINCT it.image_id) as imageCount
-        FROM image_tags it
-        JOIN images i ON i.id = it.image_id
-        WHERE i.deleted_at IS NULL
-          AND it.tag_id IN (${candidateTagIds.map(() => '?').join(',')})
-        GROUP BY it.tag_id
-      `,
-      )
-      .all(...candidateTagIds) as { tagId: number; imageCount: number }[]
-
-    const globalTagFrequency = new Map(
-      tagFrequencyRows.map(row => [row.tagId, row.imageCount]),
-    )
-    const scores = new Map<number, SuggestedTag>()
+    const scores = new Map<
+      number,
+      SuggestedTag & { globalUsageCount: number }
+    >()
 
     for (const row of neighborRows) {
-      const similarity = Math.max(0, 1 - row.distance)
+      // Map cosine distance [0, 2] to similarity [0, 1]
+      const similarity = Math.max(0, Math.min(1, 1 - row.distance / 2))
       if (similarity <= 0) continue
 
       const existing = scores.get(row.id)
-      const globalImageCount = globalTagFrequency.get(row.id) || 0
-      const idf = Math.log((1 + totalImages) / (1 + globalImageCount)) + 1
-
       if (existing) {
         existing.similaritySum += similarity
         existing.usageCount += 1
-        existing.score = existing.similaritySum * idf
       } else {
         scores.set(row.id, {
           id: row.id,
@@ -353,13 +341,41 @@ export class TagRepository {
           parentId: row.parentId,
           similaritySum: similarity,
           usageCount: 1,
-          idf,
-          score: similarity * idf,
+          idf: 0,
+          score: 0,
+          globalUsageCount: row.globalUsageCount,
         })
       }
     }
 
-    return [...scores.values()]
+    const results: SuggestedTag[] = []
+    for (const candidate of scores.values()) {
+      const idf =
+        Math.log((1 + totalImages) / (1 + candidate.globalUsageCount)) + 1
+      // const score = candidate.similaritySum * localRatio * idf // OLD one
+
+      // AVERAGE_SIMILARITY = candidate.similaritySum / candidate.usageCount
+      // LOCAL_RATIO = candidate.usageCount / safeNeighborCount
+      // SCORE =  AVERAGE_SIMILARITY * LOCAL_RATION * idf
+      // TLDR: Score = Similer (How close?) x Density (How frequent?) x Rarity (How rare?)
+      // the score formula code below is the summed version of the one above, with the 'candidate.usageCount' of both gone (candidate.usageCount/candidate.usageCount = 1)
+
+      const score = (candidate.similaritySum / safeNeighborCount) * idf
+
+      results.push({
+        id: candidate.id,
+        name: candidate.name,
+        color: candidate.color,
+        createdAt: candidate.createdAt,
+        parentId: candidate.parentId,
+        similaritySum: candidate.similaritySum,
+        usageCount: candidate.usageCount,
+        idf,
+        score,
+      })
+    }
+
+    return results
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
       .slice(0, safeLimit)
   }
