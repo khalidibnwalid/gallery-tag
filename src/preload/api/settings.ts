@@ -14,6 +14,10 @@ export interface SettingsApi {
   
   regenerateThumbnails(folderPath: string): Promise<number>
   reindexImagesClip(folderPath: string): Promise<number>
+  clearModelIndex(modelId: string, folderPath: string): Promise<void>
+  deleteModel(modelId: string, folderPath: string): Promise<void>
+  partialReindex(folderPath: string): Promise<{ isUnused: boolean; missingCount: number }>
+  getIndexedModels(): Promise<string[]>
 }
 
 const settingsApi: SettingsApi = {
@@ -47,6 +51,22 @@ const settingsApi: SettingsApi = {
 
   reindexImagesClip(folderPath: string): Promise<number> {
     return ipcRenderer.invoke('settings:reindex-clip', folderPath)
+  },
+
+  clearModelIndex(modelId: string, folderPath: string): Promise<void> {
+    return ipcRenderer.invoke('settings:clear-model-index', modelId, folderPath)
+  },
+
+  deleteModel(modelId: string, folderPath: string): Promise<void> {
+    return ipcRenderer.invoke('settings:delete-model', modelId, folderPath)
+  },
+
+  partialReindex(folderPath: string): Promise<{ isUnused: boolean; missingCount: number }> {
+    return ipcRenderer.invoke('settings:partial-reindex', folderPath)
+  },
+
+  getIndexedModels(): Promise<string[]> {
+    return ipcRenderer.invoke('settings:get-indexed-models')
   },
 }
 

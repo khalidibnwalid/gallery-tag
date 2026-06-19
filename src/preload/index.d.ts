@@ -117,6 +117,10 @@ declare global {
         delete: (key: string) => Promise<void>
         regenerateThumbnails: (folderPath: string) => Promise<number>
         reindexImagesClip: (folderPath: string) => Promise<number>
+        clearModelIndex: (modelId: string, folderPath: string) => Promise<void>
+        deleteModel: (modelId: string, folderPath: string) => Promise<void>
+        partialReindex: (folderPath: string) => Promise<{ isUnused: boolean; missingCount: number }>
+        getIndexedModels: () => Promise<string[]>
       }
     }
   }
