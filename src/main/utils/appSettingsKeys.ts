@@ -19,6 +19,7 @@ export interface ClipModelConfig {
   id: string
   name: string
   dimension: number
+  processor?: string
   [key: string]: any
 }
 
@@ -40,6 +41,17 @@ export const CLIP_AVAILABLE_MODELS_DEFAULT: ClipModelConfig[] = [
   {
     id: 'Xenova/clip-vit-large-patch14',
     name: 'Xenova/clip-vit-large-patch14',
+    dimension: 768,
+  },
+  {
+    id: 'jinaai/jina-clip-v1',
+    name: 'jinaai/jina-clip-v1',
+    dimension: 768,
+    processor: 'Xenova/clip-vit-base-patch32',
+  },
+  {
+    id: 'Xenova/siglip-base-patch16-224',
+    name: 'Xenova/siglip-base-patch16-224',
     dimension: 768,
   },
 ]

@@ -5,10 +5,12 @@ import {
   CLIPTextModelWithProjection,
   RawImage,
   env,
-  Processor,
-  PreTrainedTokenizer,
   PretrainedProcessorOptions,
   PretrainedModelOptions,
+  SiglipVisionModel,
+  SiglipTextModel,
+  Processor,
+  PreTrainedTokenizer,
 } from '@huggingface/transformers'
 import { join } from 'path'
 import { notifier } from './notifier.service'
@@ -50,7 +52,7 @@ class ClipService {
   private initPromise: Promise<void> | null = null
   private modelName = CLIP_DEFAULT_MODEL
   private modelDimension = 512
-
+  private modelProcessor: string | null = null
 
   loadSettingsFromDb(db: Database.Database): void {
     const repo = new AppSettingsRepository(db)
@@ -77,6 +79,7 @@ class ClipService {
     ) || CLIP_AVAILABLE_MODELS_DEFAULT) as ClipModelConfig[]
     const matchedModel = modelsConfig.find(m => m.id === this.modelName)
     this.modelDimension = matchedModel ? matchedModel.dimension : 512
+    this.modelProcessor = matchedModel?.processor || null
   }
 
   /**
@@ -211,26 +214,57 @@ class ClipService {
           payload: { status: 'loading' },
         })
 
-        this.processor = await AutoProcessor.from_pretrained(this.modelName, {
-          token: null,
-        } as PretrainedProcessorOptions & { token: string | null })
-        this.visionModel = await CLIPVisionModelWithProjection.from_pretrained(
-          this.modelName,
+        const isSiglip = this.modelName.includes('siglip')
+
+        const processorModelName = this.modelProcessor || this.modelName
+
+        this.processor = await AutoProcessor.from_pretrained(
+          processorModelName,
           {
-            dtype: 'q8',
             token: null,
-          } as PretrainedModelOptions & { token: string | null },
+          } as PretrainedProcessorOptions & { token: string | null },
         )
+
+        if (isSiglip) {
+          this.visionModel = await SiglipVisionModel.from_pretrained(
+            this.modelName,
+            {
+              dtype: 'q8',
+              token: null,
+            } as PretrainedModelOptions & { token: string | null },
+          )
+        } else {
+          this.visionModel =
+            await CLIPVisionModelWithProjection.from_pretrained(
+              this.modelName,
+              {
+                dtype: 'q8',
+                token: null,
+              } as PretrainedModelOptions & { token: string | null },
+            )
+        }
+
         this.tokenizer = await AutoTokenizer.from_pretrained(this.modelName, {
           token: null,
         } as PretrainedProcessorOptions & { token: string | null })
-        this.textModel = await CLIPTextModelWithProjection.from_pretrained(
-          this.modelName,
-          {
-            dtype: 'q8',
-            token: null,
-          } as PretrainedModelOptions & { token: string | null },
-        )
+
+        if (isSiglip) {
+          this.textModel = await SiglipTextModel.from_pretrained(
+            this.modelName,
+            {
+              dtype: 'q8',
+              token: null,
+            } as PretrainedModelOptions & { token: string | null },
+          )
+        } else {
+          this.textModel = await CLIPTextModelWithProjection.from_pretrained(
+            this.modelName,
+            {
+              dtype: 'q8',
+              token: null,
+            } as PretrainedModelOptions & { token: string | null },
+          )
+        }
 
         this.initialized = true
         console.log('CLIP models loaded successfully')
@@ -289,7 +323,7 @@ class ClipService {
       throw new Error('CLIP service not initialized')
     }
     const textInputs = await this.tokenizer([text], {
-      padding: true,
+      padding: this.modelName.includes('siglip') ? 'max_length' : true,
       truncation: true,
     })
     const outputs = await this.textModel(textInputs)
