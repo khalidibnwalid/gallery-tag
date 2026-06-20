@@ -192,8 +192,11 @@ export function TagsExplorerProvider({ children }: { children: React.ReactNode }
   }
 
   const handleRename = (tag: { id: number; name: string }) => {
-    setRenamingTagId(tag.id)
-    setRenameValue(tag.name)
+    // Delay slightly to let the context menu close and finish focus restoration
+    setTimeout(() => {
+      setRenamingTagId(tag.id)
+      setRenameValue(tag.name)
+    }, 50)
   }
 
   const submitRename = () => {

@@ -17,6 +17,7 @@ export function TagTreeItem({
   const {
     selectedTags,
     excludedTags,
+    renamingTagId,
     dragOverId,
     handleDragStart,
     handleDragOver,
@@ -47,27 +48,32 @@ export function TagTreeItem({
     !isParentOfHovered &&
     isDescendant(node.id, hoveredTagId)
 
+  const isRenaming = renamingTagId === node.id
+
   return (
     <>
       <div
-        draggable
-        onDragStart={e => handleDragStart(e, node.id)}
-        onDragOver={e => handleDragOver(e, node.id)}
-        onDragLeave={handleDragLeave}
-        onDrop={e => handleDrop(e, node.id)}
-        onDragEnd={handleDragEnd}
+        draggable={!isRenaming}
+        onDragStart={isRenaming ? undefined : e => handleDragStart(e, node.id)}
+        onDragOver={isRenaming ? undefined : e => handleDragOver(e, node.id)}
+        onDragLeave={isRenaming ? undefined : handleDragLeave}
+        onDrop={isRenaming ? undefined : e => handleDrop(e, node.id)}
+        onDragEnd={isRenaming ? undefined : handleDragEnd}
         onMouseEnter={() => {
-          if (!isDragging && hoveredTagId !== node.id) {
+          if (!isRenaming && !isDragging && hoveredTagId !== node.id) {
             setHoveredTagId(node.id)
           }
         }}
         onMouseLeave={() => {
-          if (!isDragging && hoveredTagId === node.id) {
+          if (!isRenaming && !isDragging && hoveredTagId === node.id) {
             setHoveredTagId(null)
           }
         }}
         className={cn(
-          'py-2 inline-flex items-center gap-0 bg-primary/5 rounded-full border border-border/30 p-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing select-none hover:bg-primary/10',
+          'py-2 inline-flex items-center gap-0 bg-primary/5 rounded-full border border-border/30 p-0.5 transition-all duration-200 hover:bg-primary/10',
+          isRenaming
+            ? 'cursor-default select-text'
+            : 'cursor-grab active:cursor-grabbing select-none',
           isSelected && 'bg-primary! text-primary-foreground border-primary',
           isExcluded && 'bg-destructive! text-destructive-foreground border-destructive',
           isDragOver && 'border-primary ring-2 ring-primary/45 scale-105',

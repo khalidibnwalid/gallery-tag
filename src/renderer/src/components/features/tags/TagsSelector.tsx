@@ -7,8 +7,9 @@ import {
 import { ImageData } from '@/lib/types/image'
 import { TagData } from '@/lib/types/tag'
 import { PlusIcon, SparkleIcon, TagIcon } from '@phosphor-icons/react'
+import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../ui/button'
 import { Input } from '../../ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover'
@@ -36,10 +37,23 @@ const getAncestors = (tagId: number, allTags: TagData[]): number[] => {
 export function TagSelector({ children, currentTags = [], imageIds }: Props) {
   imageIds = Array.isArray(imageIds) ? imageIds : [imageIds]
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const queryClient = useQueryClient()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+
+  const pendingAdditionsRef = useRef<
+    Map<TagData['id'] | string, TagData | string>
+  >(new Map())
+  const pendingRemovalsRef = useRef<Set<TagData['id']>>(new Set())
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const imageIdsRef = useRef(imageIds)
+  useEffect(() => {
+    imageIdsRef.current = imageIds
+  }, [imageIds])
+
   const { data: allTags = [], isLoading } = useTags()
   const singleImageId = imageIds.length === 1 ? imageIds[0] : undefined
   const { data: suggestedTags = [], isLoading: isSuggestionsLoading } =
@@ -51,7 +65,10 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
 
   const currentTagsKey = currentTags.join(',')
   const currentTagsData = useMemo(() => {
-    return (allTags?.filter(tag => currentTags.includes(tag.name)) as TagData[]) || []
+    return (
+      (allTags?.filter(tag => currentTags.includes(tag.name)) as TagData[]) ||
+      []
+    )
   }, [allTags, currentTagsKey])
 
   const filteredTags = useMemo(
@@ -75,23 +92,17 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
     ]
   }, [filteredTags, searchQuery, suggestedTags])
 
-  // for user feedback purposes
-  // the addedTagsIds is not needed since we got currentTags, but it's easier this way using Set.has(id) method
-  const [addedTagsIds, setAddedTagsIds] = useState<Set<TagData['id']>>(() => {
-    const initialSet = new Set<TagData['id']>()
-    currentTagsData.forEach(tag => {
-      initialSet.add(tag.id)
-      let currentParentId: number | undefined = tag.parentId ?? undefined
-      while (currentParentId) {
-        initialSet.add(currentParentId)
-        const parentTag = allTags.find(t => t.id === currentParentId)
-        currentParentId = parentTag?.parentId ?? undefined
-      }
-    })
-    return initialSet
-  })
-  const [deletedTagsIds, setDeletedTagsIds] = useState<Set<TagData['id']>>(
-    new Set(),
+  const [selectedTagsIds, setSelectedTagsIds] = useState<Set<TagData['id']>>(
+    () => {
+      const initialSet = new Set<TagData['id']>()
+      currentTagsData.forEach(tag => {
+        initialSet.add(tag.id)
+        getAncestors(tag.id, allTags).forEach(ancestorId =>
+          initialSet.add(ancestorId),
+        )
+      })
+      return initialSet
+    },
   )
 
   // all selectable options (tags + create option)
@@ -103,65 +114,180 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
       : []),
   ]
 
-  const { mutateAsync: addTagsAsync, isPending: isAddingPending } =
-    useAddTagsToImageMutation({
-      onSuccess: tags => {
-        setAddedTagsIds(prev => {
-          const next = new Set(prev)
-          tags.forEach(tag => {
-            next.add(tag.id)
-            getAncestors(tag.id, allTags).forEach(ancestorId => next.add(ancestorId))
-          })
-          return next
-        })
-        setDeletedTagsIds(prev => {
-          const next = new Set(prev)
-          tags.forEach(tag => {
-            next.delete(tag.id)
-            getAncestors(tag.id, allTags).forEach(ancestorId => next.delete(ancestorId))
-          })
-          return next
-        })
-      },
-    })
+  const { mutateAsync: addTagsAsync } = useAddTagsToImageMutation()
+  const { mutateAsync: removeTagsAsync } = useRemoveTagsFromImageMutation()
 
-  const { mutateAsync: removeTagsAsync, isPending: isRemovingPending } =
-    useRemoveTagsFromImageMutation({
-      onSuccess: ({ tagIds }) => {
-        setDeletedTagsIds(prev => new Set([...prev, ...tagIds]))
-        setAddedTagsIds(prev => {
-          const next = new Set(prev)
-          tagIds.forEach(id => next.delete(id))
-          return next
-        })
-      },
-    })
+  const isBusy = isLoading || isSuggestionsLoading
 
-  const isPending = isAddingPending || isRemovingPending
-  const isBusy = isPending || isLoading || isSuggestionsLoading
+  const flushPendingChanges = useCallback(async () => {
+    const additions = Array.from(pendingAdditionsRef.current.values())
+    const removals = Array.from(pendingRemovalsRef.current)
 
-  const onTagSelect = async (tag: TagData | string) => {
-    if (isPending || (typeof tag === 'string' && !tag.trim())) return
-    // Create new tag
-    if (typeof tag === 'string') {
+    if (additions.length === 0 && removals.length === 0) return
+
+    pendingAdditionsRef.current = new Map()
+    pendingRemovalsRef.current = new Set()
+
+    const currentImageIds = Array.isArray(imageIdsRef.current)
+      ? imageIdsRef.current
+      : [imageIdsRef.current]
+
+    if (additions.length > 0) {
+      const tagsPayload = additions.map(tag =>
+        typeof tag === 'string' ? { name: tag } : tag,
+      )
       await addTagsAsync({
-        tags: [{ name: tag }],
-        imageIds,
+        tags: tagsPayload,
+        imageIds: currentImageIds,
       })
-      return
     }
 
-    if (addedTagsIds.has(tag.id)) {
+    if (removals.length > 0) {
       await removeTagsAsync({
-        tagIds: [tag.id],
-        imageIds,
-      })
-    } else {
-      await addTagsAsync({
-        tags: [tag],
-        imageIds,
+        tagIds: removals,
+        imageIds: currentImageIds,
       })
     }
+  }, [addTagsAsync, removeTagsAsync])
+
+  const optimisticallyUpdateImageTags = useCallback(
+    (tag: TagData | string, isAdding: boolean) => {
+      const tagNamesToUpdate = new Set<string>()
+      if (typeof tag === 'string') {
+        tagNamesToUpdate.add(tag)
+      } else {
+        tagNamesToUpdate.add(tag.name)
+        if (isAdding) {
+          getAncestors(tag.id, allTags).forEach(ancestorId => {
+            const ancestorTag = allTags.find(t => t.id === ancestorId)
+            if (ancestorTag) {
+              tagNamesToUpdate.add(ancestorTag.name)
+            }
+          })
+        }
+      }
+
+      const idsSet = new Set(
+        Array.isArray(imageIdsRef.current)
+          ? imageIdsRef.current
+          : [imageIdsRef.current],
+      )
+
+      queryClient.setQueriesData({ queryKey: ['images'] }, (oldData: any) => {
+        if (!oldData) return oldData
+
+        const updateImage = (image: ImageData) => {
+          if (!idsSet.has(image.id)) return image
+
+          const currentTagsList = image.tags
+            ? image.tags.split(',').map(t => t.trim())
+            : []
+
+          let newTagsString = image.tags
+
+          if (isAdding) {
+            const toAdd = Array.from(tagNamesToUpdate).filter(
+              name => !currentTagsList.includes(name),
+            )
+            if (toAdd.length > 0) {
+              newTagsString = image.tags
+                ? `${image.tags}, ${toAdd.join(', ')}`
+                : toAdd.join(', ')
+            }
+          } else {
+            const updatedTags = currentTagsList.filter(
+              name => !tagNamesToUpdate.has(name),
+            )
+            newTagsString = updatedTags.join(', ') || undefined
+          }
+
+          return {
+            ...image,
+            tags: newTagsString,
+          }
+        }
+
+        if (
+          typeof oldData === 'object' &&
+          'pages' in oldData &&
+          Array.isArray(oldData.pages)
+        ) {
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page: any) => {
+              if (Array.isArray(page)) {
+                return page.map(updateImage)
+              } else if (
+                page &&
+                typeof page === 'object' &&
+                Array.isArray(page.data)
+              ) {
+                return {
+                  ...page,
+                  data: page.data.map(updateImage),
+                }
+              }
+              return page
+            }),
+          }
+        } else if (Array.isArray(oldData)) {
+          return oldData.map(updateImage)
+        }
+
+        return oldData
+      })
+    },
+    [allTags, queryClient],
+  )
+
+  const onTagSelect = (tag: TagData | string) => {
+    if (typeof tag === 'string' && !tag.trim()) return
+
+    if (typeof tag === 'string') {
+      pendingAdditionsRef.current.set(tag, tag)
+      setSearchQuery('')
+      optimisticallyUpdateImageTags(tag, true)
+    } else {
+      const isSelected = selectedTagsIds.has(tag.id)
+      if (isSelected) {
+        setSelectedTagsIds(prev => {
+          const next = new Set(prev)
+          next.delete(tag.id)
+          return next
+        })
+
+        if (pendingAdditionsRef.current.has(tag.id)) {
+          pendingAdditionsRef.current.delete(tag.id)
+        } else {
+          pendingRemovalsRef.current.add(tag.id)
+        }
+        optimisticallyUpdateImageTags(tag, false)
+      } else {
+        setSelectedTagsIds(prev => {
+          const next = new Set(prev)
+          next.add(tag.id)
+          getAncestors(tag.id, allTags).forEach(ancestorId =>
+            next.add(ancestorId),
+          )
+          return next
+        })
+
+        if (pendingRemovalsRef.current.has(tag.id)) {
+          pendingRemovalsRef.current.delete(tag.id)
+        } else {
+          pendingAdditionsRef.current.set(tag.id, tag)
+        }
+        optimisticallyUpdateImageTags(tag, true)
+      }
+    }
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+
+    timerRef.current = setTimeout(() => {
+      flushPendingChanges()
+    }, 500)
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -218,18 +344,34 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
   useEffect(() => {
     if (open) return
 
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    flushPendingChanges()
+
     setSearchQuery('')
     setSelectedIndex(-1)
 
     const initialSet = new Set<TagData['id']>()
     currentTagsData.forEach(tag => {
       initialSet.add(tag.id)
-      getAncestors(tag.id, allTags).forEach(ancestorId => initialSet.add(ancestorId))
+      getAncestors(tag.id, allTags).forEach(ancestorId =>
+        initialSet.add(ancestorId),
+      )
     })
 
-    setAddedTagsIds(initialSet)
-    setDeletedTagsIds(new Set())
-  }, [open, currentTagsData, allTags])
+    setSelectedTagsIds(initialSet)
+  }, [open, currentTagsData, allTags, flushPendingChanges])
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+      flushPendingChanges()
+    }
+  }, [flushPendingChanges])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -266,8 +408,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
                 )) ? (
               <div className="flex flex-wrap gap-2">
                 {displayedTags.map((tag, index) => {
-                  const isAdded = addedTagsIds.has(tag.id)
-                  const isDeleted = deletedTagsIds.has(tag.id)
+                  const isSelected = selectedTagsIds.has(tag.id)
                   const isSuggested =
                     !searchQuery.trim() &&
                     suggestedTags.some(suggested => suggested.id === tag.id)
@@ -282,19 +423,17 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
                       size="sm"
                       className={clsx(
                         'h-8 max-w-full justify-start gap-1.5 bg-primary/5  hover:opacity-70 rounded-full px-3 font-bold',
-                        isAdded && 'bg-success! text-foreground',
-                        isDeleted && 'bg-destructive! text-foreground',
+                        isSelected && 'bg-success! text-foreground',
                       )}
                       onClick={() => onTagSelect(tag)}
-                      disabled={isPending}
                     >
-                      {isSuggested && !isAdded && (
+                      {isSuggested && !isSelected && (
                         <SparkleIcon
                           className="size-3.5 shrink-0"
                           weight="bold"
                         />
                       )}
-                      {!isSuggested && !isAdded && (
+                      {!isSuggested && !isSelected && (
                         <PlusIcon className="size-3.5 shrink-0" weight="bold" />
                       )}
                       <span className="min-w-0 truncate">{tag.name}</span>
