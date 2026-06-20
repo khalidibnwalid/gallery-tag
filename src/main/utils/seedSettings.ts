@@ -51,6 +51,11 @@ export function seedAppSettings(db: Database.Database): void {
     CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT,
     'number',
   )
+  seedIfMissing(
+    APP_SETTING_KEYS.CLIP_ENABLED,
+    true,
+    'boolean',
+  )
   // THUMBNAIL_QUALITY is nullable – store as 'null' string so it round-trips cleanly
   seedIfMissing(
     APP_SETTING_KEYS.THUMBNAIL_QUALITY,

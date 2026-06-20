@@ -71,6 +71,15 @@ declare global {
           icon: string | null,
           color: string | null,
         ) => Promise<void>
+        isNew: (folderPath: string) => Promise<boolean>
+        initWithSettings: (
+          folderPath: string,
+          settings: {
+            aiEnabled: boolean
+            clipModel: string
+            thumbnailQuality: number | null
+          },
+        ) => Promise<void>
       }
 
       tags: {

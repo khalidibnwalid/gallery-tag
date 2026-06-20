@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useFolder } from './FolderProvider'
 
 export interface ImageFilter {
   text: string
@@ -59,6 +60,7 @@ interface SearchProvider {
 const SearchContext = createContext({} as SearchProvider)
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
+  const { folderPath } = useFolder()
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [filterPath, setFilterPath] = useState<string | null>(null)
@@ -113,6 +115,10 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setSortBy('fileName')
     setSortOrder('asc')
   }
+
+  useEffect(() => {
+    clearSearch()
+  }, [folderPath])
 
   return (
     <SearchContext.Provider

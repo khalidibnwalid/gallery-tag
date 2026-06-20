@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
+import { Switch } from '@/components/ui/switch'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,6 +40,7 @@ import {
 
 export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
   const [loading, setLoading] = useState(true)
+  const [aiEnabled, setAiEnabled] = useState<boolean>(true)
   const [clipModels, setClipModels] = useState<ClipModelConfig[]>([])
   const [currentModel, setCurrentModel] = useState<string>('')
   const [localTextThreshold, setLocalTextThreshold] = useState<number>(0.2)
@@ -53,6 +55,9 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
       if (!window.api?.settings) return
       try {
         setLoading(true)
+        const enabledVal = await window.api.settings.getValue<boolean>(
+          APP_SETTING_KEYS.CLIP_ENABLED,
+        )
         const models = await window.api.settings.getValue<ClipModelConfig[]>(
           APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
         )
@@ -65,6 +70,8 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
         const imgThresh = await window.api.settings.getValue<number>(
           APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD,
         )
+
+        setAiEnabled(enabledVal !== undefined ? enabledVal : true)
 
         let finalModels = models
         if (!finalModels || finalModels.length === 0) {
@@ -97,6 +104,31 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
     }
     loadAiSearchSettings()
   }, [folderPath])
+
+  const updateAiEnabled = async (checked: boolean) => {
+    if (!window.api?.settings) return
+    try {
+      setAiEnabled(checked)
+      await window.api.settings.set(
+        APP_SETTING_KEYS.CLIP_ENABLED,
+        checked,
+        'boolean',
+      )
+      queryClient.invalidateQueries({ queryKey: ['images'] })
+      queryClient.invalidateQueries({ queryKey: ['settings', 'clip-enabled'] })
+      toast.success(`AI features ${checked ? 'enabled' : 'disabled'}`)
+      if (checked) {
+        partialReindexMutation.mutate(undefined, {
+          onSuccess: () => {
+            refetchIndexedModels()
+          },
+        })
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error('Failed to update AI setting.')
+    }
+  }
 
   const updateCurrentModel = async (model: string) => {
     if (!window.api?.settings) return
@@ -167,53 +199,71 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
 
   return (
     <div className="border border-border/40 bg-card/20 backdrop-blur-md rounded-2xl p-6 space-y-6 shadow-xs">
-      <div className="space-y-1">
-        <h2 className="text-lg font-bold text-foreground">AI Image Search</h2>
-        <p className="text-sm text-muted-foreground">
-          Configure local CLIP AI model criteria and similarity matching
-          thresholds.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-foreground">AI Image Search</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure local CLIP AI model criteria and similarity matching
+            thresholds.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-muted-foreground font-semibold">Enable AI Features</span>
+          <Switch
+            checked={aiEnabled}
+            onCheckedChange={updateAiEnabled}
+          />
+        </div>
       </div>
 
-      <div className="space-y-6">
-        {/* Model Selection Dropdown & Custom Model Form */}
-        <ModelSelectorSection
-          folderPath={folderPath}
-          clipModels={clipModels}
-          setClipModels={setClipModels}
-          currentModel={currentModel}
-          updateCurrentModel={updateCurrentModel}
-        />
+      {aiEnabled ? (
+        <div className="space-y-6 animate-fade-in">
+          {/* Model Selection Dropdown & Custom Model Form */}
+          <ModelSelectorSection
+            folderPath={folderPath}
+            clipModels={clipModels}
+            setClipModels={setClipModels}
+            currentModel={currentModel}
+            updateCurrentModel={updateCurrentModel}
+          />
 
-        {/* Model Index Management Section */}
-        <ModelIndexManagementSection
-          folderPath={folderPath}
-          clipModels={clipModels}
-          setClipModels={setClipModels}
-          currentModel={currentModel}
-          setCurrentModel={setCurrentModel}
-        />
+          {/* Model Index Management Section */}
+          <ModelIndexManagementSection
+            folderPath={folderPath}
+            clipModels={clipModels}
+            setClipModels={setClipModels}
+            currentModel={currentModel}
+            setCurrentModel={setCurrentModel}
+          />
 
-        {/* Text-to-Image Threshold Section */}
-        <TextThresholdSection
-          localTextThreshold={localTextThreshold}
-          setLocalTextThreshold={setLocalTextThreshold}
-          updateTextThreshold={updateTextThreshold}
-        />
+          {/* Text-to-Image Threshold Section */}
+          <TextThresholdSection
+            localTextThreshold={localTextThreshold}
+            setLocalTextThreshold={setLocalTextThreshold}
+            updateTextThreshold={updateTextThreshold}
+          />
 
-        {/* Image-to-Image Threshold Section */}
-        <ImageThresholdSection
-          localImageThreshold={localImageThreshold}
-          setLocalImageThreshold={setLocalImageThreshold}
-          updateImageThreshold={updateImageThreshold}
-        />
-      </div>
+          {/* Image-to-Image Threshold Section */}
+          <ImageThresholdSection
+            localImageThreshold={localImageThreshold}
+            setLocalImageThreshold={setLocalImageThreshold}
+            updateImageThreshold={updateImageThreshold}
+          />
 
-      {/* Full Gallery Re-indexing Footer */}
-      <ReindexGallerySection
-        folderPath={folderPath}
-        refetchIndexedModels={refetchIndexedModels}
-      />
+          {/* Full Gallery Re-indexing Footer */}
+          <ReindexGallerySection
+            folderPath={folderPath}
+            refetchIndexedModels={refetchIndexedModels}
+          />
+        </div>
+      ) : (
+        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-xs text-amber-500 flex items-start gap-2 animate-fade-in">
+          <SparkleIcon className="size-4 shrink-0 mt-0.5" />
+          <span>
+            AI features are currently disabled for this folder. Enable them to activate natural language text-to-image search, image-to-image similarity matching, and auto tag suggestions.
+          </span>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,8 +5,9 @@ import { SuggestedTagData, TagData } from '../types/tag'
 import QUERIES from './constants'
 
 export function useTags() {
+  const { folderPath } = useFolder()
   return useQuery<TagData[]>({
-    queryKey: QUERIES.TAGS(),
+    queryKey: QUERIES.TAGS(folderPath ?? undefined),
     queryFn: async () => {
       if (!window.api || !window.api.tags.getAll) {
         throw new Error('Tags API not available')
@@ -15,12 +16,14 @@ export function useTags() {
       return tags
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!folderPath,
   })
 }
 
 export function useTagsSearchQuery(query: string, enabled: boolean = true) {
+  const { folderPath } = useFolder()
   return useQuery<TagData[]>({
-    queryKey: QUERIES.TAGS_SEARCH(query),
+    queryKey: QUERIES.TAGS_SEARCH(folderPath ?? undefined, query),
     queryFn: async () => {
       if (!window.api || !window.api.tags.getBySearch) {
         throw new Error('Tag search API not available')
@@ -29,7 +32,7 @@ export function useTagsSearchQuery(query: string, enabled: boolean = true) {
       return tags
     },
     staleTime: 30 * 1000, // 30 seconds
-    enabled: enabled && !!query.trim(),
+    enabled: enabled && !!folderPath && !!query.trim(),
   })
 }
 
@@ -42,8 +45,9 @@ export function useSuggestedTagsQuery({
   currentTags?: string[]
   enabled?: boolean
 }) {
+  const { folderPath } = useFolder()
   return useQuery<SuggestedTagData[]>({
-    queryKey: QUERIES.TAGS_SUGGESTIONS(imageId, currentTags),
+    queryKey: QUERIES.TAGS_SUGGESTIONS(folderPath ?? undefined, imageId, currentTags),
     queryFn: async () => {
       if (!imageId) return []
       if (!window.api || !window.api.tags.getSuggestions) {
@@ -59,7 +63,7 @@ export function useSuggestedTagsQuery({
     },
     staleTime: 0,
     gcTime: 0,
-    enabled: enabled && !!imageId,
+    enabled: enabled && !!folderPath && !!imageId,
   })
 }
 

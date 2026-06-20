@@ -26,6 +26,17 @@ const foldersApi = {
     color: string | null,
   ): Promise<void> =>
     ipcRenderer.invoke('folders:customize', folderId, icon, color),
+  isNew: (folderPath: string): Promise<boolean> =>
+    ipcRenderer.invoke('folders:is-new', folderPath),
+  initWithSettings: (
+    folderPath: string,
+    settings: {
+      aiEnabled: boolean
+      clipModel: string
+      thumbnailQuality: number | null
+    },
+  ): Promise<void> =>
+    ipcRenderer.invoke('folders:init-with-settings', folderPath, settings),
 }
 
 export default foldersApi

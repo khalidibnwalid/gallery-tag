@@ -111,3 +111,17 @@ export function useReindexClipMutation(folderPath: string) {
     },
   })
 }
+
+export function useClipEnabled(folderPath: string | null) {
+  return useQuery<boolean>({
+    queryKey: ['settings', 'clip-enabled', folderPath],
+    queryFn: async () => {
+      if (!folderPath || !window.api || !window.api.settings.getValue) return true
+      const val = await window.api.settings.getValue<boolean>('clip.enabled')
+      return val !== undefined ? val : true
+    },
+    enabled: !!folderPath,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+

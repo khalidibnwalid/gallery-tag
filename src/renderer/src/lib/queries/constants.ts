@@ -17,15 +17,25 @@ const QUERIES = {
     folderPath
       ? (['images', 'similar', filePath, folderPath] as const)
       : (['images', 'similar', filePath] as const),
-  TAGS: () => ['tags'] as const,
-  TAGS_SEARCH: (query?: string) =>
-    query
-      ? (['tags', 'search', query] as const)
-      : (['tags', 'search'] as const),
-  TAGS_SUGGESTIONS: (imageId?: number, currentTags?: string[]) =>
-    imageId
-      ? (['tags', 'suggestions', imageId, currentTags] as const)
-      : (['tags', 'suggestions'] as const),
+  TAGS: (folderPath?: string) =>
+    folderPath ? (['tags', folderPath] as const) : (['tags'] as const),
+  TAGS_SEARCH: (folderPath?: string, query?: string) => {
+    const key: (number | string)[] = ['tags', 'search']
+    if (folderPath) key.push(folderPath)
+    if (query) key.push(query)
+    return key as readonly (number | string)[]
+  },
+  TAGS_SUGGESTIONS: (
+    folderPath?: string,
+    imageId?: number,
+    currentTags?: string[],
+  ) => {
+    const key: (number | string | string[])[] = ['tags', 'suggestions']
+    if (folderPath) key.push(folderPath)
+    if (imageId) key.push(imageId)
+    if (currentTags) key.push(currentTags)
+    return key as readonly (number | string | string[])[]
+  },
 }
 
 export default QUERIES

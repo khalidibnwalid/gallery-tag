@@ -6,6 +6,7 @@ import { useSearch } from '@/components/providers/SearchProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import useDebounce from '@/lib/hooks/useDebounce'
+import { useClipEnabled } from '@/lib/queries/settings'
 import {
   useCreateTagMutation,
   useTags,
@@ -15,6 +16,7 @@ import { TagData } from '@/lib/types/tag'
 import { cn } from '@/lib/utils'
 import {
   CameraIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   SparkleIcon,
   TagIcon,
@@ -52,8 +54,20 @@ export default function SearchBar() {
     clearSearch,
   } = useSearch()
   const { folderPath } = useFolder()
+  const { data: aiEnabledSetting = true } = useClipEnabled(folderPath)
 
   const [searchMode, setSearchMode] = useState<'keyword' | 'ai'>('keyword')
+
+  useEffect(() => {
+    if (!aiEnabledSetting && searchMode === 'ai') {
+      setSearchMode('keyword')
+      _setSearchValue('')
+      setSearchQuery('')
+      setAiSearchText('')
+      setAiSearchImage(null)
+      setIsSearching(false)
+    }
+  }, [aiEnabledSetting, searchMode])
   const [isOpen, setIsOpen] = useState(false)
   const [searchValue, _setSearchValue] = useState('')
 
@@ -66,7 +80,7 @@ export default function SearchBar() {
   // Clipboard Paste Handler
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
-      if (!folderPath) return
+      if (!folderPath || !aiEnabledSetting) return
 
       // 1. Try to check for file uri-list first (copied file from File explorer)
       const uriList = e.clipboardData?.getData('text/uri-list')
@@ -126,7 +140,7 @@ export default function SearchBar() {
     return () => {
       window.removeEventListener('paste', handlePaste)
     }
-  }, [folderPath])
+  }, [folderPath, aiEnabledSetting])
 
   const setSearchValue = (value: string) => {
     _setSearchValue(value)
@@ -239,7 +253,7 @@ export default function SearchBar() {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!folderPath) return
+    if (!folderPath || !aiEnabledSetting) return
     setIsDragging(true)
     setIsSearchDragging(true)
   }
@@ -256,7 +270,7 @@ export default function SearchBar() {
     e.stopPropagation()
     setIsDragging(false)
     setIsSearchDragging(false)
-    if (!folderPath) return
+    if (!folderPath || !aiEnabledSetting) return
     const file = e.dataTransfer.files?.[0]
     if (file) {
       const isImg =
@@ -316,7 +330,7 @@ export default function SearchBar() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {isDragging && (
+      {isDragging && aiEnabledSetting && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-xl backdrop-blur-xs pointer-events-none animate-pulse">
           <CameraIcon size={32} weight="fill" className="text-primary mb-2" />
           <span className="text-sm font-semibold text-primary">
@@ -350,28 +364,32 @@ export default function SearchBar() {
         onBlur={() => setTimeout(() => setIsOpen(false), 150)}
         startContent={
           <div className="flex items-center gap-2 select-none">
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!folderPath}
-              onClick={toggleSearchMode}
-              className={cn(
-                'size-8 rounded-md transition-all duration-300',
-                searchMode === 'ai'
-                  ? 'bg-primary/25 text-primary hover:bg-primary/40 hover:text-primary shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-              )}
-              title={
-                searchMode === 'ai'
-                  ? 'Switch to Keyword Search'
-                  : 'Switch to AI Semantic Search'
-              }
-            >
-              <SparkleIcon
-                size={18}
-                weight={searchMode === 'ai' ? 'fill' : 'regular'}
-              />
-            </Button>
+            {aiEnabledSetting ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!folderPath}
+                onClick={toggleSearchMode}
+                className={cn(
+                  'size-8 rounded-md transition-all duration-300',
+                  searchMode === 'ai'
+                    ? 'bg-primary/25 text-primary hover:bg-primary/40 hover:text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+                title={
+                  searchMode === 'ai'
+                    ? 'Switch to Keyword Search'
+                    : 'Switch to AI Semantic Search'
+                }
+              >
+                <SparkleIcon
+                  size={18}
+                  weight={searchMode === 'ai' ? 'fill' : 'regular'}
+                />
+              </Button>
+            ) : (
+              <MagnifyingGlassIcon className="size-6" />
+            )}
 
             {aiSearchImage && (
               <button

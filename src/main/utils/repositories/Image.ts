@@ -28,7 +28,7 @@ function makeMapImageRow(rootPath: string) {
 
 export class ImageRepository {
   constructor(
-    private db: Database.Database,
+    public readonly db: Database.Database,
     private rootPath: string,
   ) {}
 

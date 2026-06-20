@@ -8,6 +8,8 @@ export const APP_SETTING_KEYS = {
   CLIP_TEXT_TO_IMAGE_THRESHOLD: 'clip.text_to_image_threshold',
   // Cosine-similarity threshold for image-to-image search (0–1, higher = stricter)
   CLIP_IMAGE_TO_IMAGE_THRESHOLD: 'clip.image_to_image_threshold',
+  // Enable or disable CLIP AI indexing entirely
+  CLIP_ENABLED: 'clip.enabled',
 
   // Thumbnails
   // WebP quality for generated thumbnails (1–100).

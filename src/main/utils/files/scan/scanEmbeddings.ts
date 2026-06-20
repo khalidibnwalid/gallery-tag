@@ -6,6 +6,7 @@ import {
 } from '@main/types/constants.shared'
 import { CONFIG_DIR } from '@main/utils/files/config'
 import { ImageRepository } from '@main/utils/repositories/Image'
+import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
 import { join } from 'path'
 
 const activeScans = new Set<string>()
@@ -15,6 +16,13 @@ export function scanEmbeddings(
   imageRepo: ImageRepository,
   folderPath: string,
 ): void {
+  const settingsRepo = new AppSettingsRepository(imageRepo.db)
+  const clipEnabled = settingsRepo.getParsedValue<boolean>('clip.enabled') ?? true
+  if (!clipEnabled) {
+    console.log('CLIP embedding generation is disabled for this folder.')
+    return
+  }
+
   if (activeScans.has(folderPath)) {
     pendingRescans.add(folderPath)
     return

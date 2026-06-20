@@ -15,6 +15,7 @@ import {
 } from '@main/utils/files/scan'
 import { runExclusiveSync } from '../../utils/locks'
 import { watcherService } from '@main/services/watcher.service'
+import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
 
 async function getAllBase(
   event: Electron.IpcMainInvokeEvent,
@@ -113,12 +114,15 @@ async function getAllBase(
       scanEmbeddings(imageRepo, folderPath)
     })
 
+    const settingsRepo = new AppSettingsRepository(db)
+    const clipEnabled = settingsRepo.getParsedValue<boolean>('clip.enabled') ?? true
+
     let textEmbedding: Float32Array | undefined = undefined
     let imageEmbedding: Float32Array | undefined = undefined
     const hasText = !!filter?.aiSearchText
     const hasImage = !!filter?.aiSearchImage
 
-    if (hasText || hasImage) {
+    if (clipEnabled && (hasText || hasImage)) {
       await clipService.init(join(folderPath, CONFIG_DIR))
 
       if (hasText) {

@@ -3,6 +3,7 @@ import { useTags } from '@/lib/queries/tags'
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { SetupWizardDialog } from '@/components/features/SetupWizardDialog'
 
 interface FolderProvider {
   folderPath: string | null
@@ -20,6 +21,8 @@ const FolderContext = createContext({} as FolderProvider)
 
 export function FolderProvider({ children }: { children: React.ReactNode }) {
   const [folderPath, setFolderPath] = useState<string | null>(null)
+  const [pendingFolderPath, setPendingFolderPath] = useState<string | null>(null)
+  const [showSetupDialog, setShowSetupDialog] = useState(false)
   const [recentFolders, setRecentFolders] = useLocalStorage<string[]>(
     'recent-folders',
     [],
@@ -40,9 +43,24 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
     }
   }, [folderPath])
 
-  function openFolder(path: string) {
-    setFolderPath(path)
-    queryClient.clear()
+  async function openFolder(path: string) {
+    try {
+      const isNew = await window.api.folders.isNew(path)
+      if (isNew) {
+        setPendingFolderPath(path)
+        setShowSetupDialog(true)
+      } else {
+        setFolderPath(path)
+        queryClient.clear()
+        queryClient.invalidateQueries()
+      }
+    } catch (e) {
+      console.error('Failed to check if folder is new:', e)
+      // Fallback
+      setFolderPath(path)
+      queryClient.clear()
+      queryClient.invalidateQueries()
+    }
   }
 
   const removeRecentFolder = (path: string) => {
@@ -56,17 +74,35 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
         alert('API not available. Make sure the app is running in Electron.')
         return null
       }
-      const folderPath = await window.api.system.openFolderDialog()
+      const selectedPath = await window.api.system.openFolderDialog()
 
-      if (folderPath) {
-        setFolderPath(folderPath)
+      if (selectedPath) {
+        await openFolder(selectedPath)
       }
-      queryClient.clear()
-      return folderPath
+      return selectedPath
     } catch (error) {
       console.error('Error opening folder:', error)
       alert(`Error opening folder: ${error}`)
       return null
+    }
+  }
+
+  const handleWizardStart = async (settings: {
+    aiEnabled: boolean
+    clipModel: string
+    thumbnailQuality: number | null
+  }) => {
+    if (!pendingFolderPath) return
+    try {
+      await window.api.folders.initWithSettings(pendingFolderPath, settings)
+      setFolderPath(pendingFolderPath)
+      queryClient.clear()
+      queryClient.invalidateQueries()
+      setShowSetupDialog(false)
+      setPendingFolderPath(null)
+    } catch (err) {
+      console.error('Wizard setup failed:', err)
+      alert(`Failed to initialize folder settings: ${err}`)
     }
   }
 
@@ -85,6 +121,14 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      {pendingFolderPath && (
+        <SetupWizardDialog
+          open={showSetupDialog}
+          onOpenChange={setShowSetupDialog}
+          folderPath={pendingFolderPath}
+          onStart={handleWizardStart}
+        />
+      )}
     </FolderContext.Provider>
   )
 }

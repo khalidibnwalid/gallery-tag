@@ -1,8 +1,10 @@
-import { getRootPath } from '@main/utils/files/config'
+import { getRootPath, CONFIG_DIR, getAndInitConfig } from '@main/utils/files/config'
 import { deleteFileToTrash } from '@main/utils/files/delete'
 import { toAbsolutePath, toRelativePath } from '@main/utils/pathUtils'
 import { db } from '@main/utils/repositories/db'
 import { FolderRepository } from '@main/utils/repositories/Folder'
+import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
+import { APP_SETTING_KEYS } from '@main/utils/appSettingsKeys'
 import { BrowserWindow } from 'electron'
 import fs from 'fs/promises'
 import { dirname, join } from 'path'
@@ -246,4 +248,33 @@ export async function customizeFolderHandler(
   database
     .prepare('UPDATE folders SET icon = ?, color = ? WHERE id = ?')
     .run(icon, color, folderId)
+}
+
+export async function isNewFolderHandler(
+  _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
+): Promise<boolean> {
+  const configDir = join(folderPath, CONFIG_DIR)
+  try {
+    await fs.access(configDir)
+    return false
+  } catch {
+    return true
+  }
+}
+
+export async function initWithSettingsHandler(
+  _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
+  settings: {
+    aiEnabled: boolean
+    clipModel: string
+    thumbnailQuality: number | null
+  },
+): Promise<void> {
+  const { db: database } = await getAndInitConfig(folderPath)
+  const repo = new AppSettingsRepository(database)
+  repo.setSetting(APP_SETTING_KEYS.CLIP_ENABLED, settings.aiEnabled, 'boolean')
+  repo.setSetting(APP_SETTING_KEYS.CLIP_CURRENT_MODEL, settings.clipModel, 'string')
+  repo.setSetting(APP_SETTING_KEYS.THUMBNAIL_QUALITY, settings.thumbnailQuality, 'number')
 }
