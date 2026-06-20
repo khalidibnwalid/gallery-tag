@@ -1,22 +1,21 @@
 import { TagModel } from '@main/types/models.shared'
 import { db } from '@main/utils/repositories/db'
 import { TagRepository } from '@main/utils/repositories/tag'
+import { join } from 'path'
 
 export default async function getAllHandler(
   _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
 ): Promise<TagModel[]> {
   try {
-    console.log('Getting all tags')
+    console.log(`Getting all tags for folder: ${folderPath}`)
 
-    // Get database connection - use first available database connection
-    const connectedPaths = db.getConnectedPaths()
-    if (connectedPaths.length === 0) {
-      throw new Error(
-        'No active database connection found. Please load a folder first.',
-      )
+    if (!folderPath) {
+      throw new Error('folderPath is required')
     }
 
-    const database = db.getDatabase(connectedPaths[0])
+    const dbPath = join(folderPath, '.gallery', 'gallery.sqlite')
+    const database = db.getDatabase(dbPath)
 
     // Get all tags
     const tagRepo = new TagRepository(database)

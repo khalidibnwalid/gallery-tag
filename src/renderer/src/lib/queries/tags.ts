@@ -12,7 +12,7 @@ export function useTags() {
       if (!window.api || !window.api.tags.getAll) {
         throw new Error('Tags API not available')
       }
-      const tags = await window.api.tags.getAll()
+      const tags = await window.api.tags.getAll(folderPath!)
       return tags
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -28,7 +28,7 @@ export function useTagsSearchQuery(query: string, enabled: boolean = true) {
       if (!window.api || !window.api.tags.getBySearch) {
         throw new Error('Tag search API not available')
       }
-      const tags = await window.api.tags.getBySearch(query)
+      const tags = await window.api.tags.getBySearch(folderPath!, query)
       return tags
     },
     staleTime: 30 * 1000, // 30 seconds
@@ -54,7 +54,7 @@ export function useSuggestedTagsQuery({
         throw new Error('Tag suggestions API not available')
       }
 
-      return await window.api.tags.getSuggestions({
+      return await window.api.tags.getSuggestions(folderPath!, {
         imageId,
         neighborCount: 20,
         limit: 12,
@@ -69,6 +69,7 @@ export function useSuggestedTagsQuery({
 
 export function useCreateTagMutation() {
   const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
 
   return useMutation({
     mutationFn: async ({
@@ -78,11 +79,12 @@ export function useCreateTagMutation() {
       name: string
       color?: string
     }): Promise<TagData[]> => {
+      if (!folderPath) throw new Error('No folder loaded')
       if (!window.api || !window.api.tags.add) {
         throw new Error('Add tags API not available')
       }
 
-      const newTags = await window.api.tags.add([{ name, color }], [])
+      const newTags = await window.api.tags.add(folderPath, [{ name, color }], [])
       return newTags
     },
     onSuccess: () => {
@@ -95,6 +97,7 @@ export function useCreateTagMutation() {
 
 export function useRenameTagMutation() {
   const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
 
   return useMutation({
     mutationFn: async ({
@@ -104,10 +107,11 @@ export function useRenameTagMutation() {
       tagId: number
       newName: string
     }): Promise<TagData> => {
+      if (!folderPath) throw new Error('No folder loaded')
       if (!window.api || !window.api.tags.rename) {
         throw new Error('Rename tag API not available')
       }
-      return await window.api.tags.rename(tagId, newName)
+      return await window.api.tags.rename(folderPath, tagId, newName)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
@@ -124,13 +128,15 @@ export function useRenameTagMutation() {
 
 export function useDeleteTagMutation() {
   const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
 
   return useMutation({
     mutationFn: async ({ tagId }: { tagId: number }): Promise<void> => {
+      if (!folderPath) throw new Error('No folder loaded')
       if (!window.api || !window.api.tags.delete) {
         throw new Error('Delete tag API not available')
       }
-      await window.api.tags.delete(tagId)
+      await window.api.tags.delete(folderPath, tagId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
@@ -240,7 +246,7 @@ export function useAddTagsToImageMutation({
         throw new Error('Add tags API not available')
       }
 
-      const result = await window.api.tags.add(tags, imageIds)
+      const result = await window.api.tags.add(folderPath, tags, imageIds)
       return result
     },
     onSuccess: (data, { imageIds }) => {
@@ -284,7 +290,7 @@ export function useRemoveTagsFromImageMutation({
         throw new Error('Remove tags API not available')
       }
 
-      await window.api.tags.remove(tagIds, imageIds)
+      await window.api.tags.remove(folderPath, tagIds, imageIds)
     },
     onSuccess: (_, { tagIds, imageIds }) => {
       const tagIdsSet = new Set(tagIds)
@@ -301,6 +307,7 @@ export function useRemoveTagsFromImageMutation({
 
 export function useSetTagParentMutation() {
   const queryClient = useQueryClient()
+  const { folderPath } = useFolder()
 
   return useMutation({
     mutationFn: async ({
@@ -310,10 +317,11 @@ export function useSetTagParentMutation() {
       tagId: number
       parentId: number | null
     }): Promise<TagData> => {
+      if (!folderPath) throw new Error('No folder loaded')
       if (!window.api || !window.api.tags.setParent) {
         throw new Error('Set tag parent API not available')
       }
-      return await window.api.tags.setParent(tagId, parentId)
+      return await window.api.tags.setParent(folderPath, tagId, parentId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })

@@ -84,26 +84,25 @@ declare global {
 
       tags: {
         add: (
+          folderPath: string,
           tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[],
           imagesIds: number[],
         ) => Promise<TagModel[]>
-        remove: (tagIds: number[], imagesIds: number[]) => Promise<void>
-        rename: (tagId: number, newName: string) => Promise<TagModel>
-        setParent: (tagId: number, parentId: number | null) => Promise<TagModel>
-        delete: (tagId: number) => Promise<void>
-        getAll: () => Promise<TagModel[]>
-        getBySearch: (query: string) => Promise<TagModel[]>
-        getSuggestions: ({
-          imageId,
-          limit,
-          neighborCount,
-          excludeTagNames,
-        }: {
-          imageId: number
-          limit?: number
-          neighborCount?: number
-          excludeTagNames?: string[]
-        }) => Promise<SuggestedTag[]>
+        remove: (folderPath: string, tagIds: number[], imagesIds: number[]) => Promise<void>
+        rename: (folderPath: string, tagId: number, newName: string) => Promise<TagModel>
+        setParent: (folderPath: string, tagId: number, parentId: number | null) => Promise<TagModel>
+        delete: (folderPath: string, tagId: number) => Promise<void>
+        getAll: (folderPath: string) => Promise<TagModel[]>
+        getBySearch: (folderPath: string, query: string) => Promise<TagModel[]>
+        getSuggestions: (
+          folderPath: string,
+          params: {
+            imageId: number
+            limit?: number
+            neighborCount?: number
+            excludeTagNames?: string[]
+          },
+        ) => Promise<SuggestedTag[]>
       }
 
       general: {
@@ -113,17 +112,19 @@ declare global {
       }
 
       settings: {
-        getAll: () => Promise<AppSettingModel[]>
-        get: (key: string) => Promise<AppSettingModel | undefined>
+        getAll: (folderPath: string) => Promise<AppSettingModel[]>
+        get: (folderPath: string, key: string) => Promise<AppSettingModel | undefined>
         getValue<T extends SettingValue = SettingValue>(
+          folderPath: string,
           key: string,
         ): Promise<T | undefined>
         set<T extends SettingValue>(
+          folderPath: string,
           key: string,
           value: T,
           valueType?: InferValueTypeKey<T>,
         ): Promise<void>
-        delete: (key: string) => Promise<void>
+        delete: (folderPath: string, key: string) => Promise<void>
         regenerateThumbnails: (folderPath: string) => Promise<number>
         reindexImagesClip: (folderPath: string) => Promise<number>
         clearModelIndex: (modelId: string, folderPath: string) => Promise<void>
@@ -131,7 +132,7 @@ declare global {
         partialReindex: (
           folderPath: string,
         ) => Promise<{ isUnused: boolean; missingCount: number }>
-        getIndexedModels: () => Promise<string[]>
+        getIndexedModels: (folderPath: string) => Promise<string[]>
       }
     }
   }

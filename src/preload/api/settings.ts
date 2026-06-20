@@ -6,17 +6,19 @@ import {
 import { ipcRenderer } from 'electron'
 
 export interface SettingsApi {
-  getAll(): Promise<AppSettingModel[]>
-  get(key: string): Promise<AppSettingModel | undefined>
+  getAll(folderPath: string): Promise<AppSettingModel[]>
+  get(folderPath: string, key: string): Promise<AppSettingModel | undefined>
   getValue<T extends SettingValue = SettingValue>(
+    folderPath: string,
     key: string,
   ): Promise<T | undefined>
   set<T extends SettingValue>(
+    folderPath: string,
     key: string,
     value: T,
     valueType?: InferValueTypeKey<T>,
   ): Promise<void>
-  delete(key: string): Promise<void>
+  delete(folderPath: string, key: string): Promise<void>
 
   regenerateThumbnails(folderPath: string): Promise<number>
   reindexImagesClip(folderPath: string): Promise<number>
@@ -25,28 +27,28 @@ export interface SettingsApi {
   partialReindex(
     folderPath: string,
   ): Promise<{ isUnused: boolean; missingCount: number }>
-  getIndexedModels(): Promise<string[]>
+  getIndexedModels(folderPath: string): Promise<string[]>
 }
 
 const settingsApi: SettingsApi = {
-  getAll(): Promise<AppSettingModel[]> {
-    return ipcRenderer.invoke('settings:get-all')
+  getAll(folderPath: string): Promise<AppSettingModel[]> {
+    return ipcRenderer.invoke('settings:get-all', folderPath)
   },
 
-  get(key: string): Promise<AppSettingModel | undefined> {
-    return ipcRenderer.invoke('settings:get', key)
+  get(folderPath: string, key: string): Promise<AppSettingModel | undefined> {
+    return ipcRenderer.invoke('settings:get', folderPath, key)
   },
 
-  getValue(key: string): Promise<any> {
-    return ipcRenderer.invoke('settings:get-value', key)
+  getValue(folderPath: string, key: string): Promise<any> {
+    return ipcRenderer.invoke('settings:get-value', folderPath, key)
   },
 
-  set(key: string, value: any, valueType: any = 'string'): Promise<void> {
-    return ipcRenderer.invoke('settings:set', key, value, valueType)
+  set(folderPath: string, key: string, value: any, valueType: any = 'string'): Promise<void> {
+    return ipcRenderer.invoke('settings:set', folderPath, key, value, valueType)
   },
 
-  delete(key: string): Promise<void> {
-    return ipcRenderer.invoke('settings:delete', key)
+  delete(folderPath: string, key: string): Promise<void> {
+    return ipcRenderer.invoke('settings:delete', folderPath, key)
   },
 
   regenerateThumbnails(folderPath: string): Promise<number> {
@@ -71,8 +73,8 @@ const settingsApi: SettingsApi = {
     return ipcRenderer.invoke('settings:partial-reindex', folderPath)
   },
 
-  getIndexedModels(): Promise<string[]> {
-    return ipcRenderer.invoke('settings:get-indexed-models')
+  getIndexedModels(folderPath: string): Promise<string[]> {
+    return ipcRenderer.invoke('settings:get-indexed-models', folderPath)
   },
 }
 

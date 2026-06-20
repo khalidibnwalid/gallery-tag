@@ -55,7 +55,7 @@ export function registerClipHandlers() {
     'settings:reindex-clip',
     async (_event, folderPath: string): Promise<number> => {
       try {
-        const { database, rootPath } = getActiveDb()
+        const { database, rootPath } = getActiveDb(folderPath)
 
         // 1. Force reload model name from settings and re-init CLIP Service
         clipService.loadSettingsFromDb(database)
@@ -87,7 +87,7 @@ export function registerClipHandlers() {
     'settings:clear-model-index',
     async (_event, modelId: string, folderPath: string): Promise<void> => {
       try {
-        const { database } = getActiveDb()
+        const { database } = getActiveDb(folderPath)
         const tableName = getTableName(modelId)
 
         database.exec(`DROP TABLE IF EXISTS ${tableName}`)
@@ -119,7 +119,7 @@ export function registerClipHandlers() {
     'settings:delete-model',
     async (_event, modelId: string, folderPath: string): Promise<void> => {
       try {
-        const { database } = getActiveDb()
+        const { database } = getActiveDb(folderPath)
 
         // 1. Drop the table
         const tableName = getTableName(modelId)
@@ -185,7 +185,7 @@ export function registerClipHandlers() {
       folderPath: string,
     ): Promise<{ isUnused: boolean; missingCount: number }> => {
       try {
-        const { database, rootPath } = getActiveDb()
+        const { database, rootPath } = getActiveDb(folderPath)
 
         // 1. Force reload model name from settings and re-init CLIP Service
         clipService.loadSettingsFromDb(database)
@@ -225,9 +225,9 @@ export function registerClipHandlers() {
     },
   )
 
-  ipcMain.handle('settings:get-indexed-models', async (): Promise<string[]> => {
+  ipcMain.handle('settings:get-indexed-models', async (_event, folderPath: string): Promise<string[]> => {
     try {
-      const { database } = getActiveDb()
+      const { database } = getActiveDb(folderPath)
       const rows = database
         .prepare(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'vec_images_%'",
@@ -235,14 +235,14 @@ export function registerClipHandlers() {
         .all() as { name: string }[]
 
       const mainTables = rows
-        .map(r => r.name)
-        .filter(
-          name =>
-            !name.endsWith('_node') &&
-            !name.endsWith('_rowid') &&
-            !name.endsWith('_parent') &&
-            !name.endsWith('_properties'),
-        )
+          .map(r => r.name)
+          .filter(
+            name =>
+              !name.endsWith('_node') &&
+              !name.endsWith('_rowid') &&
+              !name.endsWith('_parent') &&
+              !name.endsWith('_properties'),
+          )
 
       return mainTables
     } catch (e) {

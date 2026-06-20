@@ -2,19 +2,17 @@ import { db } from '@main/utils/repositories/db'
 import { getRootPath } from '@main/utils/files/config'
 import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
 import Database from 'better-sqlite3'
+import { join } from 'path'
 
-export function getActiveDb(): {
+export function getActiveDb(folderPath: string): {
   database: Database.Database
   dbPath: string
   rootPath: string
 } {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
+  if (!folderPath) {
+    throw new Error('folderPath is required to resolve database connection.')
   }
-  const dbPath = connectedPaths[0]
+  const dbPath = join(folderPath, '.gallery', 'gallery.sqlite')
   return {
     database: db.getDatabase(dbPath),
     dbPath,
@@ -22,7 +20,7 @@ export function getActiveDb(): {
   }
 }
 
-export function getSettingsRepo(): AppSettingsRepository {
-  const { database } = getActiveDb()
+export function getSettingsRepo(folderPath: string): AppSettingsRepository {
+  const { database } = getActiveDb(folderPath)
   return new AppSettingsRepository(database)
 }

@@ -25,8 +25,6 @@ import {
   APP_SETTING_KEYS,
   CLIP_AVAILABLE_MODELS_DEFAULT,
   CLIP_DEFAULT_MODEL,
-  CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT,
-  CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT,
   ClipModelConfig,
 } from '@/lib/types/appSettingsKeys'
 import { cn } from '@/lib/utils'
@@ -36,86 +34,48 @@ import {
   useDeleteModelMutation,
   usePartialReindexMutation,
   useReindexClipMutation,
+  useClipEnabled,
+  useClipModels,
+  useClipCurrentModel,
+  useClipTextThreshold,
+  useClipImageThreshold,
+  useUpdateSettingMutation,
 } from '@/lib/queries/settings'
 
 export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
-  const [loading, setLoading] = useState(true)
-  const [aiEnabled, setAiEnabled] = useState<boolean>(true)
-  const [clipModels, setClipModels] = useState<ClipModelConfig[]>([])
-  const [currentModel, setCurrentModel] = useState<string>('')
+  const { data: aiEnabled = true, isLoading: isLoadingEnabled } = useClipEnabled(folderPath)
+  const { data: clipModels = [], isLoading: isLoadingModels } = useClipModels(folderPath)
+  const { data: currentModel = '', isLoading: isLoadingCurrent } = useClipCurrentModel(folderPath)
+  const { data: textThreshold = 0.2, isLoading: isLoadingText } = useClipTextThreshold(folderPath)
+  const { data: imageThreshold = 0.6, isLoading: isLoadingImage } = useClipImageThreshold(folderPath)
+
   const [localTextThreshold, setLocalTextThreshold] = useState<number>(0.2)
   const [localImageThreshold, setLocalImageThreshold] = useState<number>(0.6)
 
   const { refetch: refetchIndexedModels } = useIndexedModels()
   const partialReindexMutation = usePartialReindexMutation(folderPath)
+  const updateSettingMutation = useUpdateSettingMutation(folderPath)
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    async function loadAiSearchSettings() {
-      if (!window.api?.settings) return
-      try {
-        setLoading(true)
-        const enabledVal = await window.api.settings.getValue<boolean>(
-          APP_SETTING_KEYS.CLIP_ENABLED,
-        )
-        const models = await window.api.settings.getValue<ClipModelConfig[]>(
-          APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
-        )
-        const current = await window.api.settings.getValue<string>(
-          APP_SETTING_KEYS.CLIP_CURRENT_MODEL,
-        )
-        const textThresh = await window.api.settings.getValue<number>(
-          APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD,
-        )
-        const imgThresh = await window.api.settings.getValue<number>(
-          APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD,
-        )
+    setLocalTextThreshold(textThreshold)
+  }, [textThreshold])
 
-        setAiEnabled(enabledVal !== undefined ? enabledVal : true)
+  useEffect(() => {
+    setLocalImageThreshold(imageThreshold)
+  }, [imageThreshold])
 
-        let finalModels = models
-        if (!finalModels || finalModels.length === 0) {
-          finalModels = CLIP_AVAILABLE_MODELS_DEFAULT
-          await window.api.settings.set(
-            APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
-            CLIP_AVAILABLE_MODELS_DEFAULT,
-            'json_array',
-          )
-        }
-        setClipModels(finalModels)
-        setCurrentModel(current || CLIP_DEFAULT_MODEL)
-
-        const textVal =
-          textThresh !== undefined
-            ? textThresh
-            : CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT
-        const imgVal =
-          imgThresh !== undefined
-            ? imgThresh
-            : CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT
-
-        setLocalTextThreshold(textVal)
-        setLocalImageThreshold(imgVal)
-      } catch (err) {
-        console.error('Failed to load AI settings:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadAiSearchSettings()
-  }, [folderPath])
+  const loading = isLoadingEnabled || isLoadingModels || isLoadingCurrent || isLoadingText || isLoadingImage
 
   const updateAiEnabled = async (checked: boolean) => {
-    if (!window.api?.settings) return
     try {
-      setAiEnabled(checked)
-      await window.api.settings.set(
-        APP_SETTING_KEYS.CLIP_ENABLED,
-        checked,
-        'boolean',
-      )
+      await updateSettingMutation.mutateAsync({
+        key: APP_SETTING_KEYS.CLIP_ENABLED,
+        value: checked,
+        valueType: 'boolean',
+      })
+      queryClient.invalidateQueries({ queryKey: ['settings', APP_SETTING_KEYS.CLIP_ENABLED, folderPath] })
       queryClient.invalidateQueries({ queryKey: ['images'] })
-      queryClient.invalidateQueries({ queryKey: ['settings', 'clip-enabled'] })
       toast.success(`AI features ${checked ? 'enabled' : 'disabled'}`)
       if (checked) {
         partialReindexMutation.mutate(undefined, {
@@ -131,14 +91,13 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
   }
 
   const updateCurrentModel = async (model: string) => {
-    if (!window.api?.settings) return
     try {
-      setCurrentModel(model)
-      await window.api.settings.set(
-        APP_SETTING_KEYS.CLIP_CURRENT_MODEL,
-        model,
-        'string',
-      )
+      await updateSettingMutation.mutateAsync({
+        key: APP_SETTING_KEYS.CLIP_CURRENT_MODEL,
+        value: model,
+        valueType: 'string',
+      })
+      queryClient.invalidateQueries({ queryKey: ['settings', APP_SETTING_KEYS.CLIP_CURRENT_MODEL, folderPath] })
       queryClient.invalidateQueries({ queryKey: ['images'] })
       toast.success(`Active AI model set to ${model.split('/').pop()}`)
 
@@ -155,13 +114,13 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
   }
 
   const updateTextThreshold = async (val: number) => {
-    if (!window.api?.settings) return
     try {
-      await window.api.settings.set(
-        APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD,
-        val,
-        'number',
-      )
+      await updateSettingMutation.mutateAsync({
+        key: APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD,
+        value: val,
+        valueType: 'number',
+      })
+      queryClient.invalidateQueries({ queryKey: ['settings', APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD, folderPath] })
       queryClient.invalidateQueries({ queryKey: ['images', 'paginated'] })
     } catch (e) {
       console.error(e)
@@ -170,13 +129,13 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
   }
 
   const updateImageThreshold = async (val: number) => {
-    if (!window.api?.settings) return
     try {
-      await window.api.settings.set(
-        APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD,
-        val,
-        'number',
-      )
+      await updateSettingMutation.mutateAsync({
+        key: APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD,
+        value: val,
+        valueType: 'number',
+      })
+      queryClient.invalidateQueries({ queryKey: ['settings', APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD, folderPath] })
       queryClient.invalidateQueries({ queryKey: ['images', 'paginated'] })
     } catch (e) {
       console.error(e)
@@ -222,7 +181,6 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
           <ModelSelectorSection
             folderPath={folderPath}
             clipModels={clipModels}
-            setClipModels={setClipModels}
             currentModel={currentModel}
             updateCurrentModel={updateCurrentModel}
           />
@@ -231,9 +189,8 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
           <ModelIndexManagementSection
             folderPath={folderPath}
             clipModels={clipModels}
-            setClipModels={setClipModels}
             currentModel={currentModel}
-            setCurrentModel={setCurrentModel}
+            updateCurrentModel={updateCurrentModel}
           />
 
           {/* Text-to-Image Threshold Section */}
@@ -271,7 +228,6 @@ export function AiSearchSettingsCard({ folderPath }: { folderPath: string }) {
 interface ModelSelectorSectionProps {
   folderPath: string
   clipModels: ClipModelConfig[]
-  setClipModels: React.Dispatch<React.SetStateAction<ClipModelConfig[]>>
   currentModel: string
   updateCurrentModel: (model: string) => Promise<void>
 }
@@ -279,7 +235,6 @@ interface ModelSelectorSectionProps {
 function ModelSelectorSection({
   folderPath,
   clipModels,
-  setClipModels,
   currentModel,
   updateCurrentModel,
 }: ModelSelectorSectionProps) {
@@ -294,9 +249,11 @@ function ModelSelectorSection({
     onAction: () => void
   } | null>(null)
   const deleteModelMutation = useDeleteModelMutation(folderPath)
+  const updateSettingMutation = useUpdateSettingMutation(folderPath)
+  const queryClient = useQueryClient()
 
   const handleAddCustomModel = async () => {
-    if (!window.api?.settings || !newModelId.trim() || !newModelDim) return
+    if (!newModelId.trim() || !newModelDim) return
     try {
       const trimmedId = newModelId.trim()
       const exists = clipModels.some(
@@ -314,12 +271,11 @@ function ModelSelectorSection({
       }
 
       const updatedModels = [...clipModels, newModel]
-      setClipModels(updatedModels)
-      await window.api.settings.set(
-        APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
-        updatedModels,
-        'json_array',
-      )
+      await updateSettingMutation.mutateAsync({
+        key: APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
+        value: updatedModels,
+        valueType: 'json_array',
+      })
 
       await updateCurrentModel(newModel.id)
 
@@ -397,8 +353,8 @@ function ModelSelectorSection({
                       onClick={e => {
                         e.stopPropagation()
                         if (clipModels.length <= 1) {
-                          toast.error('Cannot delete the last remaining model.')
-                          return
+                           toast.error('Cannot delete the last remaining model.')
+                           return
                         }
                         setAlertConfig({
                           title: 'Delete CLIP Model?',
@@ -407,14 +363,13 @@ function ModelSelectorSection({
                           onAction: () => {
                             deleteModelMutation.mutate(model.id, {
                               onSuccess: () => {
-                                const updated = clipModels.filter(
-                                  m => m.id !== model.id,
-                                )
-                                setClipModels(updated)
+                                queryClient.invalidateQueries({
+                                  queryKey: ['settings', APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS, folderPath],
+                                })
                                 if (currentModel === model.id) {
                                   const remaining =
-                                    updated.length > 0
-                                      ? updated[0].id
+                                    clipModels.length > 1
+                                      ? clipModels.filter(m => m.id !== model.id)[0].id
                                       : CLIP_DEFAULT_MODEL
                                   updateCurrentModel(remaining)
                                 }
@@ -512,17 +467,15 @@ function ModelSelectorSection({
 interface ModelIndexManagementSectionProps {
   folderPath: string
   clipModels: ClipModelConfig[]
-  setClipModels: React.Dispatch<React.SetStateAction<ClipModelConfig[]>>
   currentModel: string
-  setCurrentModel: (model: string) => void
+  updateCurrentModel: (model: string) => Promise<void>
 }
 
 function ModelIndexManagementSection({
   folderPath,
   clipModels,
-  setClipModels,
   currentModel,
-  setCurrentModel,
+  updateCurrentModel,
 }: ModelIndexManagementSectionProps) {
   const [isManageExpanded, setIsManageExpanded] = useState(false)
   const [alertOpen, setAlertOpen] = useState(false)
@@ -536,6 +489,7 @@ function ModelIndexManagementSection({
     useIndexedModels()
   const clearModelIndexMutation = useClearModelIndexMutation(folderPath)
   const deleteModelMutation = useDeleteModelMutation(folderPath)
+  const queryClient = useQueryClient()
 
   const modelsToManage = clipModels.filter(model => {
     const isSystem = CLIP_AVAILABLE_MODELS_DEFAULT.some(m => m.id === model.id)
@@ -577,15 +531,16 @@ function ModelIndexManagementSection({
       onAction: () => {
         deleteModelMutation.mutate(modelId, {
           onSuccess: () => {
-            const updatedModels = clipModels.filter(m => m.id !== modelId)
-            setClipModels(updatedModels)
+            queryClient.invalidateQueries({
+              queryKey: ['settings', APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS, folderPath],
+            })
 
             if (currentModel === modelId) {
               const remaining =
-                updatedModels.length > 0
-                  ? updatedModels[0].id
+                clipModels.length > 1
+                  ? clipModels.filter(m => m.id !== modelId)[0].id
                   : CLIP_DEFAULT_MODEL
-              setCurrentModel(remaining)
+              updateCurrentModel(remaining)
             }
             refetchIndexedModels()
           },

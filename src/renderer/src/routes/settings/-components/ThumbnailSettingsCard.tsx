@@ -8,53 +8,37 @@ import { Spinner } from '@/components/ui/spinner'
 import { ArrowClockwiseIcon, InfoIcon } from '@phosphor-icons/react'
 import {
   APP_SETTING_KEYS,
-  THUMBNAIL_QUALITY_DEFAULT,
 } from '@/lib/types/appSettingsKeys'
 import { cn } from '@/lib/utils'
+import { useThumbnailQuality, useUpdateSettingMutation } from '@/lib/queries/settings'
 
 export function ThumbnailSettingsCard({ folderPath }: { folderPath: string }) {
-  const [loading, setLoading] = useState(true)
-  const [thumbnailQuality, setThumbnailQuality] = useState<number | null>(null)
+  const { data: thumbnailQuality = null, isLoading } = useThumbnailQuality(folderPath)
   const [localQuality, setLocalQuality] = useState<number>(90)
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const updateSettingMutation = useUpdateSettingMutation(folderPath)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
-    async function loadThumbnailSettings() {
-      if (!window.api?.settings) return
-      try {
-        setLoading(true)
-        const quality = await window.api.settings.getValue<number | null>(
-          APP_SETTING_KEYS.THUMBNAIL_QUALITY,
-        )
-        const qualVal =
-          quality !== undefined ? quality : THUMBNAIL_QUALITY_DEFAULT
-        setThumbnailQuality(qualVal)
-        setLocalQuality(qualVal !== null ? qualVal : 90)
-      } catch (err) {
-        console.error('Failed to load thumbnail settings:', err)
-      } finally {
-        setLoading(false)
-      }
+    if (thumbnailQuality !== undefined && thumbnailQuality !== null) {
+      setLocalQuality(thumbnailQuality)
+    } else {
+      setLocalQuality(90)
     }
-    loadThumbnailSettings()
-  }, [folderPath])
+  }, [thumbnailQuality])
 
   const updateThumbnailQuality = async (val: number | null) => {
-    if (!window.api?.settings) return
     try {
-      setThumbnailQuality(val)
-      await window.api.settings.set(
-        APP_SETTING_KEYS.THUMBNAIL_QUALITY,
-        val,
-        'number',
-      )
+      await updateSettingMutation.mutateAsync({
+        key: APP_SETTING_KEYS.THUMBNAIL_QUALITY,
+        value: val,
+        valueType: 'number',
+      })
     } catch (e) {
       console.error(e)
       toast.error('Failed to save thumbnail quality.')
     }
   }
-
-  const queryClient = useQueryClient()
 
   const handleRegenerateThumbnails = async () => {
     if (!window.api?.settings || !folderPath) return
@@ -75,7 +59,7 @@ export function ThumbnailSettingsCard({ folderPath }: { folderPath: string }) {
 
   const isLossless = thumbnailQuality === null
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="border border-border/40 bg-card/20 backdrop-blur-md rounded-2xl p-6 h-48 flex items-center justify-center">
         <div className="flex flex-col items-center gap-2">

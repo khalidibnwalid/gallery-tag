@@ -2,8 +2,11 @@ import { TagModel } from '@main/types/models.shared'
 import { db } from '@main/utils/repositories/db'
 import { TagRepository } from '@main/utils/repositories/tag'
 
+import { join } from 'path'
+
 export default async function addHandler(
   _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   {
     tags,
     imagesIds,
@@ -14,15 +17,14 @@ export default async function addHandler(
 ): Promise<TagModel[]> {
   if (!tags || tags.length === 0 || tags.some(tag => !tag.name)) return []
   try {
-    console.log(`Adding tags to ${imagesIds?.length || 0} images`)
+    console.log(`Adding tags to ${imagesIds?.length || 0} images for folder: ${folderPath}`)
 
-    // const database = db.getDatabase(db.getConnectedPaths()[0])
+    if (!folderPath) {
+      throw new Error('folderPath is required')
+    }
 
-    const database = db.getFirstDatabase()
-    if (!database)
-      throw new Error(
-        'No active database connection found. Please load a folder first.',
-      )
+    const dbPath = join(folderPath, '.gallery', 'gallery.sqlite')
+    const database = db.getDatabase(dbPath)
 
     const tagRepo = new TagRepository(database)
 

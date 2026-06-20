@@ -17,7 +17,7 @@ export function registerThumbnailHandlers() {
     'settings:regenerate-thumbnails',
     async (_event, folderPath: string): Promise<number> => {
       try {
-        const { database, rootPath } = getActiveDb()
+        const { database, rootPath } = getActiveDb(folderPath)
         const imageRepo = new ImageRepository(database, rootPath)
 
         // 1. Wipe stored thumbnail paths
