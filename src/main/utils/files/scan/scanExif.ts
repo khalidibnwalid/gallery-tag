@@ -26,7 +26,10 @@ export function scanExif(imageRepo: ImageRepository): void {
           batch.map(async img => {
             try {
               const exif = await extractExif(img.filePath)
-              imageRepo.updateImageExif(img.id, exif ? JSON.stringify(exif) : '{}')
+              imageRepo.updateImageExif(
+                img.id,
+                exif ? JSON.stringify(exif) : '{}',
+              )
             } catch (error) {
               // Mark as empty object so we don't query it again and get stuck in a loop
               imageRepo.updateImageExif(img.id, '{}')

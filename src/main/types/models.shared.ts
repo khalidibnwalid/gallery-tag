@@ -120,12 +120,13 @@ export type ValueTypeMap = {
   json_array: any[]
 }
 
-export type InferValueTypeKey<T> = NonNullable<T> extends string
-  ? 'string'
-  : NonNullable<T> extends number
-    ? 'number'
-    : NonNullable<T> extends boolean
-      ? 'boolean'
-      : NonNullable<T> extends any[]
-        ? 'json_array'
-        : 'json'
+export type InferValueTypeKey<T> =
+  NonNullable<T> extends string
+    ? 'string'
+    : NonNullable<T> extends number
+      ? 'number'
+      : NonNullable<T> extends boolean
+        ? 'boolean'
+        : NonNullable<T> extends any[]
+          ? 'json_array'
+          : 'json'

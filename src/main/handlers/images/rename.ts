@@ -15,9 +15,11 @@ export default async function renameHandler(
 ): Promise<ImageModel> {
   const connectedPaths = db.getConnectedPaths()
   if (connectedPaths.length === 0) {
-    throw new Error('No active database connection found. Please load a folder first.')
+    throw new Error(
+      'No active database connection found. Please load a folder first.',
+    )
   }
-  
+
   const rootPath = getRootPath(connectedPaths[0])
   const database = db.getDatabase(connectedPaths[0])
   const imageRepo = new ImageRepository(database, rootPath)
@@ -53,7 +55,9 @@ export default async function renameHandler(
   // Check if destination already exists
   try {
     await fs.access(finalDestPath)
-    throw new Error(`A file named "${finalFileName}" already exists in this directory.`)
+    throw new Error(
+      `A file named "${finalFileName}" already exists in this directory.`,
+    )
   } catch (err: any) {
     if (err.message.includes('already exists')) {
       throw err

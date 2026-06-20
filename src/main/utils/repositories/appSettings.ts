@@ -1,4 +1,8 @@
-import { AppSettingModel, SettingValue, InferValueTypeKey } from '@main/types/models.shared'
+import {
+  AppSettingModel,
+  SettingValue,
+  InferValueTypeKey,
+} from '@main/types/models.shared'
 import Database from 'better-sqlite3'
 
 export class AppSettingsRepository {
@@ -29,7 +33,9 @@ export class AppSettingsRepository {
     return stmt.get(key) as AppSettingModel | undefined
   }
 
-  getParsedValue<T extends SettingValue = SettingValue>(key: string): T | undefined {
+  getParsedValue<T extends SettingValue = SettingValue>(
+    key: string,
+  ): T | undefined {
     const setting = this.getSetting(key)
     if (!setting) return undefined
     return this.parseValue(setting.settingValue, setting.valueType) as any

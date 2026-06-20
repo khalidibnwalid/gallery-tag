@@ -12,9 +12,11 @@ export default async function deleteImagesHandler(
 ): Promise<void> {
   const connectedPaths = db.getConnectedPaths()
   if (connectedPaths.length === 0) {
-    throw new Error('No active database connection found. Please load a folder first.')
+    throw new Error(
+      'No active database connection found. Please load a folder first.',
+    )
   }
-  
+
   const rootPath = getRootPath(connectedPaths[0])
   const database = db.getDatabase(connectedPaths[0])
   const imageRepo = new ImageRepository(database, rootPath)

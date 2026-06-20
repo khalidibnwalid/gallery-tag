@@ -71,7 +71,10 @@
 
 .masonry {
   display: masonry;
-  grid-template-columns: var(--masonry-columns-rule, repeat(auto-fill, minmax(400px, 1fr)));
+  grid-template-columns: var(
+    --masonry-columns-rule,
+    repeat(auto-fill, minmax(400px, 1fr))
+  );
   grid-template-rows: masonry;
   gap: var(--masonry-gap, 1rem);
 }

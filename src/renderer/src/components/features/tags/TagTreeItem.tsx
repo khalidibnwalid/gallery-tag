@@ -41,7 +41,8 @@ export function TagTreeItem({
 
   // Hover parent highlight checks (only computed if not dragging)
   const hoveredTag = sortedTags.find(t => t.id === hoveredTagId)
-  const isParentOfHovered = !isDragging && hoveredTag && hoveredTag.parentId === node.id
+  const isParentOfHovered =
+    !isDragging && hoveredTag && hoveredTag.parentId === node.id
   const isAncestorOfHovered =
     !isDragging &&
     hoveredTagId !== null &&
@@ -75,7 +76,8 @@ export function TagTreeItem({
             ? 'cursor-default select-text'
             : 'cursor-grab active:cursor-grabbing select-none',
           isSelected && 'bg-primary! text-primary-foreground border-primary',
-          isExcluded && 'bg-destructive! text-destructive-foreground border-destructive',
+          isExcluded &&
+            'bg-destructive! text-destructive-foreground border-destructive',
           isDragOver && 'border-primary ring-2 ring-primary/45 scale-105',
           isChild && 'border-muted-foreground/45 pl-1',
 

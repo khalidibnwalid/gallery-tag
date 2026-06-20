@@ -1,5 +1,8 @@
 import { notifier } from '@main/services/notifier.service'
-import { createThumbnails, getThumbnailQuality } from '@main/services/thumbnails.service'
+import {
+  createThumbnails,
+  getThumbnailQuality,
+} from '@main/services/thumbnails.service'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageModel } from '@main/types/models.shared'
@@ -187,7 +190,10 @@ export async function scanNewFiles(
       onError: error => {
         console.error('Error generating thumbnails:', error)
       },
-      thumbnailOptions: { width: THUMBNAIL_WIDTH, quality: db ? (getThumbnailQuality(db) ?? undefined) : undefined },
+      thumbnailOptions: {
+        width: THUMBNAIL_WIDTH,
+        quality: db ? (getThumbnailQuality(db) ?? undefined) : undefined,
+      },
     })
   }
 }

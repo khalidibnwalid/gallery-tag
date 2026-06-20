@@ -6,7 +6,10 @@ import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { ArrowClockwiseIcon, InfoIcon } from '@phosphor-icons/react'
-import { APP_SETTING_KEYS, THUMBNAIL_QUALITY_DEFAULT } from '@/lib/types/appSettingsKeys'
+import {
+  APP_SETTING_KEYS,
+  THUMBNAIL_QUALITY_DEFAULT,
+} from '@/lib/types/appSettingsKeys'
 import { cn } from '@/lib/utils'
 
 export function ThumbnailSettingsCard({ folderPath }: { folderPath: string }) {

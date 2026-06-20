@@ -26,23 +26,26 @@ function parseRational(val: any): number {
   return Number(val) || 0
 }
 
-export async function extractExif(filePath: string): Promise<ExifMetadata | null> {
+export async function extractExif(
+  filePath: string,
+): Promise<ExifMetadata | null> {
   try {
     const buffer = await fs.readFile(filePath)
     const tags = ExifReader.load(buffer)
 
     const cameraMake = tags['Make']?.description || undefined
     const cameraModel = tags['Model']?.description || undefined
-    
+
     // Date taken can be DateTimeOriginal, DateTimeDigitized, or DateTime
-    const dateTaken = tags['DateTimeOriginal']?.description || 
-                      tags['DateTimeDigitized']?.description || 
-                      tags['DateTime']?.description || 
-                      undefined
+    const dateTaken =
+      tags['DateTimeOriginal']?.description ||
+      tags['DateTimeDigitized']?.description ||
+      tags['DateTime']?.description ||
+      undefined
 
     const exposureTime = tags['ExposureTime']?.description || undefined
     const aperture = tags['FNumber']?.description || undefined
-    
+
     let iso: number | undefined
     if (tags['ISOSpeedRatings']) {
       const val = tags['ISOSpeedRatings'].value
@@ -92,12 +95,12 @@ export async function extractExif(filePath: string): Promise<ExifMetadata | null
       const lowerKey = key.toLowerCase()
       // Skip known binary or extremely large blocks
       if (
-        lowerKey === 'thumbnail' || 
-        lowerKey === 'makernote' || 
+        lowerKey === 'thumbnail' ||
+        lowerKey === 'makernote' ||
         lowerKey === 'xmp' ||
         lowerKey === 'iptc' ||
         lowerKey === 'photoshop' ||
-        lowerKey.includes('iccp') || 
+        lowerKey.includes('iccp') ||
         lowerKey.includes('colorprofile')
       ) {
         continue
@@ -111,7 +114,9 @@ export async function extractExif(filePath: string): Promise<ExifMetadata | null
             raw[key] = trimmed
           }
         } else if (tag.value !== undefined && tag.value !== null) {
-          const valStr = Array.isArray(tag.value) ? tag.value.join(', ') : String(tag.value)
+          const valStr = Array.isArray(tag.value)
+            ? tag.value.join(', ')
+            : String(tag.value)
           const trimmed = valStr.trim()
           if (trimmed.length > 0 && trimmed.length < 50000) {
             raw[key] = trimmed
@@ -132,7 +137,8 @@ export async function extractExif(filePath: string): Promise<ExifMetadata | null
       lensModel,
       software,
       gpsLatitude: gpsLatitude && !isNaN(gpsLatitude) ? gpsLatitude : undefined,
-      gpsLongitude: gpsLongitude && !isNaN(gpsLongitude) ? gpsLongitude : undefined,
+      gpsLongitude:
+        gpsLongitude && !isNaN(gpsLongitude) ? gpsLongitude : undefined,
     }
 
     // Clean undefined keys

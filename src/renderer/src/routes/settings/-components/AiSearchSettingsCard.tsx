@@ -312,8 +312,10 @@ function ModelSelectorSection({
               {clipModels.map(model => (
                 <DropdownMenuItem
                   key={model.id}
-                  onSelect={(e) => {
-                    if ((e.target as HTMLElement).closest('.delete-model-btn')) {
+                  onSelect={e => {
+                    if (
+                      (e.target as HTMLElement).closest('.delete-model-btn')
+                    ) {
                       e.preventDefault()
                       return
                     }
@@ -342,7 +344,7 @@ function ModelSelectorSection({
                       type="button"
                       className="delete-model-btn p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                       title="Delete model"
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation()
                         if (clipModels.length <= 1) {
                           toast.error('Cannot delete the last remaining model.')
@@ -355,20 +357,26 @@ function ModelSelectorSection({
                           onAction: () => {
                             deleteModelMutation.mutate(model.id, {
                               onSuccess: () => {
-                                const updated = clipModels.filter(m => m.id !== model.id)
+                                const updated = clipModels.filter(
+                                  m => m.id !== model.id,
+                                )
                                 setClipModels(updated)
                                 if (currentModel === model.id) {
-                                  const remaining = updated.length > 0 ? updated[0].id : CLIP_DEFAULT_MODEL
+                                  const remaining =
+                                    updated.length > 0
+                                      ? updated[0].id
+                                      : CLIP_DEFAULT_MODEL
                                   updateCurrentModel(remaining)
                                 }
-                              }
+                              },
                             })
-                          }
+                          },
                         })
                         setAlertOpen(true)
                       }}
                     >
-                      {deleteModelMutation.isPending && deleteModelMutation.variables === model.id ? (
+                      {deleteModelMutation.isPending &&
+                      deleteModelMutation.variables === model.id ? (
                         <Spinner className="size-3 animate-spin" />
                       ) : (
                         <TrashIcon className="size-3.5" />
@@ -523,7 +531,10 @@ function ModelIndexManagementSection({
             setClipModels(updatedModels)
 
             if (currentModel === modelId) {
-              const remaining = updatedModels.length > 0 ? updatedModels[0].id : CLIP_DEFAULT_MODEL
+              const remaining =
+                updatedModels.length > 0
+                  ? updatedModels[0].id
+                  : CLIP_DEFAULT_MODEL
               setCurrentModel(remaining)
             }
             refetchIndexedModels()
@@ -561,7 +572,8 @@ function ModelIndexManagementSection({
       {isManageExpanded && (
         <div className="space-y-3 pt-1 animate-fade-in">
           <p className="text-xs text-muted-foreground">
-            Clear stored search embeddings or delete custom models from the database.
+            Clear stored search embeddings or delete custom models from the
+            database.
           </p>
           {modelsToManage.length === 0 ? (
             <div className="p-4 border border-border/30 rounded-xl bg-card/5 text-center text-xs text-muted-foreground font-sans">
@@ -574,7 +586,8 @@ function ModelIndexManagementSection({
                   m => m.id === model.id,
                 )
                 const isActive = model.id === currentModel
-                const tableName = 'vec_images_' + model.id.replace(/[^a-zA-Z0-9_]/g, '_')
+                const tableName =
+                  'vec_images_' + model.id.replace(/[^a-zA-Z0-9_]/g, '_')
                 const hasTable = indexedModels.includes(tableName)
 
                 return (

@@ -1,6 +1,9 @@
 import fs from 'fs/promises'
 
-export async function moveFile(source: string, destination: string): Promise<void> {
+export async function moveFile(
+  source: string,
+  destination: string,
+): Promise<void> {
   try {
     await fs.rename(source, destination)
   } catch (error: any) {

@@ -120,9 +120,7 @@ function FileDropDown() {
 
 function TopTitle() {
   const { folderPath } = useFolder()
-  const {
-    filter,
-  } = useSearch()
+  const { filter } = useSearch()
 
   const { isLoading, data } = useInfiniteImages(
     folderPath ?? undefined,

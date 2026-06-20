@@ -98,10 +98,18 @@ export function NavBar() {
             className="size-12 relative group"
             title={`Grid density: ${currentLabel}`}
           >
-            {gridDensity === 'auto' && <LayoutIcon className="size-6" weight="regular" />}
-            {gridDensity === 2 && <ColumnsIcon className="size-6" weight="regular" />}
-            {gridDensity === 3 && <GridFourIcon className="size-6" weight="regular" />}
-            {typeof gridDensity === 'number' && gridDensity >= 4 && <GridNineIcon className="size-6" weight="regular" />}
+            {gridDensity === 'auto' && (
+              <LayoutIcon className="size-6" weight="regular" />
+            )}
+            {gridDensity === 2 && (
+              <ColumnsIcon className="size-6" weight="regular" />
+            )}
+            {gridDensity === 3 && (
+              <GridFourIcon className="size-6" weight="regular" />
+            )}
+            {typeof gridDensity === 'number' && gridDensity >= 4 && (
+              <GridNineIcon className="size-6" weight="regular" />
+            )}
             <span className="absolute -top-1 -right-1 text-[9px] font-bold leading-none bg-primary text-primary-foreground rounded-full size-4 flex items-center justify-center">
               {gridDensity === 'auto' ? 'A' : gridDensity}
             </span>

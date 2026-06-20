@@ -1,22 +1,30 @@
-import { AppSettingModel, SettingValue, InferValueTypeKey } from '@main/types/models.shared'
+import {
+  AppSettingModel,
+  SettingValue,
+  InferValueTypeKey,
+} from '@main/types/models.shared'
 import { ipcRenderer } from 'electron'
 
 export interface SettingsApi {
   getAll(): Promise<AppSettingModel[]>
   get(key: string): Promise<AppSettingModel | undefined>
-  getValue<T extends SettingValue = SettingValue>(key: string): Promise<T | undefined>
+  getValue<T extends SettingValue = SettingValue>(
+    key: string,
+  ): Promise<T | undefined>
   set<T extends SettingValue>(
     key: string,
     value: T,
     valueType?: InferValueTypeKey<T>,
   ): Promise<void>
   delete(key: string): Promise<void>
-  
+
   regenerateThumbnails(folderPath: string): Promise<number>
   reindexImagesClip(folderPath: string): Promise<number>
   clearModelIndex(modelId: string, folderPath: string): Promise<void>
   deleteModel(modelId: string, folderPath: string): Promise<void>
-  partialReindex(folderPath: string): Promise<{ isUnused: boolean; missingCount: number }>
+  partialReindex(
+    folderPath: string,
+  ): Promise<{ isUnused: boolean; missingCount: number }>
   getIndexedModels(): Promise<string[]>
 }
 
@@ -33,11 +41,7 @@ const settingsApi: SettingsApi = {
     return ipcRenderer.invoke('settings:get-value', key)
   },
 
-  set(
-    key: string,
-    value: any,
-    valueType: any = 'string',
-  ): Promise<void> {
+  set(key: string, value: any, valueType: any = 'string'): Promise<void> {
     return ipcRenderer.invoke('settings:set', key, value, valueType)
   },
 
@@ -61,7 +65,9 @@ const settingsApi: SettingsApi = {
     return ipcRenderer.invoke('settings:delete-model', modelId, folderPath)
   },
 
-  partialReindex(folderPath: string): Promise<{ isUnused: boolean; missingCount: number }> {
+  partialReindex(
+    folderPath: string,
+  ): Promise<{ isUnused: boolean; missingCount: number }> {
     return ipcRenderer.invoke('settings:partial-reindex', folderPath)
   },
 

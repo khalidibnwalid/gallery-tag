@@ -25,7 +25,9 @@ export function useClearModelIndexMutation(folderPath: string) {
     },
     onSuccess: (_, modelId) => {
       toast.success(`Cleared index for ${modelId.split('/').pop()}`)
-      queryClient.invalidateQueries({ queryKey: ['settings', 'indexed-models'] })
+      queryClient.invalidateQueries({
+        queryKey: ['settings', 'indexed-models'],
+      })
       queryClient.invalidateQueries({ queryKey: ['images'] })
     },
     onError: (err: any) => {
@@ -45,7 +47,9 @@ export function useDeleteModelMutation(folderPath: string) {
     },
     onSuccess: (_, modelId) => {
       toast.success(`Deleted model ${modelId.split('/').pop()}`)
-      queryClient.invalidateQueries({ queryKey: ['settings', 'indexed-models'] })
+      queryClient.invalidateQueries({
+        queryKey: ['settings', 'indexed-models'],
+      })
       queryClient.invalidateQueries({ queryKey: ['images'] })
     },
     onError: (err: any) => {
@@ -63,13 +67,19 @@ export function usePartialReindexMutation(folderPath: string) {
       }
       return await window.api.settings.partialReindex(folderPath)
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['settings', 'indexed-models'] })
+    onSuccess: data => {
+      queryClient.invalidateQueries({
+        queryKey: ['settings', 'indexed-models'],
+      })
       queryClient.invalidateQueries({ queryKey: ['images'] })
       if (data.isUnused) {
-        toast.info('This model has not been used before. Starting a full indexing scan in the background...')
+        toast.info(
+          'This model has not been used before. Starting a full indexing scan in the background...',
+        )
       } else if (data.missingCount > 0) {
-        toast.info(`Indexing ${data.missingCount} remaining images in the background...`)
+        toast.info(
+          `Indexing ${data.missingCount} remaining images in the background...`,
+        )
       }
     },
     onError: (err: any) => {
@@ -87,9 +97,13 @@ export function useReindexClipMutation(folderPath: string) {
       }
       return await window.api.settings.reindexImagesClip(folderPath)
     },
-    onSuccess: (cleared) => {
-      toast.success(`Started AI re-indexing for ${cleared} images in the background.`)
-      queryClient.invalidateQueries({ queryKey: ['settings', 'indexed-models'] })
+    onSuccess: cleared => {
+      toast.success(
+        `Started AI re-indexing for ${cleared} images in the background.`,
+      )
+      queryClient.invalidateQueries({
+        queryKey: ['settings', 'indexed-models'],
+      })
       queryClient.invalidateQueries({ queryKey: ['images'] })
     },
     onError: (err: any) => {

@@ -98,7 +98,9 @@ class WatcherService {
         } catch {}
 
         if (!exists) {
-          console.log(`Watcher: Folder ${absPath} went missing from disk. Soft-deleting...`)
+          console.log(
+            `Watcher: Folder ${absPath} went missing from disk. Soft-deleting...`,
+          )
           folderRepo.softDeleteFolder(f.id)
         }
       }

@@ -123,11 +123,15 @@ async function getAllBase(
 
       if (hasText) {
         console.log(`AI Text Search: "${filter!.aiSearchText}"`)
-        textEmbedding = await clipService.getTextEmbedding(filter!.aiSearchText!)
+        textEmbedding = await clipService.getTextEmbedding(
+          filter!.aiSearchText!,
+        )
       }
       if (hasImage) {
         console.log(`AI Image Search: "${filter!.aiSearchImage}"`)
-        imageEmbedding = await clipService.getImageEmbedding(filter!.aiSearchImage!)
+        imageEmbedding = await clipService.getImageEmbedding(
+          filter!.aiSearchImage!,
+        )
       }
     }
 

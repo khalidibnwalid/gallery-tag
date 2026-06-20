@@ -1,13 +1,21 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useSearch } from '@/components/providers/SearchProvider'
 import { ArrowsDownUp, Check } from '@phosphor-icons/react'
 
 export function SortPicker({ className }: { className?: string }) {
-  const { sortBy, setSortBy, sortOrder, setSortOrder, setIsSearching } = useSearch()
+  const { sortBy, setSortBy, sortOrder, setSortOrder, setIsSearching } =
+    useSearch()
 
-  const options: { label: string; value: 'createdAt' | 'modifiedAt' | 'fileName' }[] = [
+  const options: {
+    label: string
+    value: 'createdAt' | 'modifiedAt' | 'fileName'
+  }[] = [
     { label: 'Title', value: 'fileName' },
     { label: 'Creation Date', value: 'createdAt' },
     { label: 'Modified Date', value: 'modifiedAt' },
@@ -55,7 +63,7 @@ export function SortPicker({ className }: { className?: string }) {
           Sort By
         </div>
         <div className="flex flex-col gap-0.5">
-          {options.map((opt) => {
+          {options.map(opt => {
             const isSelected = sortBy === opt.value
             return (
               <button
@@ -65,7 +73,7 @@ export function SortPicker({ className }: { className?: string }) {
                   'flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors',
                   isSelected
                     ? 'bg-primary/10 text-primary'
-                    : 'hover:bg-muted text-foreground/80 hover:text-foreground'
+                    : 'hover:bg-muted text-foreground/80 hover:text-foreground',
                 )}
               >
                 <span>{opt.label}</span>
@@ -87,7 +95,7 @@ export function SortPicker({ className }: { className?: string }) {
               'px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center border',
               sortOrder === 'asc'
                 ? 'bg-foreground text-background border-foreground'
-                : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                : 'bg-background hover:bg-muted text-muted-foreground border-border',
             )}
           >
             Asc
@@ -98,7 +106,7 @@ export function SortPicker({ className }: { className?: string }) {
               'px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer text-center border',
               sortOrder === 'desc'
                 ? 'bg-foreground text-background border-foreground'
-                : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                : 'bg-background hover:bg-muted text-muted-foreground border-border',
             )}
           >
             Desc

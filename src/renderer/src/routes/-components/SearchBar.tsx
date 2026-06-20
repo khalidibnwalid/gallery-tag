@@ -318,11 +318,7 @@ export default function SearchBar() {
     >
       {isDragging && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-xl backdrop-blur-xs pointer-events-none animate-pulse">
-          <CameraIcon
-            size={32}
-            weight="fill"
-            className="text-primary mb-2"
-          />
+          <CameraIcon size={32} weight="fill" className="text-primary mb-2" />
           <span className="text-sm font-semibold text-primary">
             Drop image to search with AI...
           </span>
@@ -413,7 +409,15 @@ export default function SearchBar() {
                 <CameraIcon size={20} weight="bold" />
               </Button>
             )}
-            {(searchValue.length > 0 || aiSearchImage || searchColor || createdStart || createdEnd || modifiedStart || modifiedEnd || sortBy !== 'fileName' || sortOrder !== 'asc') && (
+            {(searchValue.length > 0 ||
+              aiSearchImage ||
+              searchColor ||
+              createdStart ||
+              createdEnd ||
+              modifiedStart ||
+              modifiedEnd ||
+              sortBy !== 'fileName' ||
+              sortOrder !== 'asc') && (
               <Button
                 variant="ghost"
                 size="icon"

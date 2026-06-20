@@ -37,7 +37,7 @@ export function useAddFolderMutation() {
       }
       return await window.api.folders.add(parentPath, folderName)
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       toast.success(`Created folder "${data.name}"`)
       queryClient.invalidateQueries({ queryKey: ['folders', folderPath] })
     },
@@ -64,7 +64,7 @@ export function useRenameFolderMutation() {
       }
       return await window.api.folders.rename(folderId, newName)
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       toast.success(`Renamed folder to "${data.name}"`)
       queryClient.invalidateQueries({ queryKey: ['folders', folderPath] })
       queryClient.invalidateQueries({ queryKey: ['images'] })

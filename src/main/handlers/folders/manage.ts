@@ -236,7 +236,9 @@ export async function customizeFolderHandler(
 ): Promise<void> {
   const connectedPaths = db.getConnectedPaths()
   if (connectedPaths.length === 0) {
-    throw new Error('No active database connection found. Please load a folder first.')
+    throw new Error(
+      'No active database connection found. Please load a folder first.',
+    )
   }
   const dbPath = connectedPaths[0]
   const database = db.getDatabase(dbPath)

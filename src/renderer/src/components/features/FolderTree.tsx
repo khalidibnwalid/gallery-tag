@@ -22,9 +22,12 @@ export const FolderTree = memo(function FolderTree({
   const [isCreatingRoot, setIsCreatingRoot] = useState(false)
   const rootInputRef = useRef<HTMLInputElement>(null)
 
-  useTimeout(() => {
-    rootInputRef.current?.focus()
-  }, isCreatingRoot ? 50 : null)
+  useTimeout(
+    () => {
+      rootInputRef.current?.focus()
+    },
+    isCreatingRoot ? 50 : null,
+  )
 
   if (!rootPath) return null
 

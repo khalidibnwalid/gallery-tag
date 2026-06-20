@@ -56,7 +56,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     }
 
     if (startContent || endContent) {
-      const baseSize = size === 'lg' ? 'px-3' : size === 'sm' ? 'px-2.5' : 'px-3'
+      const baseSize =
+        size === 'lg' ? 'px-3' : size === 'sm' ? 'px-2.5' : 'px-3'
       const startPadding = startContent
         ? size === 'lg'
           ? 'ps-9'

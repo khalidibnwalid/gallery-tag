@@ -10,10 +10,7 @@ import {
   XIcon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
-import {
-  TagsExplorerProvider,
-  useTagsExplorer,
-} from './TagsExplorerContext'
+import { TagsExplorerProvider, useTagsExplorer } from './TagsExplorerContext'
 import { TagTreeItem } from './TagTreeItem'
 
 function TagsExplorerContent({ className }: { className?: string }) {
@@ -145,7 +142,8 @@ function TagsExplorerContent({ className }: { className?: string }) {
               <div
                 className={cn(
                   'border-2 border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 rounded-xl p-4 text-center text-xs text-muted-foreground font-semibold transition-all duration-200 select-none cursor-default',
-                  dragOverId === 'root' && 'border-primary bg-primary/10 text-primary',
+                  dragOverId === 'root' &&
+                    'border-primary bg-primary/10 text-primary',
                 )}
                 onDragOver={e => handleDragOver(e, 'root')}
                 onDragLeave={handleDragLeave}

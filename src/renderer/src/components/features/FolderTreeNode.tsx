@@ -238,7 +238,9 @@ export default function FolderTreeNode({
               )}
             </span>
             {(() => {
-              const IconData = node.icon && FOLDER_ICONS[node.icon as keyof typeof FOLDER_ICONS]
+              const IconData =
+                node.icon &&
+                FOLDER_ICONS[node.icon as keyof typeof FOLDER_ICONS]
               const IconComponent = IconData ? IconData.icon : FolderIcon
               return (
                 <IconComponent
@@ -246,7 +248,11 @@ export default function FolderTreeNode({
                     'mr-2 size-[18px] shrink-0',
                     isSelected ? 'text-primary-foreground' : 'text-primary',
                   )}
-                  style={!isSelected && node.color ? { color: node.color } : undefined}
+                  style={
+                    !isSelected && node.color
+                      ? { color: node.color }
+                      : undefined
+                  }
                   weight={isOpen || isSelected ? 'fill' : 'duotone'}
                 />
               )
@@ -360,7 +366,9 @@ export default function FolderTreeNode({
                     >
                       <span
                         className="mr-2 size-3.5 rounded-full border border-foreground/20 shrink-0"
-                        style={{ backgroundColor: colorItem.hex || 'currentColor' }}
+                        style={{
+                          backgroundColor: colorItem.hex || 'currentColor',
+                        }}
                       />
                       {colorItem.name}
                     </ContextMenuItem>

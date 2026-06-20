@@ -24,12 +24,7 @@ export function ImageViewport({
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
-  const {
-    images,
-    currentIndex,
-    goToPrevious,
-    goToNext,
-  } = useLighthouse()
+  const { images, currentIndex, goToPrevious, goToNext } = useLighthouse()
 
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault()

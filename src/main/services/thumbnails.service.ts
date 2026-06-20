@@ -1,6 +1,9 @@
 import sharp from 'sharp'
 import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
-import { APP_SETTING_KEYS, THUMBNAIL_QUALITY_DEFAULT } from '@main/utils/appSettingsKeys'
+import {
+  APP_SETTING_KEYS,
+  THUMBNAIL_QUALITY_DEFAULT,
+} from '@main/utils/appSettingsKeys'
 import Database from 'better-sqlite3'
 
 export interface ThumbnailTask {
@@ -54,7 +57,9 @@ interface CreateThumbnailsOptions {
  */
 export function getThumbnailQuality(db: Database.Database): number | null {
   const repo = new AppSettingsRepository(db)
-  const value = repo.getParsedValue<number | null>(APP_SETTING_KEYS.THUMBNAIL_QUALITY)
+  const value = repo.getParsedValue<number | null>(
+    APP_SETTING_KEYS.THUMBNAIL_QUALITY,
+  )
   // getParsedValue returns `undefined` when the key is missing, and `null` when stored as 'null'
   if (value === undefined) return THUMBNAIL_QUALITY_DEFAULT
   return value

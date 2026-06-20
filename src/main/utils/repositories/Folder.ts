@@ -90,9 +90,9 @@ export class FolderRepository {
     // Root folder is always stored as "/" (portable)
     const rootRelPath = '/'
     let rootId = (
-      this.db.prepare('SELECT id FROM folders WHERE path = ?').get(rootRelPath) as
-        | { id: number }
-        | undefined
+      this.db
+        .prepare('SELECT id FROM folders WHERE path = ?')
+        .get(rootRelPath) as { id: number } | undefined
     )?.id
 
     if (!rootId) {
@@ -108,8 +108,8 @@ export class FolderRepository {
           this.db
             .prepare('SELECT id FROM folders WHERE path = ?')
             .get(rootRelPath) as {
-          id: number
-        }
+            id: number
+          }
         ).id
       }
     }
@@ -137,7 +137,7 @@ export class FolderRepository {
       }[]
       const pathMap = new Map<string, number>(existing.map(e => [e.path, e.id]))
       const deletedPaths = new Map<string, number>(
-        existing.filter(e => e.deleted_at !== null).map(e => [e.path, e.id])
+        existing.filter(e => e.deleted_at !== null).map(e => [e.path, e.id]),
       )
 
       if (!pathMap.has(rootRelPath)) pathMap.set(rootRelPath, rootId)
@@ -215,31 +215,43 @@ export class FolderRepository {
 
     const deleteTransaction = this.db.transaction(() => {
       // 1. Soft delete this folder itself
-      this.db.prepare('UPDATE folders SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?').run(folderId)
+      this.db
+        .prepare(
+          'UPDATE folders SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?',
+        )
+        .run(folderId)
 
       // 2. Soft delete nested subfolders and their images
       if (folder.path !== '/') {
         // Soft delete subfolders
         this.db
-          .prepare(`
+          .prepare(
+            `
             UPDATE folders 
             SET deleted_at = CURRENT_TIMESTAMP 
             WHERE path LIKE ? OR path LIKE ?
-          `)
+          `,
+          )
           .run(folder.path + '/%', folder.path + '\\%')
 
         // Soft delete all images inside this folder and its subfolders
         this.db
-          .prepare(`
+          .prepare(
+            `
             UPDATE images 
             SET deleted_at = CURRENT_TIMESTAMP 
             WHERE file_path LIKE ? OR file_path LIKE ?
-          `)
+          `,
+          )
           .run(folder.path + '/%', folder.path + '\\%')
       } else {
         // If root path, soft delete everything
-        this.db.prepare('UPDATE folders SET deleted_at = CURRENT_TIMESTAMP').run()
-        this.db.prepare('UPDATE images SET deleted_at = CURRENT_TIMESTAMP').run()
+        this.db
+          .prepare('UPDATE folders SET deleted_at = CURRENT_TIMESTAMP')
+          .run()
+        this.db
+          .prepare('UPDATE images SET deleted_at = CURRENT_TIMESTAMP')
+          .run()
       }
     })
 

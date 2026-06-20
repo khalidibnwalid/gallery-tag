@@ -33,7 +33,10 @@ export function DateFilterPicker({ className }: { className?: string }) {
     return `${year}-${month}-${day}`
   }
 
-  const applyPreset = (type: 'created' | 'modified', preset: 'today' | '7days' | '30days' | 'clear') => {
+  const applyPreset = (
+    type: 'created' | 'modified',
+    preset: 'today' | '7days' | '30days' | 'clear',
+  ) => {
     const end = new Date()
     const start = new Date()
 
@@ -98,7 +101,9 @@ export function DateFilterPicker({ className }: { className?: string }) {
         className="w-72 p-4 bg-background/95 border border-border/80 shadow-2xl rounded-2xl flex flex-col gap-4"
       >
         <div className="flex items-center justify-between border-b border-border/40 pb-2">
-          <span className="font-semibold text-sm select-none">Date Filters</span>
+          <span className="font-semibold text-sm select-none">
+            Date Filters
+          </span>
           {hasAnyFilter && (
             <button
               onClick={handleClearAll}
@@ -151,7 +156,9 @@ export function DateFilterPicker({ className }: { className?: string }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-muted-foreground select-none">From</span>
+              <span className="text-[10px] text-muted-foreground select-none">
+                From
+              </span>
               <Input
                 type="date"
                 value={createdStart}
@@ -163,7 +170,9 @@ export function DateFilterPicker({ className }: { className?: string }) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-muted-foreground select-none">To</span>
+              <span className="text-[10px] text-muted-foreground select-none">
+                To
+              </span>
               <Input
                 type="date"
                 value={createdEnd}
@@ -221,7 +230,9 @@ export function DateFilterPicker({ className }: { className?: string }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-muted-foreground select-none">From</span>
+              <span className="text-[10px] text-muted-foreground select-none">
+                From
+              </span>
               <Input
                 type="date"
                 value={modifiedStart}
@@ -233,7 +244,9 @@ export function DateFilterPicker({ className }: { className?: string }) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-muted-foreground select-none">To</span>
+              <span className="text-[10px] text-muted-foreground select-none">
+                To
+              </span>
               <Input
                 type="date"
                 value={modifiedEnd}

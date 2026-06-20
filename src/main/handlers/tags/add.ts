@@ -26,7 +26,8 @@ export default async function addHandler(
 
     const tagRepo = new TagRepository(database)
 
-    let newTags: (Pick<TagModel, 'name' | 'color'> & { parentId?: number })[] = []
+    let newTags: (Pick<TagModel, 'name' | 'color'> & { parentId?: number })[] =
+      []
     let processedTags: TagModel[] = []
     let insertedTags: TagModel[] = []
 
@@ -38,7 +39,7 @@ export default async function addHandler(
         newTags.push({
           name: tag.name.trim(),
           color: tag.color,
-          parentId: (tag as any).parentId
+          parentId: (tag as any).parentId,
         })
       }
     }

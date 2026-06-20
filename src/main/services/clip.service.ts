@@ -317,9 +317,17 @@ class ClipService {
         const { data, info } = await sharp(imagePath, { failOn: 'none' })
           .raw()
           .toBuffer({ resolveWithObject: true })
-        image = new RawImage(data, info.width, info.height, info.channels as 1 | 2 | 3 | 4)
+        image = new RawImage(
+          data,
+          info.width,
+          info.height,
+          info.channels as 1 | 2 | 3 | 4,
+        )
       } catch (err) {
-        console.warn(`[CLIP] Failed to load JPEG with sharp: ${imagePath}. Falling back to RawImage.read.`, err)
+        console.warn(
+          `[CLIP] Failed to load JPEG with sharp: ${imagePath}. Falling back to RawImage.read.`,
+          err,
+        )
         image = await RawImage.read(imagePath)
       }
     } else {

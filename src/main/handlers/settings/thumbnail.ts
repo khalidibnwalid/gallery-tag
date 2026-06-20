@@ -2,7 +2,10 @@ import { ipcMain } from 'electron'
 import { join, basename } from 'path'
 import fs from 'fs/promises'
 import { ImageRepository } from '@main/utils/repositories/Image'
-import { createThumbnails, getThumbnailQuality } from '@main/services/thumbnails.service'
+import {
+  createThumbnails,
+  getThumbnailQuality,
+} from '@main/services/thumbnails.service'
 import { THUMBNAILS_DIR } from '@main/utils/files/config'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
@@ -26,9 +29,14 @@ export function registerThumbnailHandlers() {
         try {
           await fs.rm(thumbDir, { recursive: true, force: true })
           await fs.mkdir(thumbDir, { recursive: true })
-          console.log(`[regenerateThumbnails] Cleaned thumbnail directory: ${thumbDir}`)
+          console.log(
+            `[regenerateThumbnails] Cleaned thumbnail directory: ${thumbDir}`,
+          )
         } catch (err) {
-          console.error(`[regenerateThumbnails] Failed to clear thumbnail directory:`, err)
+          console.error(
+            `[regenerateThumbnails] Failed to clear thumbnail directory:`,
+            err,
+          )
         }
 
         // 2. Fetch all active images
@@ -39,7 +47,7 @@ export function registerThumbnailHandlers() {
         _event.sender.send(EVENTS.UPDATE_IMAGE, {
           type: 'update',
           payload: {
-            images: images.map((img) => ({
+            images: images.map(img => ({
               filePath: img.filePath,
               thumbnailPath: '',
             })),
@@ -56,7 +64,7 @@ export function registerThumbnailHandlers() {
         }>({
           batchSize: 50,
           debounceTime: 500,
-          callbackFn: (batch) => {
+          callbackFn: batch => {
             _event.sender.send(EVENTS.UPDATE_IMAGE, {
               type: 'update',
               payload: { images: batch } satisfies ImageUpdatePayload,
@@ -76,10 +84,12 @@ export function registerThumbnailHandlers() {
           })),
           onProgress(result) {
             if (result.success) {
-              imageRepo.updateThumbnailPaths([{
-                filePath: result.imagePath,
-                thumbnailPath: result.outputPath,
-              }])
+              imageRepo.updateThumbnailPaths([
+                {
+                  filePath: result.imagePath,
+                  thumbnailPath: result.outputPath,
+                },
+              ])
               imageUpdateBatcher.add({
                 filePath: result.imagePath,
                 thumbnailPath: result.outputPath,

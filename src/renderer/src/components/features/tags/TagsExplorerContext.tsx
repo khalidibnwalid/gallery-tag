@@ -24,7 +24,10 @@ export interface TagsExplorerContextType {
   setRenameValue: (val: string) => void
   setRenamingTagId: (id: number | null) => void
   submitRename: () => void
-  handleTagToggle: (name: string, event: React.MouseEvent<HTMLButtonElement>) => void
+  handleTagToggle: (
+    name: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => void
   handleRename: (node: TagWithChildren) => void
   handleDelete: (node: TagWithChildren) => void
   handleSetParent: (tagId: number, parentId: number | null) => void
@@ -60,12 +63,18 @@ const TagsExplorerContext = createContext<TagsExplorerContextType | null>(null)
 export function useTagsExplorer() {
   const context = useContext(TagsExplorerContext)
   if (!context) {
-    throw new Error('useTagsExplorer must be used within a TagsExplorerProvider')
+    throw new Error(
+      'useTagsExplorer must be used within a TagsExplorerProvider',
+    )
   }
   return context
 }
 
-export function TagsExplorerProvider({ children }: { children: React.ReactNode }) {
+export function TagsExplorerProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const {
     filterTags: selectedTags = [],
     excludedTags = [],
@@ -78,10 +87,15 @@ export function TagsExplorerProvider({ children }: { children: React.ReactNode }
   const [searchQuery, setSearchQuery] = useState('')
   const [renamingTagId, setRenamingTagId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [deleteTag, setDeleteTag] = useState<{ id: number; name: string } | null>(null)
+  const [deleteTag, setDeleteTag] = useState<{
+    id: number
+    name: string
+  } | null>(null)
   const [dragOverId, setDragOverId] = useState<number | 'root' | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [expandedTagIds, setExpandedTagIds] = useState<Record<number, boolean>>({})
+  const [expandedTagIds, setExpandedTagIds] = useState<Record<number, boolean>>(
+    {},
+  )
   const [hoveredTagId, setHoveredTagId] = useState<number | null>(null)
 
   const toggleExpand = (tagId: number) => {
@@ -232,7 +246,10 @@ export function TagsExplorerProvider({ children }: { children: React.ReactNode }
     setHoveredTagId(null)
   }
 
-  const handleDragOver = (e: React.DragEvent, targetId: number | 'root' | null) => {
+  const handleDragOver = (
+    e: React.DragEvent,
+    targetId: number | 'root' | null,
+  ) => {
     e.preventDefault()
     if (dragOverId !== targetId) {
       setDragOverId(targetId)
@@ -274,73 +291,76 @@ export function TagsExplorerProvider({ children }: { children: React.ReactNode }
     handleSetParent(draggedId, targetId)
   }
 
-  const contextValue = useMemo<TagsExplorerContextType>(() => ({
-    selectedTags,
-    excludedTags,
-    renamingTagId,
-    renameValue,
-    setRenameValue,
-    setRenamingTagId,
-    submitRename,
-    handleTagToggle,
-    handleRename,
-    handleDelete,
-    handleSetParent,
-    sortedTags,
-    isDescendant,
-    dragOverId,
-    setDragOverId,
-    isDragging,
-    setIsDragging,
-    handleDragStart,
-    handleDragOver,
-    handleDragLeave,
-    handleDragEnd,
-    handleDrop,
-    isLoading,
-    filteredTree,
-    searchQuery,
-    setSearchQuery,
-    tagMode,
-    setTagMode: onSetTagMode,
-    clearSelection,
-    deleteTag,
-    setDeleteTag,
-    confirmDelete,
-    expandedTagIds,
-    toggleExpand,
-    hoveredTagId,
-    setHoveredTagId,
-  }), [
-    selectedTags,
-    excludedTags,
-    renamingTagId,
-    renameValue,
-    submitRename,
-    handleTagToggle,
-    handleRename,
-    handleDelete,
-    handleSetParent,
-    sortedTags,
-    isDescendant,
-    dragOverId,
-    setDragOverId,
-    isDragging,
-    setIsDragging,
-    handleDragStart,
-    handleDragOver,
-    handleDragLeave,
-    handleDragEnd,
-    handleDrop,
-    isLoading,
-    filteredTree,
-    searchQuery,
-    tagMode,
-    onSetTagMode,
-    deleteTag,
-    expandedTagIds,
-    hoveredTagId,
-  ])
+  const contextValue = useMemo<TagsExplorerContextType>(
+    () => ({
+      selectedTags,
+      excludedTags,
+      renamingTagId,
+      renameValue,
+      setRenameValue,
+      setRenamingTagId,
+      submitRename,
+      handleTagToggle,
+      handleRename,
+      handleDelete,
+      handleSetParent,
+      sortedTags,
+      isDescendant,
+      dragOverId,
+      setDragOverId,
+      isDragging,
+      setIsDragging,
+      handleDragStart,
+      handleDragOver,
+      handleDragLeave,
+      handleDragEnd,
+      handleDrop,
+      isLoading,
+      filteredTree,
+      searchQuery,
+      setSearchQuery,
+      tagMode,
+      setTagMode: onSetTagMode,
+      clearSelection,
+      deleteTag,
+      setDeleteTag,
+      confirmDelete,
+      expandedTagIds,
+      toggleExpand,
+      hoveredTagId,
+      setHoveredTagId,
+    }),
+    [
+      selectedTags,
+      excludedTags,
+      renamingTagId,
+      renameValue,
+      submitRename,
+      handleTagToggle,
+      handleRename,
+      handleDelete,
+      handleSetParent,
+      sortedTags,
+      isDescendant,
+      dragOverId,
+      setDragOverId,
+      isDragging,
+      setIsDragging,
+      handleDragStart,
+      handleDragOver,
+      handleDragLeave,
+      handleDragEnd,
+      handleDrop,
+      isLoading,
+      filteredTree,
+      searchQuery,
+      tagMode,
+      onSetTagMode,
+      deleteTag,
+      expandedTagIds,
+      hoveredTagId,
+    ],
+  )
 
   return (
     <TagsExplorerContext.Provider value={contextValue}>
