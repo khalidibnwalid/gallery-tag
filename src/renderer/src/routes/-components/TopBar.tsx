@@ -17,7 +17,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { useInfiniteImages } from '@/lib/queries/images'
 import { cn } from '@/lib/utils'
-import { XIcon } from '@phosphor-icons/react'
+import { XIcon, PlusIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import SearchBar from './SearchBar'
 
@@ -26,13 +26,13 @@ export default function TopBar() {
 
   return (
     <div className="absolute z-50 top-3 left-3 right-3 px-4 h-12 w-auto flex items-center justify-between gap-3">
-      <ButtonGroup className="backdrop-blur-3xl bg-background/70 rounded-md overflow-hidden">
+      <ButtonGroup className="backdrop-blur-3xl bg-background/70 rounded-md overflow-hidden shrink-0">
         <FileDropDown />
-        <Button variant="outline">Edit</Button>
+        {/* <Button variant="outline">Edit</Button>
         <Button variant="outline">View</Button>
-        <Button variant="outline">Help</Button>
+        <Button variant="outline">Help</Button> */}
       </ButtonGroup>
-      <TopTitle />
+      <FolderTabs />
       <div
         className={cn(
           'backdrop-blur-3xl rounded-xl absolute top-0 left-1/2 -translate-x-1/2 transition-all duration-300 w-1/3',
@@ -43,6 +43,7 @@ export default function TopBar() {
         <SearchBar />
       </div>
       <div className="flex-1"></div>
+      <ActiveImageCount />
       <div>
         <Button
           variant="outline"
@@ -118,7 +119,62 @@ function FileDropDown() {
   )
 }
 
-function TopTitle() {
+function FolderTabs() {
+  const { folderPath, tabs, closeTab, openFolderDialog, openFolder } =
+    useFolder()
+
+  if (!tabs || tabs.length === 0) return null
+
+  return (
+    <div className="flex items-center gap-1.5 max-w-[32vw] overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5 select-none xl:flex hidden">
+      {tabs.map(path => {
+        const name = path.split('/').pop() || path
+        const isActive = path === folderPath
+        return (
+          <div
+            key={path}
+            onClick={() => {
+              if (!isActive) {
+                openFolder(path)
+              }
+            }}
+            className={cn(
+              'group backdrop-blur-3xl  relative flex items-center gap-2 px-3 h-9 rounded-md border text-xs font-bold cursor-pointer transition-all duration-200',
+              isActive
+                ? 'bg-primary/80 text-background border-primary/30 shadow-xs'
+                : 'bg-background/70 hover:bg-background/80 text-muted-foreground border-border/40 hover:text-foreground hover:border-border',
+            )}
+            title={path}
+          >
+            <span className="truncate max-w-[120px]">/{name}</span>
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                closeTab(path)
+              }}
+              className="opacity-0 group-hover:opacity-100 hover:bg-muted p-0.5 rounded-md transition-all shrink-0 ml-1 animate-fade-in"
+            >
+              <XIcon size={12} weight="bold" />
+            </button>
+          </div>
+        )
+      })}
+
+      <Button
+        variant="default"
+        size="icon"
+        className="size-8 h-9 shrink-0 backdrop-blur-3xl bg-background/70! text-primary hover:bg-background/80 border-border/40"
+        onClick={openFolderDialog}
+        title="Open folder in new tab"
+      >
+        <PlusIcon size={14} weight="bold" />
+      </Button>
+    </div>
+  )
+}
+
+function ActiveImageCount() {
   const { folderPath } = useFolder()
   const { filter } = useSearch()
 
@@ -133,30 +189,17 @@ function TopTitle() {
   const totalCount = data?.pages[0]?.total ?? 0
 
   return (
-    <div
-      className="items-center gap-1 max-w-1/3 xl:flex hidden"
-      title={folderPath}
+    <Button
+      variant="outline"
+      className="cursor-default bg-background/70! backdrop-blur-3xl px-3 xl:flex hidden shrink-0 h-9"
     >
-      <Button
-        variant="outline"
-        className="cursor-default bg-background/70! backdrop-blur-3xl"
-      >
-        <span className="w-full overflow-hidden font-bold ">
-          /{folderPath.split('/').pop()}
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <span className="w-full overflow-hidden font-bold">
+          {totalCount.toLocaleString()} Images
         </span>
-      </Button>
-      <Button
-        variant="outline"
-        className="cursor-default bg-background/70! backdrop-blur-3xl px-2"
-      >
-        {isLoading ? (
-          <Spinner />
-        ) : (
-          <span className="w-full overflow-hidden font-bold ">
-            {totalCount.toLocaleString()} Images
-          </span>
-        )}
-      </Button>
-    </div>
+      )}
+    </Button>
   )
 }

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { useFolder } from './FolderProvider'
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 
 export interface ImageFilter {
   text: string
@@ -59,8 +60,49 @@ interface SearchProvider {
 
 const SearchContext = createContext({} as SearchProvider)
 
+export interface FolderSearchState {
+  searchQuery: string
+  isSearching: boolean
+  filterPath: string | null
+  filterTags: string[]
+  tagMode: 'AND' | 'OR'
+  excludedTags: string[]
+  searchColor: string | null
+  aiSearchText: string
+  aiSearchImage: string | null
+  createdStart: string
+  createdEnd: string
+  modifiedStart: string
+  modifiedEnd: string
+  sortBy: 'createdAt' | 'modifiedAt' | 'fileName'
+  sortOrder: 'asc' | 'desc'
+}
+
+const createDefaultState = (): FolderSearchState => ({
+  searchQuery: '',
+  isSearching: false,
+  filterPath: null,
+  filterTags: [],
+  tagMode: 'OR',
+  excludedTags: [],
+  searchColor: null,
+  aiSearchText: '',
+  aiSearchImage: null,
+  createdStart: '',
+  createdEnd: '',
+  modifiedStart: '',
+  modifiedEnd: '',
+  sortBy: 'modifiedAt',
+  sortOrder: 'desc',
+})
+
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const { folderPath } = useFolder()
+  const [states, setStates] = useLocalStorage<Record<string, FolderSearchState>>(
+    'folder-search-states',
+    {},
+  )
+
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [filterPath, setFilterPath] = useState<string | null>(null)
@@ -79,6 +121,46 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     'modifiedAt',
   )
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  const prevFolderPathRef = useRef<string | null>(null)
+  const currentStateRef = useRef<FolderSearchState>(createDefaultState())
+
+  // Keep ref updated with current state
+  useEffect(() => {
+    currentStateRef.current = {
+      searchQuery,
+      isSearching,
+      filterPath,
+      filterTags,
+      tagMode,
+      excludedTags,
+      searchColor,
+      aiSearchText,
+      aiSearchImage,
+      createdStart,
+      createdEnd,
+      modifiedStart,
+      modifiedEnd,
+      sortBy,
+      sortOrder,
+    }
+  }, [
+    searchQuery,
+    isSearching,
+    filterPath,
+    filterTags,
+    tagMode,
+    excludedTags,
+    searchColor,
+    aiSearchText,
+    aiSearchImage,
+    createdStart,
+    createdEnd,
+    modifiedStart,
+    modifiedEnd,
+    sortBy,
+    sortOrder,
+  ])
 
   const filter: ImageFilter = {
     text: searchQuery,
@@ -116,9 +198,55 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     setSortOrder('asc')
   }
 
+  // Track folder path transitions to save & load folder-specific search state
   useEffect(() => {
-    clearSearch()
+    const prevPath = prevFolderPathRef.current
+    if (prevPath) {
+      setStates(prev => ({
+        ...prev,
+        [prevPath]: currentStateRef.current,
+      }))
+    }
+
+    if (folderPath) {
+      const saved = states[folderPath] || createDefaultState()
+      setSearchQuery(saved.searchQuery)
+      setIsSearching(saved.isSearching)
+      setFilterPath(saved.filterPath)
+      setFilterTags(saved.filterTags)
+      setTagMode(saved.tagMode)
+      setExcludedTags(saved.excludedTags)
+      setSearchColor(saved.searchColor)
+      setAiSearchText(saved.aiSearchText)
+      setAiSearchImage(saved.aiSearchImage)
+      setCreatedStart(saved.createdStart)
+      setCreatedEnd(saved.createdEnd)
+      setModifiedStart(saved.modifiedStart)
+      setModifiedEnd(saved.modifiedEnd)
+      setSortBy(saved.sortBy)
+      setSortOrder(saved.sortOrder)
+    } else {
+      clearSearch()
+    }
+
+    prevFolderPathRef.current = folderPath
   }, [folderPath])
+
+  // Save current active state on unmount (app reload or page navigation)
+  useEffect(() => {
+    return () => {
+      if (prevFolderPathRef.current) {
+        try {
+          const raw = localStorage.getItem('folder-search-states')
+          const parsed = raw ? JSON.parse(raw) : {}
+          parsed[prevFolderPathRef.current] = currentStateRef.current
+          localStorage.setItem('folder-search-states', JSON.stringify(parsed))
+        } catch (e) {
+          console.error('Failed to save search state on unmount:', e)
+        }
+      }
+    }
+  }, [])
 
   return (
     <SearchContext.Provider

@@ -1,7 +1,6 @@
 import useImages, { useInfiniteImages } from '@/lib/queries/images'
 import { useTags } from '@/lib/queries/tags'
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
-import { useQueryClient } from '@tanstack/react-query'
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { SetupWizardDialog } from '@/components/features/SetupWizardDialog'
 
@@ -15,12 +14,33 @@ interface FolderProvider {
   folderImagesQuery: ReturnType<typeof useImages>
   paginatedImagesQuery: ReturnType<typeof useInfiniteImages>
   tagsQuery: ReturnType<typeof useTags>
+  tabs: string[]
+  closeTab: (path: string) => void
 }
 
 const FolderContext = createContext({} as FolderProvider)
 
 export function FolderProvider({ children }: { children: React.ReactNode }) {
-  const [folderPath, setFolderPath] = useState<string | null>(null)
+  const [tabs, setTabs] = useLocalStorage<string[]>('open-folder-tabs', [])
+  const [folderPath, setFolderPath] = useState<string | null>(() => {
+    try {
+      const savedActive = localStorage.getItem('active-folder-tab')
+      if (savedActive) {
+        const parsed = JSON.parse(savedActive)
+        if (parsed) return parsed
+      }
+      const savedTabs = localStorage.getItem('open-folder-tabs')
+      if (savedTabs) {
+        const parsedTabs = JSON.parse(savedTabs)
+        if (Array.isArray(parsedTabs) && parsedTabs.length > 0) {
+          return parsedTabs[0]
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+    return null
+  })
   const [pendingFolderPath, setPendingFolderPath] = useState<string | null>(null)
   const [showSetupDialog, setShowSetupDialog] = useState(false)
   const [recentFolders, setRecentFolders] = useLocalStorage<string[]>(
@@ -32,14 +52,19 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
   const paginatedImagesQuery = useInfiniteImages(folderPath!)
   const tagsQuery = useTags()
 
-  const queryClient = useQueryClient()
-
-  // Track folder changes to update recent-folders list
+  // Track folder changes to update recent-folders list and tabs list
   useEffect(() => {
     if (folderPath) {
+      localStorage.setItem('active-folder-tab', JSON.stringify(folderPath))
       setRecentFolders(prev =>
         [folderPath, ...prev.filter(p => p !== folderPath)].slice(0, 5),
       )
+      setTabs(prev => {
+        if (prev.includes(folderPath)) return prev
+        return [...prev, folderPath]
+      })
+    } else {
+      localStorage.removeItem('active-folder-tab')
     }
   }, [folderPath])
 
@@ -51,16 +76,36 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
         setShowSetupDialog(true)
       } else {
         setFolderPath(path)
-        queryClient.clear()
-        queryClient.invalidateQueries()
+        setTabs(prev => {
+          if (prev.includes(path)) return prev
+          return [...prev, path]
+        })
       }
     } catch (e) {
       console.error('Failed to check if folder is new:', e)
       // Fallback
       setFolderPath(path)
-      queryClient.clear()
-      queryClient.invalidateQueries()
+      setTabs(prev => {
+        if (prev.includes(path)) return prev
+        return [...prev, path]
+      })
     }
+  }
+
+  const closeTab = (path: string) => {
+    setTabs(prev => {
+      const nextTabs = prev.filter(t => t !== path)
+      if (folderPath === path) {
+        if (nextTabs.length > 0) {
+          const closedIndex = prev.indexOf(path)
+          const nextActiveIndex = Math.min(closedIndex, nextTabs.length - 1)
+          setFolderPath(nextTabs[nextActiveIndex])
+        } else {
+          setFolderPath(null)
+        }
+      }
+      return nextTabs
+    })
   }
 
   const removeRecentFolder = (path: string) => {
@@ -95,9 +140,12 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
     if (!pendingFolderPath) return
     try {
       await window.api.folders.initWithSettings(pendingFolderPath, settings)
-      setFolderPath(pendingFolderPath)
-      queryClient.clear()
-      queryClient.invalidateQueries()
+      const path = pendingFolderPath
+      setFolderPath(path)
+      setTabs(prev => {
+        if (prev.includes(path)) return prev
+        return [...prev, path]
+      })
       setShowSetupDialog(false)
       setPendingFolderPath(null)
     } catch (err) {
@@ -118,6 +166,8 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
         folderImagesQuery,
         paginatedImagesQuery,
         tagsQuery,
+        tabs,
+        closeTab,
       }}
     >
       {children}
