@@ -1,5 +1,22 @@
 import fs from 'fs/promises'
-import XXH from 'xxhashjs'
+import xxhash from 'xxhash-wasm'
+
+let hasherPromise: ReturnType<typeof xxhash> | null = null
+let hasher: Awaited<ReturnType<typeof xxhash>> | null = null
+
+async function getHasher() {
+  if (hasher) return hasher
+  if (!hasherPromise) {
+    hasherPromise = xxhash().then((h) => {
+      hasher = h
+      return h
+    })
+  }
+  return hasherPromise
+}
+
+// Eagerly load the WASM module at app startup / module import time
+getHasher()
 
 /**
  * Computes a quick hash of the file based on the xxHash32 of chunks across (0, 25%, 50%, 75%, 100%).
@@ -7,6 +24,7 @@ import XXH from 'xxhashjs'
  * but still very reliable for detecting file moves/renames.
  */
 export async function computeFileHash(filePath: string): Promise<string> {
+  const h = hasher || (await getHasher())
   const stats = await fs.stat(filePath)
   const fileSize = stats.size
   const CHUNK_SIZE = 16 * 1024 // 16KB
@@ -16,8 +34,8 @@ export async function computeFileHash(filePath: string): Promise<string> {
     const buffer = await fs.readFile(filePath)
     const sizeBuf = Buffer.from(fileSize.toString(), 'utf-8')
     const finalBuf = Buffer.concat([buffer, sizeBuf])
-    const hashVal = XXH.h32(finalBuf, 0)
-    return hashVal.toString(16).padStart(8, '0')
+    const hashVal = h.h32Raw(finalBuf, 0)
+    return (hashVal >>> 0).toString(16).padStart(8, '0')
   }
 
   const fd = await fs.open(filePath, 'r')
@@ -41,8 +59,8 @@ export async function computeFileHash(filePath: string): Promise<string> {
     const sizeBuf = Buffer.from(fileSize.toString(), 'utf-8')
     const finalBuf = Buffer.concat([combinedBuffer, sizeBuf])
 
-    const hashVal = XXH.h32(finalBuf, 0)
-    return hashVal.toString(16).padStart(8, '0')
+    const hashVal = h.h32Raw(finalBuf, 0)
+    return (hashVal >>> 0).toString(16).padStart(8, '0')
   } finally {
     await fd.close()
   }

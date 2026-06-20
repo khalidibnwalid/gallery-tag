@@ -32,7 +32,7 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/favorites': typeof FavoritesRoute
-  '/settings': typeof SettingsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -47,7 +47,7 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/favorites' | '/settings'
+  fullPaths: '/' | '/favorites' | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/favorites' | '/settings'
   id: '__root__' | '/' | '/favorites' | '/settings/'
@@ -78,7 +78,7 @@ declare module '@tanstack/react-router' {
     '/settings/': {
       id: '/settings/'
       path: '/settings'
-      fullPath: '/settings'
+      fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

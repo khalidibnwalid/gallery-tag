@@ -5,7 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { registerAllHandlers } from './handlers'
 import { notifier } from './services/notifier.service'
 
-app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout')
+app.commandLine.appendSwitch('enable-features', 'CSSMasonryLayout,CSSGridLanesLayout')
 
 function createWindow(): void {
   // Create the browser window.

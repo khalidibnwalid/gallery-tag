@@ -74,7 +74,11 @@ class DBSingleton {
     const db = new Database(dbPath)
 
     try {
-      sqliteVec.load(db)
+      let loadablePath = sqliteVec.getLoadablePath()
+      if (loadablePath.includes('app.asar') && !loadablePath.includes('app.asar.unpacked')) {
+        loadablePath = loadablePath.replace('app.asar', 'app.asar.unpacked')
+      }
+      db.loadExtension(loadablePath)
       console.log('sqlite-vec extension loaded successfully')
     } catch (e) {
       console.error('Failed to load sqlite-vec extension:', e)
