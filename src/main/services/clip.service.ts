@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import {
   AutoProcessor,
   CLIPVisionModelWithProjection,
@@ -308,7 +309,22 @@ class ClipService {
     if (!this.initialized || !this.processor || !this.visionModel) {
       throw new Error('CLIP service not initialized')
     }
-    const image = await RawImage.read(imagePath)
+    let image: RawImage
+    // some JPEGs fail to load with sharp (typically with Samsung phones)
+    const isJpeg = /\.(jpe?g|jfif)$/i.test(imagePath)
+    if (isJpeg) {
+      try {
+        const { data, info } = await sharp(imagePath, { failOn: 'none' })
+          .raw()
+          .toBuffer({ resolveWithObject: true })
+        image = new RawImage(data, info.width, info.height, info.channels as 1 | 2 | 3 | 4)
+      } catch (err) {
+        console.warn(`[CLIP] Failed to load JPEG with sharp: ${imagePath}. Falling back to RawImage.read.`, err)
+        image = await RawImage.read(imagePath)
+      }
+    } else {
+      image = await RawImage.read(imagePath)
+    }
     const imageInputs = await this.processor(image)
     const outputs = await this.visionModel(imageInputs)
     const embeds = outputs.image_embeds || outputs.pooler_output

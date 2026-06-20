@@ -107,7 +107,7 @@ async function processImage(
   quality?: number,
 ): Promise<ThumbnailResult> {
   try {
-    const pipeline = sharp(imagePath)
+    const pipeline = sharp(imagePath, { failOn: 'none' })
     const metadata = await pipeline.metadata()
 
     await pipeline

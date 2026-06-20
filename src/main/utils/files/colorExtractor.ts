@@ -11,7 +11,7 @@ export async function extractDominantColors(
 ): Promise<string[]> {
   try {
     // 1. Load and resize image to 64x64 raw pixels for fast processing
-    const { data, info } = await sharp(imagePath)
+    const { data, info } = await sharp(imagePath, { failOn: 'none' })
       .resize(64, 64, { fit: 'inside' })
       .raw()
       .toBuffer({ resolveWithObject: true })
