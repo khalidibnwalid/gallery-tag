@@ -35,7 +35,7 @@ export const FolderTree = memo(function FolderTree({
     <div
       className={cn(
         className,
-        'flex flex-col pt-16 transition-all duration-300',
+        'flex flex-col transition-all duration-300',
       )}
     >
       <div className="px-6 py-4 border-b border-border/40 font-bold text-xs text-muted-foreground uppercase tracking-widest flex items-center justify-between">

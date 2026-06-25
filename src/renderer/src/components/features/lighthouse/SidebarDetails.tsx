@@ -14,7 +14,7 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../../ui/button'
-import { formatBytes } from './utils'
+import { formatBytes } from '@/lib/utils'
 
 export function SidebarDetails() {
   const { folderPath, folderImagesQuery, paginatedImagesQuery } = useFolder()

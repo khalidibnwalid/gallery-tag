@@ -1,9 +1,9 @@
+import { SidebarFilters } from '@/components/features/sidebar/SidebarFilters'
 import { useFolder } from '@/components/providers/FolderProvider'
-import { createFileRoute } from '@tanstack/react-router'
-import { SidebarFilters } from './-components/SidebarFilters'
-import { NoFolderLanding } from './-components/NoFolderLanding'
-import { ImageGallery } from './-components/ImageGallery'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { createFileRoute } from '@tanstack/react-router'
+import { ImageGallery } from './-components/ImageGallery'
+import { NoFolderLanding } from './-components/NoFolderLanding'
 
 export const Route = createFileRoute('/')({
   component: Index,
