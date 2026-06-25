@@ -1,27 +1,20 @@
 import { ImageModel } from '@main/types/models.shared'
-import { db } from '@main/utils/repositories/db'
 import { ImageRepository } from '@main/utils/repositories/Image'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { dirname, join, extname } from 'path'
 import fs from 'fs/promises'
 import { moveFile } from '@main/utils/files/move'
-import { getRootPath } from '@main/utils/files/config'
+import { getAndInitConfig } from '@main/utils/files/config'
 
 export default async function renameHandler(
   event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   imageId: number,
   newName: string,
 ): Promise<ImageModel> {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
-  }
-
-  const rootPath = getRootPath(connectedPaths[0])
-  const database = db.getDatabase(connectedPaths[0])
+  const { db: database } = await getAndInitConfig(folderPath)
+  const rootPath = folderPath
   const imageRepo = new ImageRepository(database, rootPath)
 
   const image = imageRepo.getImageById(imageId)

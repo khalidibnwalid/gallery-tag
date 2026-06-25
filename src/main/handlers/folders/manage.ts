@@ -1,7 +1,6 @@
-import { getRootPath, CONFIG_DIR, getAndInitConfig } from '@main/utils/files/config'
+import { CONFIG_DIR, getAndInitConfig } from '@main/utils/files/config'
 import { deleteFileToTrash } from '@main/utils/files/delete'
 import { toAbsolutePath, toRelativePath } from '@main/utils/pathUtils'
-import { db } from '@main/utils/repositories/db'
 import { FolderRepository } from '@main/utils/repositories/Folder'
 import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
 import { APP_SETTING_KEYS } from '@main/utils/appSettingsKeys'
@@ -11,6 +10,7 @@ import { dirname, join } from 'path'
 
 export async function addFolderHandler(
   _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   parentPath: string,
   folderName: string,
 ): Promise<{
@@ -19,15 +19,8 @@ export async function addFolderHandler(
   path: string
   parentId: number | null
 }> {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
-  }
-  const dbPath = connectedPaths[0]
-  const database = db.getDatabase(dbPath)
-  const rootPath = getRootPath(dbPath)
+  const { db: database } = await getAndInitConfig(folderPath)
+  const rootPath = folderPath
 
   const absParentPath =
     parentPath.startsWith('/') && !parentPath.startsWith(rootPath)
@@ -75,18 +68,12 @@ export async function addFolderHandler(
 
 export async function renameFolderHandler(
   _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   folderId: number,
   newName: string,
 ): Promise<{ id: number; name: string; path: string }> {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
-  }
-  const dbPath = connectedPaths[0]
-  const database = db.getDatabase(dbPath)
-  const rootPath = getRootPath(dbPath)
+  const { db: database } = await getAndInitConfig(folderPath)
+  const rootPath = folderPath
 
   // Get current folder details
   const folder = database
@@ -183,17 +170,11 @@ export async function renameFolderHandler(
 
 export async function deleteFolderHandler(
   event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   folderId: number,
 ): Promise<void> {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
-  }
-  const dbPath = connectedPaths[0]
-  const database = db.getDatabase(dbPath)
-  const rootPath = getRootPath(dbPath)
+  const { db: database } = await getAndInitConfig(folderPath)
+  const rootPath = folderPath
 
   // Get current folder details
   const folder = database
@@ -232,18 +213,12 @@ export async function deleteFolderHandler(
 
 export async function customizeFolderHandler(
   _event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   folderId: number,
   icon: string | null,
   color: string | null,
 ): Promise<void> {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
-  }
-  const dbPath = connectedPaths[0]
-  const database = db.getDatabase(dbPath)
+  const { db: database } = await getAndInitConfig(folderPath)
 
   database
     .prepare('UPDATE folders SET icon = ?, color = ? WHERE id = ?')

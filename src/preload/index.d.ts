@@ -43,16 +43,22 @@ declare global {
           callback: ({ images }: ImageUpdatePayload) => void,
         ) => () => void
         moveTo: (
+          folderPath: string,
           imageId: number | number[],
           targetFolderPath: string,
         ) => Promise<ImageModel | ImageModel[]>
-        rename: (imageId: number, newName: string) => Promise<ImageModel>
-        delete: (imageId: number | number[]) => Promise<void>
+        rename: (
+          folderPath: string,
+          imageId: number,
+          newName: string,
+        ) => Promise<ImageModel>
+        delete: (folderPath: string, imageId: number | number[]) => Promise<void>
       }
 
       folders: {
         getAll: (folderPath: string) => Promise<FolderModel[]>
         add: (
+          folderPath: string,
           parentPath: string,
           folderName: string,
         ) => Promise<{
@@ -62,11 +68,13 @@ declare global {
           parentId: number | null
         }>
         rename: (
+          folderPath: string,
           folderId: number,
           newName: string,
         ) => Promise<{ id: number; name: string; path: string }>
-        delete: (folderId: number) => Promise<void>
+        delete: (folderPath: string, folderId: number) => Promise<void>
         customize: (
+          folderPath: string,
           folderId: number,
           icon: string | null,
           color: string | null,

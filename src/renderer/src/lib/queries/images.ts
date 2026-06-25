@@ -163,6 +163,7 @@ export function useInfiniteImages(
 }
 
 export function useRenameImageMutation() {
+  const { folderPath } = useFolder()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -176,7 +177,7 @@ export function useRenameImageMutation() {
       if (!window.api || !window.api.images.rename) {
         throw new Error('Images rename API not available')
       }
-      return await window.api.images.rename(imageId, newName)
+      return await window.api.images.rename(folderPath!, imageId, newName)
     },
     onSuccess: () => {
       toast.success('Image renamed successfully')
@@ -189,6 +190,7 @@ export function useRenameImageMutation() {
 }
 
 export function useMoveImagesMutation() {
+  const { folderPath } = useFolder()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -202,7 +204,7 @@ export function useMoveImagesMutation() {
       if (!window.api || !window.api.images.moveTo) {
         throw new Error('Images move API not available')
       }
-      return await window.api.images.moveTo(imageIds, targetFolderPath)
+      return await window.api.images.moveTo(folderPath!, imageIds, targetFolderPath)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['images'] })
@@ -211,6 +213,7 @@ export function useMoveImagesMutation() {
 }
 
 export function useDeleteImagesMutation() {
+  const { folderPath } = useFolder()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -218,7 +221,7 @@ export function useDeleteImagesMutation() {
       if (!window.api || !window.api.images.delete) {
         throw new Error('Images delete API not available')
       }
-      return await window.api.images.delete(imageIds)
+      return await window.api.images.delete(folderPath!, imageIds)
     },
     onSuccess: () => {
       toast.success('Images deleted successfully')

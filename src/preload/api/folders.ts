@@ -5,6 +5,7 @@ const foldersApi = {
   getAll: (folderPath: string): Promise<FolderModel[]> =>
     ipcRenderer.invoke('folders:get-all', folderPath),
   add: (
+    folderPath: string,
     parentPath: string,
     folderName: string,
   ): Promise<{
@@ -12,20 +13,22 @@ const foldersApi = {
     name: string
     path: string
     parentId: number | null
-  }> => ipcRenderer.invoke('folders:add', parentPath, folderName),
+  }> => ipcRenderer.invoke('folders:add', folderPath, parentPath, folderName),
   rename: (
+    folderPath: string,
     folderId: number,
     newName: string,
   ): Promise<{ id: number; name: string; path: string }> =>
-    ipcRenderer.invoke('folders:rename', folderId, newName),
-  delete: (folderId: number): Promise<void> =>
-    ipcRenderer.invoke('folders:delete', folderId),
+    ipcRenderer.invoke('folders:rename', folderPath, folderId, newName),
+  delete: (folderPath: string, folderId: number): Promise<void> =>
+    ipcRenderer.invoke('folders:delete', folderPath, folderId),
   customize: (
+    folderPath: string,
     folderId: number,
     icon: string | null,
     color: string | null,
   ): Promise<void> =>
-    ipcRenderer.invoke('folders:customize', folderId, icon, color),
+    ipcRenderer.invoke('folders:customize', folderPath, folderId, icon, color),
   isNew: (folderPath: string): Promise<boolean> =>
     ipcRenderer.invoke('folders:is-new', folderPath),
   initWithSettings: (

@@ -35,7 +35,7 @@ export function useAddFolderMutation() {
       if (!window.api || !window.api.folders.add) {
         throw new Error('Folders add API not available')
       }
-      return await window.api.folders.add(parentPath, folderName)
+      return await window.api.folders.add(folderPath!, parentPath, folderName)
     },
     onSuccess: data => {
       toast.success(`Created folder "${data.name}"`)
@@ -62,7 +62,7 @@ export function useRenameFolderMutation() {
       if (!window.api || !window.api.folders.rename) {
         throw new Error('Folders rename API not available')
       }
-      return await window.api.folders.rename(folderId, newName)
+      return await window.api.folders.rename(folderPath!, folderId, newName)
     },
     onSuccess: data => {
       toast.success(`Renamed folder to "${data.name}"`)
@@ -84,7 +84,7 @@ export function useDeleteFolderMutation() {
       if (!window.api || !window.api.folders.delete) {
         throw new Error('Folders delete API not available')
       }
-      return await window.api.folders.delete(folderId)
+      return await window.api.folders.delete(folderPath!, folderId)
     },
     onSuccess: () => {
       toast.success('Folder moved to trash')
@@ -114,7 +114,7 @@ export function useCustomizeFolderMutation() {
       if (!window.api || !window.api.folders.customize) {
         throw new Error('Folders customize API not available')
       }
-      return await window.api.folders.customize(folderId, icon, color)
+      return await window.api.folders.customize(folderPath!, folderId, icon, color)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folders', folderPath] })

@@ -1,24 +1,17 @@
-import { db } from '@main/utils/repositories/db'
 import { ImageRepository } from '@main/utils/repositories/Image'
 import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
 import { deleteFileToTrash } from '@main/utils/files/delete'
-import { getRootPath } from '@main/utils/files/config'
+import { getAndInitConfig } from '@main/utils/files/config'
 import { BrowserWindow } from 'electron'
 
 export default async function deleteImagesHandler(
   event: Electron.IpcMainInvokeEvent,
+  folderPath: string,
   imageIds: number | number[],
 ): Promise<void> {
-  const connectedPaths = db.getConnectedPaths()
-  if (connectedPaths.length === 0) {
-    throw new Error(
-      'No active database connection found. Please load a folder first.',
-    )
-  }
-
-  const rootPath = getRootPath(connectedPaths[0])
-  const database = db.getDatabase(connectedPaths[0])
+  const { db: database } = await getAndInitConfig(folderPath)
+  const rootPath = folderPath
   const imageRepo = new ImageRepository(database, rootPath)
 
   const ids = Array.isArray(imageIds) ? imageIds : [imageIds]
