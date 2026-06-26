@@ -17,6 +17,12 @@ interface SelectionState<T = ImageData['id']> {
 
   clearSelection: () => void
   selectAll: (items: T[]) => void
+
+  isDeleteDialogOpen: boolean
+  setDeleteDialogOpen: (open: boolean) => void
+
+  renamingImageId: T | null
+  setRenamingImageId: (id: T | null) => void
 }
 
 export const useSelectionStore = create<SelectionState>()(
@@ -25,6 +31,11 @@ export const useSelectionStore = create<SelectionState>()(
       selectedItems: new Set(),
       lastSelectedIndex: null,
       isSelectionMode: false,
+      isDeleteDialogOpen: false,
+      renamingImageId: null,
+
+      setDeleteDialogOpen: open => set({ isDeleteDialogOpen: open }, false, 'setDeleteDialogOpen'),
+      setRenamingImageId: id => set({ renamingImageId: id }, false, 'setRenamingImageId'),
 
       toggleSelection: (item, index) => {
         set(
@@ -126,6 +137,8 @@ export const useSelectionStore = create<SelectionState>()(
                 isSelectionMode: newMode,
                 selectedItems: new Set(),
                 lastSelectedIndex: null,
+                isDeleteDialogOpen: false,
+                renamingImageId: null,
               }
 
             return { isSelectionMode: newMode }

@@ -18,7 +18,6 @@ import { Spinner } from '@/components/ui/spinner'
 import { useInfiniteImages } from '@/lib/queries/images'
 import { cn } from '@/lib/utils'
 import { XIcon, PlusIcon } from '@phosphor-icons/react'
-import { useState } from 'react'
 import SearchBar from './SearchBar'
 
 export default function TopBar() {
@@ -59,14 +58,7 @@ export default function TopBar() {
 }
 
 function FileDropDown() {
-  const [loading, setLoading] = useState(false)
-  const { openFolderDialog, recentFolders, openFolder } = useFolder()
-
-  async function handleOpenFolder() {
-    setLoading(true)
-    await openFolderDialog()
-    setLoading(false)
-  }
+  const { setRecentFoldersOpen, recentFolders, openFolder } = useFolder()
 
   return (
     <DropdownMenu>
@@ -77,10 +69,9 @@ function FileDropDown() {
         className="w-56 bg-background/70 backdrop-blur-3xl"
         align="start"
       >
-        <DropdownMenuItem disabled={loading} onSelect={handleOpenFolder}>
-          {loading && <Spinner className="mr-2" />}
+        <DropdownMenuItem onSelect={() => setRecentFoldersOpen(true)}>
           Open Folder...
-          <DropdownMenuShortcut>⇧⌘O</DropdownMenuShortcut>
+          <DropdownMenuShortcut>⌘O</DropdownMenuShortcut>
         </DropdownMenuItem>
 
         {recentFolders.length > 0 && (

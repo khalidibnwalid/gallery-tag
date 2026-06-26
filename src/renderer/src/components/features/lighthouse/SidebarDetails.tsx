@@ -3,13 +3,15 @@ import { TagSelector } from '@/components/features/tags/TagsSelector'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { useLighthouse } from '@/components/providers/LighthouseProvider'
 import { useSearch } from '@/components/providers/SearchProvider'
-import { useSimilarImagesQuery } from '@/lib/queries/images'
+import { useSimilarImagesQuery, useDeleteImagesMutation } from '@/lib/queries/images'
 import { ImageData } from '@/lib/types/image'
+import { AlertDialog } from '@/components/ui/alert-dialog'
 import {
   ClipboardIcon,
   FolderOpenIcon,
   ImagesIcon,
   PencilIcon,
+  TrashIcon,
 } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -25,11 +27,24 @@ export function SidebarDetails() {
     goToIndex,
     closeLighthouse,
     insertAndGoToImage,
+    removeImage,
   } = useLighthouse()
 
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const deleteMutation = useDeleteImagesMutation()
 
   const currentImage = images[currentIndex]
+
+  const handleDeleteAction = () => {
+    if (!currentImage) return
+    deleteMutation.mutate(currentImage.id, {
+      onSuccess: () => {
+        setIsDeleteDialogOpen(false)
+        removeImage(currentImage.id)
+      },
+    })
+  }
 
   // Lookup the latest version of the images from the query cache to reflect tag/metadata updates in real-time
   const folderImages = folderImagesQuery?.data || []
@@ -101,6 +116,7 @@ export function SidebarDetails() {
                 File Name
               </h3>
               <button
+                id="lighthouse-rename-trigger"
                 onClick={() => setIsRenameDialogOpen(true)}
                 className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded transition-colors cursor-pointer select-none"
                 title="Rename file"
@@ -125,6 +141,7 @@ export function SidebarDetails() {
                 imageIds={currentImageDetail.id}
               >
                 <button
+                  id="lighthouse-tag-trigger"
                   className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded transition-colors cursor-pointer select-none"
                   title="Edit tags"
                 >
@@ -258,6 +275,19 @@ export function SidebarDetails() {
           </Button>
         </div>
 
+        <div className="flex flex-row gap-2">
+          <Button
+            id="lighthouse-delete-trigger"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="w-full flex items-center justify-center gap-2 cursor-pointer text-xs text-destructive! hover:bg-destructive/10!"
+          >
+            <TrashIcon className="size-3.5" />
+            Delete Image
+          </Button>
+        </div>
+
         <div className="border-t border-border/60 pt-4 flex flex-col gap-3">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 select-none">
             <ImagesIcon className="size-3.5" weight="fill" />
@@ -295,6 +325,14 @@ export function SidebarDetails() {
           onOpenChange={setIsRenameDialogOpen}
         />
       )}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Move to Trash"
+        description="Are you sure you want to move this image to trash?"
+        actionLabel="Delete Image"
+        onAction={handleDeleteAction}
+      />
     </div>
   )
 }

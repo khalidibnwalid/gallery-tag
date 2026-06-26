@@ -28,6 +28,7 @@ interface Context {
   goToIndex: (index: number) => void
   insertAndGoToImage: (image: ImageData) => void
   syncImages: (newImages: ImageData[]) => void
+  removeImage: (imageId: number) => void
 }
 
 const LighthouseContext = createContext<Context | undefined>(undefined)
@@ -160,7 +161,7 @@ function useLighthouseState(): Context {
       if (!currentImage) return prev
 
       const newIndex = newImages.findIndex(
-        img => img.filePath === currentImage.filePath,
+        img => img.id === currentImage.id,
       )
 
       // The current image is a recommended image that isn't in the new images list.
@@ -168,13 +169,49 @@ function useLighthouseState(): Context {
       // but we can update any images in it that exist in newImages (to get updated tags/metadata).
       if (newIndex === -1) {
         const updatedImages = prev.images.map(prevImg => {
-          const match = newImages.find(img => img.filePath === prevImg.filePath)
+          const match = newImages.find(img => img.id === prevImg.id)
           return match ? match : prevImg
         })
         return {
           ...prev,
           images: updatedImages,
         }
+      }
+
+      return {
+        ...prev,
+        images: newImages,
+        currentIndex: newIndex,
+      }
+    })
+  }, [])
+
+  const removeImage = useCallback((imageId: number) => {
+    setState(prev => {
+      const index = prev.images.findIndex(img => img.id === imageId)
+      if (index === -1) return prev
+
+      const newImages = prev.images.filter(img => img.id !== imageId)
+      if (newImages.length === 0) {
+        return {
+          ...prev,
+          images: [],
+          currentIndex: 0,
+          isOpen: false,
+        }
+      }
+
+      let newIndex = prev.currentIndex
+      if (prev.currentIndex === index) {
+        // We are deleting the currently viewed image
+        if (index === prev.images.length - 1) {
+          // If it was the last image, go to the new last image
+          newIndex = newImages.length - 1
+        }
+        // Otherwise, newIndex stays the same, which now points to the next image
+      } else if (prev.currentIndex > index) {
+        // Deleting an image before the current one shifts the index down
+        newIndex = prev.currentIndex - 1
       }
 
       return {
@@ -196,5 +233,6 @@ function useLighthouseState(): Context {
     goToIndex,
     insertAndGoToImage,
     syncImages,
+    removeImage,
   }
 }

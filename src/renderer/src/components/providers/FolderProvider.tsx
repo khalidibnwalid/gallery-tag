@@ -3,6 +3,8 @@ import { useTags } from '@/lib/queries/tags'
 import { useLocalStorage } from '@/lib/hooks/useLocalStorage'
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { SetupWizardDialog } from '@/components/features/SetupWizardDialog'
+import { useKeybindsStore } from '@/lib/store/keybindsStore'
+import { RecentFoldersDialog } from '@/components/features/RecentFoldersDialog'
 
 interface FolderProvider {
   folderPath: string | null
@@ -16,6 +18,8 @@ interface FolderProvider {
   tagsQuery: ReturnType<typeof useTags>
   tabs: string[]
   closeTab: (path: string) => void
+  isRecentFoldersOpen: boolean
+  setRecentFoldersOpen: (open: boolean) => void
 }
 
 const FolderContext = createContext({} as FolderProvider)
@@ -43,6 +47,7 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
   })
   const [pendingFolderPath, setPendingFolderPath] = useState<string | null>(null)
   const [showSetupDialog, setShowSetupDialog] = useState(false)
+  const [isRecentFoldersOpen, setRecentFoldersOpen] = useState(false)
   const [recentFolders, setRecentFolders] = useLocalStorage<string[]>(
     'recent-folders',
     [],
@@ -66,6 +71,10 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem('active-folder-tab')
     }
+  }, [folderPath])
+
+  useEffect(() => {
+    useKeybindsStore.getState().loadKeybinds(folderPath)
   }, [folderPath])
 
   async function openFolder(path: string) {
@@ -168,6 +177,8 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
         tagsQuery,
         tabs,
         closeTab,
+        isRecentFoldersOpen,
+        setRecentFoldersOpen,
       }}
     >
       {children}
@@ -179,6 +190,10 @@ export function FolderProvider({ children }: { children: React.ReactNode }) {
           onStart={handleWizardStart}
         />
       )}
+      <RecentFoldersDialog
+        open={isRecentFoldersOpen}
+        onOpenChange={setRecentFoldersOpen}
+      />
     </FolderContext.Provider>
   )
 }

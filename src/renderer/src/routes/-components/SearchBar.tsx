@@ -340,6 +340,7 @@ export default function SearchBar() {
       )}
 
       <Input
+        id="search-bar-input"
         className={clsx(
           'h-12 text-lg! text-foreground bg-background/70! transition-all duration-300',
           aiSearchImage ? 'ps-[92px]' : 'ps-12',
@@ -366,6 +367,7 @@ export default function SearchBar() {
           <div className="flex items-center gap-2 select-none">
             {aiEnabledSetting ? (
               <Button
+                id="ai-search-toggle-trigger"
                 variant="ghost"
                 size="icon"
                 disabled={!folderPath}

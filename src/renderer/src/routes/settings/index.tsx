@@ -2,11 +2,13 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useFolder } from '@/components/providers/FolderProvider'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { GearIcon } from '@phosphor-icons/react'
+import { GearIcon, KeyboardIcon } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 import { NoFolderLanding } from '../-components/NoFolderLanding'
 import { ThumbnailSettingsCard } from './-components/ThumbnailSettingsCard'
 import { AiSearchSettingsCard } from './-components/AiSearchSettingsCard'
+import { KeybindingsSettingsCard } from './-components/KeybindingsSettingsCard'
+import { useState } from 'react'
 
 export const Route = createFileRoute('/settings/')({
   component: ComponentPage,
@@ -31,6 +33,8 @@ function ComponentPage() {
 }
 
 function SettingsContent({ folderPath }: { folderPath: string }) {
+  const [activeTab, setActiveTab] = useState<'general' | 'keybindings'>('general')
+
   return (
     <div className="flex h-full w-full overflow-hidden">
       {/* Left Navigation Panel */}
@@ -42,14 +46,27 @@ function SettingsContent({ folderPath }: { folderPath: string }) {
         </div>
 
         <Button
-          variant="ghost"
+          variant={activeTab === 'general' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('general')}
           className={cn(
-            'w-full justify-start h-9 pr-3 text-sm font-semibold rounded-md transition-all duration-150',
-            'bg-primary! text-primary-foreground',
+            'w-full justify-start h-9 pr-3 text-sm font-semibold rounded-md transition-all duration-150 cursor-pointer',
+            activeTab === 'general' && 'bg-primary! text-primary-foreground',
           )}
         >
-          <GearIcon className="size-5" weight="fill" />
+          <GearIcon className="size-5" weight={activeTab === 'general' ? 'fill' : 'regular'} />
           General
+        </Button>
+
+        <Button
+          variant={activeTab === 'keybindings' ? 'default' : 'ghost'}
+          onClick={() => setActiveTab('keybindings')}
+          className={cn(
+            'w-full justify-start h-9 pr-3 text-sm font-semibold rounded-md transition-all duration-150 cursor-pointer',
+            activeTab === 'keybindings' && 'bg-primary! text-primary-foreground',
+          )}
+        >
+          <KeyboardIcon className="size-5" weight={activeTab === 'keybindings' ? 'fill' : 'regular'} />
+          Keybindings
         </Button>
       </div>
 
@@ -61,16 +78,22 @@ function SettingsContent({ folderPath }: { folderPath: string }) {
               Settings
             </h1>
             <p className="text-muted-foreground text-sm">
-              Manage your gallery preferences, image compression quality, and AI
-              model search parameters.
+              {activeTab === 'general'
+                ? 'Manage your gallery preferences, image compression quality, and AI model search parameters.'
+                : 'Configure keyboard shortcuts to navigate the application quickly.'}
             </p>
           </div>
 
           <hr className="border-border/60" />
 
-          {/* Modularized Components */}
-          <ThumbnailSettingsCard folderPath={folderPath} />
-          <AiSearchSettingsCard folderPath={folderPath} />
+          {activeTab === 'general' ? (
+            <>
+              <ThumbnailSettingsCard folderPath={folderPath} />
+              <AiSearchSettingsCard folderPath={folderPath} />
+            </>
+          ) : (
+            <KeybindingsSettingsCard />
+          )}
         </div>
       </ScrollArea>
     </div>

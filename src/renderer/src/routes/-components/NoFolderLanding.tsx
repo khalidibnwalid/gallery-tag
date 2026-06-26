@@ -25,13 +25,13 @@ export function NoFolderLanding() {
         </Button>
       </div>
 
-      {recentFolders.length > 0 && (
+      {recentFolders?.length > 0 && (
         <div className="space-y-4 text-left border border-border/40 bg-card/30 rounded-2xl p-6 backdrop-blur-md shadow-lg">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Recently Opened Folders
           </h3>
           <div className="divide-y divide-border/20 max-h-80 overflow-y-auto overflow-x-hidden pr-1">
-            {recentFolders.map(path => {
+            {recentFolders?.map(path => {
               const folderName = path.split('/').pop() || path
               return (
                 <div

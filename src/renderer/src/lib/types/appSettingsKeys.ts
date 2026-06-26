@@ -15,6 +15,9 @@ export const APP_SETTING_KEYS = {
   // WebP quality for generated thumbnails (1–100).
   // null → use sharp's default (lossless / full quality).
   THUMBNAIL_QUALITY: 'thumbnail.quality',
+
+  // Keybindings
+  KEYBINDS: 'keybinds',
 } as const
 
 export interface ClipModelConfig {

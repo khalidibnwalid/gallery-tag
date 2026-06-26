@@ -13,6 +13,7 @@ import { ThemeProvider } from './components/providers/ThemeProvider'
 import { Toaster } from './components/ui/toast'
 import { setupGlobalNotifier } from './lib/notifier'
 import { routeTree } from './routeTree.gen'
+import { HotkeysProvider } from '@tanstack/react-hotkeys'
 
 import { useSelectionStore } from './lib/store/selection'
 
@@ -55,9 +56,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <Toaster />
-        <LighthouseProvider>
-          <RouterProvider router={router} />
-        </LighthouseProvider>
+        <HotkeysProvider>
+          <LighthouseProvider>
+            <RouterProvider router={router} />
+          </LighthouseProvider>
+        </HotkeysProvider>
       </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

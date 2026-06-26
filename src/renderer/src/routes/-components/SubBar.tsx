@@ -2,11 +2,15 @@ import { TagSelector } from '@/components/features/tags/TagsSelector'
 import { Button } from '@/components/ui/button'
 import { useSelectionStore } from '@/lib/store/selection'
 import { ImageData } from '@/lib/types/image'
+import { AlertDialog } from '@/components/ui/alert-dialog'
+import { RenameImageDialog } from '@/components/cards/ImageCard'
+import { useDeleteImagesMutation } from '@/lib/queries/images'
 import {
   CheckSquareIcon,
   SelectionIcon,
   SquareIcon,
   TagIcon,
+  TrashIcon,
   XIcon,
 } from '@phosphor-icons/react'
 
@@ -17,14 +21,64 @@ interface SubBarProps {
 
 export default function SubBar({ images, total }: SubBarProps) {
   const showBar = useSelectionStore(state => state.isSelectionMode)
+  const isDeleteDialogOpen = useSelectionStore(state => state.isDeleteDialogOpen)
+  const setDeleteDialogOpen = useSelectionStore(state => state.setDeleteDialogOpen)
+  const renamingImageId = useSelectionStore(state => state.renamingImageId)
+  const setRenamingImageId = useSelectionStore(state => state.setRenamingImageId)
+  const selectedImageIds = useSelectionStore(state => state.selectedItems)
+  const clearSelection = useSelectionStore(state => state.clearSelection)
+
+  const deleteMutation = useDeleteImagesMutation()
+
   if (!showBar) return null
 
+  const handleDeleteAction = () => {
+    deleteMutation.mutate(Array.from(selectedImageIds), {
+      onSuccess: () => {
+        clearSelection()
+        setDeleteDialogOpen(false)
+      },
+    })
+  }
+
+  const deleteMessage =
+    selectedImageIds.size === 1
+      ? 'Are you sure you want to move this image to trash?'
+      : `Are you sure you want to move ${selectedImageIds.size} images to trash?`
+
+  const renamingImage = renamingImageId
+    ? images.find(img => img.id === renamingImageId)
+    : null
+
   return (
-    <div className="absolute z-50 top-17 left-3 right-3 px-4 min-h-12 w-auto flex items-center justify-center">
-      <div className="animate-fade-in flex items-center gap-1 text-lg! text-foreground bg-background/70! px-2 py-1 rounded-lg border-input border backdrop-blur-3xl">
-        <ImagesSelectionBar images={images} total={total} />
+    <>
+      <div className="absolute z-50 top-17 left-3 right-3 px-4 min-h-12 w-auto flex items-center justify-center">
+        <div className="animate-fade-in flex items-center gap-1 text-lg! text-foreground bg-background/70! px-2 py-1 rounded-lg border-input border backdrop-blur-3xl">
+          <ImagesSelectionBar images={images} total={total} />
+        </div>
       </div>
-    </div>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Move to Trash"
+        description={deleteMessage}
+        actionLabel={
+          selectedImageIds.size === 1
+            ? 'Delete Image'
+            : `Delete ${selectedImageIds.size} Images`
+        }
+        onAction={handleDeleteAction}
+      />
+
+      {renamingImage && (
+        <RenameImageDialog
+          image={renamingImage}
+          open={!!renamingImageId}
+          onOpenChange={open => !open && setRenamingImageId(null)}
+        />
+      )}
+    </>
   )
 }
 
@@ -36,6 +90,7 @@ function ImagesSelectionBar({ images, total }: SubBarProps) {
   )
   const clearSelection = useSelectionStore(state => state.clearSelection)
   const selectAll = useSelectionStore(state => state.selectAll)
+  const setDeleteDialogOpen = useSelectionStore(state => state.setDeleteDialogOpen)
 
   if (!isSelectionMode) return null
 
@@ -88,6 +143,17 @@ function ImagesSelectionBar({ images, total }: SubBarProps) {
         >
           <XIcon className="size-4" />
           Clear
+        </Button>
+
+        <Button
+          variant="ghost"
+          onClick={() => selectedImageIds.size > 0 && setDeleteDialogOpen(true)}
+          size="lg"
+          disabled={selectedImageIds.size === 0}
+          className="animate-fade-in text-destructive! hover:bg-destructive/15! disabled:opacity-50"
+        >
+          <TrashIcon className="size-4" />
+          Delete
         </Button>
       </div>
       <TagSelector imageIds={selectedImageIdsArray}>
