@@ -8,6 +8,7 @@ import {
 import { ImageData } from '../types/image'
 import { SuggestedTagData, TagData } from '../types/tag'
 import QUERIES from './constants'
+import { SearchFilter } from '@main/types/api.shared'
 
 export function useTags() {
   const { folderPath } = useFolder()
@@ -251,23 +252,28 @@ export function useAddTagsToImageMutation({
     mutationFn: async ({
       tags,
       imageIds,
+      filter,
     }: {
       tags: (TagData | Pick<TagData, 'name' | 'color'>)[]
-      imageIds: number[]
+      imageIds?: number[]
+      filter?: SearchFilter
     }): Promise<TagData[]> => {
       if (!window.api || !window.api.tags.add) {
         throw new Error('Add tags API not available')
       }
 
-      const result = await window.api.tags.add(folderPath, tags, imageIds)
+      const result = await window.api.tags.add(folderPath, tags as any, imageIds, filter)
       return result
     },
     onSuccess: (data, { imageIds }) => {
-      updateTagsInQueryCache(queryClient, imageIds, data, 'add')
+      if (imageIds && imageIds.length > 0) {
+        updateTagsInQueryCache(queryClient, imageIds, data, 'add')
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['images'] })
+      }
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
-      queryClient.invalidateQueries({ queryKey: ['images'] })
       onSuccess?.(data)
     },
   })
@@ -281,7 +287,7 @@ export function useRemoveTagsFromImageMutation({
     imageIds,
   }: {
     tagIds: TagData['id'][]
-    imageIds: ImageData['id'][]
+    imageIds?: ImageData['id'][]
   }) => void
 } = {}) {
   const queryClient = useQueryClient()
@@ -295,22 +301,28 @@ export function useRemoveTagsFromImageMutation({
     mutationFn: async ({
       tagIds,
       imageIds,
+      filter,
     }: {
       tagIds: number[]
-      imageIds: number[]
+      imageIds?: number[]
+      filter?: SearchFilter
     }): Promise<void> => {
       if (!window.api || !window.api.tags.remove) {
         throw new Error('Remove tags API not available')
       }
 
-      await window.api.tags.remove(folderPath, tagIds, imageIds)
+      await window.api.tags.remove(folderPath, tagIds, imageIds, filter)
     },
     onSuccess: (_, { tagIds, imageIds }) => {
       const tagIdsSet = new Set(tagIds)
       const tagsData =
         tagsQuery.data?.filter(tag => tagIdsSet.has(tag.id)) || []
 
-      updateTagsInQueryCache(queryClient, imageIds, tagsData, 'remove')
+      if (imageIds && imageIds.length > 0) {
+        updateTagsInQueryCache(queryClient, imageIds, tagsData, 'remove')
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['images'] })
+      }
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
       onSuccess?.({ tagIds, imageIds })

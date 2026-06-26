@@ -5,6 +5,7 @@ import { ImageData } from '@/lib/types/image'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { RenameImageDialog } from '@/components/cards/ImageCard'
 import { useDeleteImagesMutation } from '@/lib/queries/images'
+import { useSearch } from '@/components/providers/SearchProvider'
 import {
   CheckSquareIcon,
   SelectionIcon,
@@ -26,6 +27,7 @@ export default function SubBar({ images, total }: SubBarProps) {
   const renamingImageId = useSelectionStore(state => state.renamingImageId)
   const setRenamingImageId = useSelectionStore(state => state.setRenamingImageId)
   const selectedImageIds = useSelectionStore(state => state.selectedItems)
+  const selectionQuery = useSelectionStore(state => state.selectionQuery)
   const clearSelection = useSelectionStore(state => state.clearSelection)
 
   const deleteMutation = useDeleteImagesMutation()
@@ -33,7 +35,11 @@ export default function SubBar({ images, total }: SubBarProps) {
   if (!showBar) return null
 
   const handleDeleteAction = () => {
-    deleteMutation.mutate(Array.from(selectedImageIds), {
+    const payload = selectionQuery
+      ? { filter: selectionQuery }
+      : Array.from(selectedImageIds)
+
+    deleteMutation.mutate(payload, {
       onSuccess: () => {
         clearSelection()
         setDeleteDialogOpen(false)
@@ -41,10 +47,11 @@ export default function SubBar({ images, total }: SubBarProps) {
     })
   }
 
+  const selectedCount = selectionQuery ? total : selectedImageIds.size
   const deleteMessage =
-    selectedImageIds.size === 1
+    selectedCount === 1
       ? 'Are you sure you want to move this image to trash?'
-      : `Are you sure you want to move ${selectedImageIds.size} images to trash?`
+      : `Are you sure you want to move ${selectedCount} images to trash?`
 
   const renamingImage = renamingImageId
     ? images.find(img => img.id === renamingImageId)
@@ -64,9 +71,9 @@ export default function SubBar({ images, total }: SubBarProps) {
         title="Move to Trash"
         description={deleteMessage}
         actionLabel={
-          selectedImageIds.size === 1
+          selectedCount === 1
             ? 'Delete Image'
-            : `Delete ${selectedImageIds.size} Images`
+            : `Delete ${selectedCount} Images`
         }
         onAction={handleDeleteAction}
       />
@@ -85,25 +92,27 @@ export default function SubBar({ images, total }: SubBarProps) {
 function ImagesSelectionBar({ images, total }: SubBarProps) {
   const isSelectionMode = useSelectionStore(state => state.isSelectionMode)
   const selectedImageIds = useSelectionStore(state => state.selectedItems)
+  const selectionQuery = useSelectionStore(state => state.selectionQuery)
   const toggleSelectionMode = useSelectionStore(
     state => state.toggleSelectionMode,
   )
   const clearSelection = useSelectionStore(state => state.clearSelection)
   const selectAll = useSelectionStore(state => state.selectAll)
   const setDeleteDialogOpen = useSelectionStore(state => state.setDeleteDialogOpen)
+  const { filter } = useSearch()
 
   if (!isSelectionMode) return null
 
   const isAllLoaded =
     images.length > 0 && images.every(image => selectedImageIds.has(image.id))
-  const isAllSelected = isAllLoaded && selectedImageIds.size >= total
+  const isAllSelected = !!selectionQuery || (isAllLoaded && selectedImageIds.size >= total)
 
   const onSelectAll = () => {
     if (isAllSelected) {
       clearSelection()
       return
     }
-    if (images.length > 0) selectAll(images.map(image => image.id))
+    if (images.length > 0) selectAll(images.map(image => image.id), filter)
   }
 
   const selectedImageIdsArray = Array.from(selectedImageIds)
@@ -147,23 +156,23 @@ function ImagesSelectionBar({ images, total }: SubBarProps) {
 
         <Button
           variant="ghost"
-          onClick={() => selectedImageIds.size > 0 && setDeleteDialogOpen(true)}
+          onClick={() => (selectedImageIds.size > 0 || !!selectionQuery) && setDeleteDialogOpen(true)}
           size="lg"
-          disabled={selectedImageIds.size === 0}
+          disabled={selectedImageIds.size === 0 && !selectionQuery}
           className="animate-fade-in text-destructive! hover:bg-destructive/15! disabled:opacity-50"
         >
           <TrashIcon className="size-4" />
           Delete
         </Button>
       </div>
-      <TagSelector imageIds={selectedImageIdsArray}>
-        <Button variant="ghost" size="lg" className="animate-fade-in">
+      <TagSelector imageIds={selectedImageIdsArray} filter={selectionQuery || undefined}>
+        <Button id="subbar-tag-trigger" variant="ghost" size="lg" className="animate-fade-in">
           <TagIcon className="size-4" />
           Add Tags
         </Button>
       </TagSelector>
       <Button variant="ghost" size="lg" className="animate-fade-in px-0.5">
-        {selectedImageIds.size} of {total} selected
+        {selectionQuery ? total : selectedImageIds.size} of {total} selected
       </Button>
     </>
   )

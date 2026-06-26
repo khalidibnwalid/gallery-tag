@@ -217,11 +217,13 @@ export function useDeleteImagesMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (imageIds: number | number[]) => {
+    mutationFn: async (
+      payload: number | number[] | { filter: SearchFilter },
+    ) => {
       if (!window.api || !window.api.images.delete) {
         throw new Error('Images delete API not available')
       }
-      return await window.api.images.delete(folderPath!, imageIds)
+      return await window.api.images.delete(folderPath!, payload)
     },
     onSuccess: () => {
       toast.success('Images deleted successfully')

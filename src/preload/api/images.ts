@@ -37,8 +37,11 @@ const imagesApi = {
     newName: string,
   ): Promise<ImageModel> =>
     ipcRenderer.invoke('images:rename', folderPath, imageId, newName),
-  delete: (folderPath: string, imageId: number | number[]): Promise<void> =>
-    ipcRenderer.invoke('images:delete', folderPath, imageId),
+  delete: (
+    folderPath: string,
+    imageIdOrFilter: number | number[] | { filter: SearchFilter },
+  ): Promise<void> =>
+    ipcRenderer.invoke('images:delete', folderPath, imageIdOrFilter),
 }
 
 export default imagesApi

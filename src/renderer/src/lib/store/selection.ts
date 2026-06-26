@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { ImageData } from '../types/image'
+import { SearchFilter } from '@main/types/api.shared'
 
 interface SelectionState<T = ImageData['id']> {
   selectedItems: Set<T>
   lastSelectedIndex: number | null
+  selectionQuery: SearchFilter | null
 
   isSelectionMode: boolean
   toggleSelectionMode: (open?: boolean) => void
@@ -16,7 +18,7 @@ interface SelectionState<T = ImageData['id']> {
   selectRange: (items: T[], fromIndex: number, toIndex: number) => void
 
   clearSelection: () => void
-  selectAll: (items: T[]) => void
+  selectAll: (items: T[], query?: SearchFilter) => void
 
   isDeleteDialogOpen: boolean
   setDeleteDialogOpen: (open: boolean) => void
@@ -30,6 +32,7 @@ export const useSelectionStore = create<SelectionState>()(
     (set, get) => ({
       selectedItems: new Set(),
       lastSelectedIndex: null,
+      selectionQuery: null,
       isSelectionMode: false,
       isDeleteDialogOpen: false,
       renamingImageId: null,
@@ -57,6 +60,7 @@ export const useSelectionStore = create<SelectionState>()(
             return {
               selectedItems: newSet,
               lastSelectedIndex: newLastIndex,
+              selectionQuery: null,
             }
           },
           false,
@@ -68,6 +72,7 @@ export const useSelectionStore = create<SelectionState>()(
         set(
           state => ({
             selectedItems: new Set(state.selectedItems).add(item),
+            selectionQuery: null,
           }),
           false,
           'selectItem',
@@ -79,7 +84,10 @@ export const useSelectionStore = create<SelectionState>()(
           state => {
             const newSet = new Set(state.selectedItems)
             newSet.delete(item)
-            return { selectedItems: newSet }
+            return {
+              selectedItems: newSet,
+              selectionQuery: null,
+            }
           },
           false,
           'deselectItem',
@@ -102,6 +110,7 @@ export const useSelectionStore = create<SelectionState>()(
             return {
               selectedItems: newSet,
               lastSelectedIndex: toIndex,
+              selectionQuery: null,
             }
           },
           false,
@@ -111,17 +120,18 @@ export const useSelectionStore = create<SelectionState>()(
 
       clearSelection: () => {
         set(
-          { selectedItems: new Set(), lastSelectedIndex: null },
+          { selectedItems: new Set(), lastSelectedIndex: null, selectionQuery: null },
           false,
           'clearSelection',
         )
       },
 
-      selectAll: items => {
+      selectAll: (items, query) => {
         set(
           {
             selectedItems: new Set(items),
             lastSelectedIndex: items.length > 0 ? items.length - 1 : null,
+            selectionQuery: query || null,
           },
           false,
           'selectAll',
@@ -137,6 +147,7 @@ export const useSelectionStore = create<SelectionState>()(
                 isSelectionMode: newMode,
                 selectedItems: new Set(),
                 lastSelectedIndex: null,
+                selectionQuery: null,
                 isDeleteDialogOpen: false,
                 renamingImageId: null,
               }

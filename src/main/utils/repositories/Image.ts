@@ -1115,4 +1115,216 @@ export class ImageRepository {
     const stmt = this.db.prepare('UPDATE images SET exif = ? WHERE id = ?')
     stmt.run(exif, imageId)
   }
+
+  getImageIds(
+    filter?: SearchFilter,
+    textEmbedding?: Float32Array,
+    imageEmbedding?: Float32Array,
+  ): number[] {
+    let whereClauses: string[] = ['i.deleted_at IS NULL']
+    let params: any[] = []
+
+    // Filter by text (filename or tags)
+    if (filter?.text) {
+      const searchPattern = `%${filter.text}%`
+      whereClauses.push(`(
+        i.file_name LIKE ? OR 
+        t.name LIKE ?
+      )`)
+      params.push(searchPattern, searchPattern)
+    }
+
+    // Filter by folder path (convert absolute filterPath to relative for DB comparison)
+    if (filter?.filterPath) {
+      const relFilter = toRelativePath(this.rootPath, filter.filterPath)
+      // Root maps to '/' — match everything; subfolders match their relative prefix
+      const folderPattern = relFilter === '/' ? '/%' : `${relFilter}/%`
+      whereClauses.push(`i.file_path LIKE ?`)
+      params.push(folderPattern)
+    }
+
+    // Filter by tags
+    if (filter?.tags && filter.tags.length > 0) {
+      const placeholders = filter.tags.map(() => '?').join(',')
+      if (filter.tagMode === 'AND') {
+        whereClauses.push(`i.id IN (
+          SELECT it.image_id
+          FROM image_tags it
+          JOIN tags t ON it.tag_id = t.id
+          WHERE t.name IN (${placeholders})
+          GROUP BY it.image_id
+          HAVING COUNT(DISTINCT t.name) = ?
+        )`)
+        params.push(...filter.tags, filter.tags.length)
+      } else {
+        whereClauses.push(`i.id IN (
+          SELECT it.image_id
+          FROM image_tags it
+          JOIN tags t ON it.tag_id = t.id
+          WHERE t.name IN (${placeholders})
+        )`)
+        params.push(...filter.tags)
+      }
+    }
+
+    // Filter by excluded tags
+    if (filter?.excludedTags && filter.excludedTags.length > 0) {
+      const placeholders = filter.excludedTags.map(() => '?').join(',')
+      whereClauses.push(`i.id NOT IN (
+        SELECT it.image_id
+        FROM image_tags it
+        JOIN tags t ON it.tag_id = t.id
+        WHERE t.name IN (${placeholders})
+      )`)
+      params.push(...filter.excludedTags)
+    }
+
+    // Filter by color
+    let isColorFiltered = false
+    let colorDistExpr = ''
+
+    if (filter?.createdStart) {
+      whereClauses.push(`date(i.created_at) >= date(?)`)
+      params.push(filter.createdStart)
+    }
+    if (filter?.createdEnd) {
+      whereClauses.push(`date(i.created_at) <= date(?)`)
+      params.push(filter.createdEnd)
+    }
+
+    if (filter?.modifiedStart) {
+      whereClauses.push(`date(i.modified_at) >= date(?)`)
+      params.push(filter.modifiedStart)
+    }
+    if (filter?.modifiedEnd) {
+      whereClauses.push(`date(i.modified_at) <= date(?)`)
+      params.push(filter.modifiedEnd)
+    }
+
+    if (filter?.color) {
+      const targetRgb = hexToRgb(filter.color)
+      if (targetRgb) {
+        const [r, g, b] = targetRgb
+        colorDistExpr = `(ic.r - ${r}) * (ic.r - ${r}) + (ic.g - ${g}) * (ic.g - ${g}) + (ic.b - ${b}) * (ic.b - ${b})`
+        whereClauses.push(`${colorDistExpr} <= ${75 * 75}`)
+        isColorFiltered = true
+      }
+    }
+
+    let cteSql = ''
+    let cteParams: any[] = []
+
+    if (textEmbedding && imageEmbedding) {
+      const vecTable = clipService.getVectorTableName()
+      cteSql = `
+        WITH image_search AS (
+          SELECT image_id, distance AS img_dist
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        ),
+        search_results AS (
+          SELECT 
+            s.image_id,
+            s.img_dist,
+            vec_distance_cosine(v.embedding, ?) AS text_dist
+          FROM image_search s
+          INNER JOIN ${vecTable} v ON s.image_id = v.image_id
+        )
+      `
+      cteParams.push(
+        Buffer.from(
+          imageEmbedding.buffer,
+          imageEmbedding.byteOffset,
+          imageEmbedding.byteLength,
+        ),
+        1000,
+        Buffer.from(
+          textEmbedding.buffer,
+          textEmbedding.byteOffset,
+          textEmbedding.byteLength,
+        ),
+      )
+
+      const imgThreshold = clipService.getImageToImageThreshold(this.db)
+      const textThreshold = clipService.getTextToImageThreshold(this.db)
+      const maxImgDistance = 1.0 - imgThreshold
+      const maxTextDistance = 1.0 - textThreshold
+
+      whereClauses.push('v.img_dist <= ?')
+      params.push(maxImgDistance)
+
+      whereClauses.push('v.text_dist <= ?')
+      params.push(maxTextDistance)
+    } else if (textEmbedding) {
+      const vecTable = clipService.getVectorTableName()
+      cteSql = `
+        WITH search_results AS (
+          SELECT image_id, distance AS text_dist
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        )
+      `
+      cteParams.push(
+        Buffer.from(
+          textEmbedding.buffer,
+          textEmbedding.byteOffset,
+          textEmbedding.byteLength,
+        ),
+        1000,
+      )
+
+      const textThreshold = clipService.getTextToImageThreshold(this.db)
+      const maxTextDistance = 1.0 - textThreshold
+
+      whereClauses.push('v.text_dist <= ?')
+      params.push(maxTextDistance)
+    } else if (imageEmbedding) {
+      const vecTable = clipService.getVectorTableName()
+      cteSql = `
+        WITH search_results AS (
+          SELECT image_id, distance AS img_dist
+          FROM ${vecTable}
+          WHERE embedding MATCH ? AND k = ?
+        )
+      `
+      cteParams.push(
+        Buffer.from(
+          imageEmbedding.buffer,
+          imageEmbedding.byteOffset,
+          imageEmbedding.byteLength,
+        ),
+        1000,
+      )
+
+      const imgThreshold = clipService.getImageToImageThreshold(this.db)
+      const maxImgDistance = 1.0 - imgThreshold
+
+      whereClauses.push('v.img_dist <= ?')
+      params.push(maxImgDistance)
+    }
+
+    const whereSql =
+      whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    let joinClause = isColorFiltered
+      ? 'INNER JOIN image_colors ic ON i.id = ic.image_id'
+      : ''
+    const hasEmbedding = !!(textEmbedding || imageEmbedding)
+    if (hasEmbedding) {
+      joinClause += ` INNER JOIN search_results v ON i.id = v.image_id`
+    }
+
+    const stmt = this.db.prepare(`
+      ${cteSql}
+      SELECT DISTINCT i.id
+      FROM images i
+      ${joinClause}
+      LEFT JOIN image_tags it ON i.id = it.image_id
+      LEFT JOIN tags t ON it.tag_id = t.id
+      ${whereSql}
+    `)
+
+    const rows = stmt.all(...cteParams, ...params) as { id: number }[]
+    return rows.map(r => r.id)
+  }
 }

@@ -1,6 +1,8 @@
+import { SearchFilter } from '@main/types/api.shared'
 import { TagModel } from '@main/types/models.shared'
 import { db } from '@main/utils/repositories/db'
 import { TagRepository } from '@main/utils/repositories/tag'
+import { resolveImageIdsFromFilter } from '@main/utils/queryHelper'
 
 import { join } from 'path'
 
@@ -10,15 +12,23 @@ export default async function addHandler(
   {
     tags,
     imagesIds,
+    filter,
   }: {
     tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[]
     imagesIds?: number[]
+    filter?: SearchFilter
   },
 ): Promise<TagModel[]> {
   if (!tags || tags.length === 0 || tags.some(tag => !tag.name)) return []
   try {
+    let resolvedImageIds = imagesIds ? [...imagesIds] : []
+    if (filter) {
+      const idsFromFilter = await resolveImageIdsFromFilter(folderPath, filter)
+      resolvedImageIds = Array.from(new Set([...resolvedImageIds, ...idsFromFilter]))
+    }
+
     console.log(
-      `Adding tags to ${imagesIds?.length || 0} images for folder: ${folderPath}`,
+      `Adding tags to ${resolvedImageIds.length} images for folder: ${folderPath}`,
     )
 
     if (!folderPath) {
@@ -57,8 +67,8 @@ export default async function addHandler(
     const resolvedTagIds = tagRepo.getAllAncestors(tagIds)
 
     // Add tags to images in the junction table
-    if (imagesIds && imagesIds.length > 0) {
-      tagRepo.addTagsToImages(tagIds, imagesIds)
+    if (resolvedImageIds.length > 0) {
+      tagRepo.addTagsToImages(tagIds, resolvedImageIds)
     }
 
     const allAddedTags = resolvedTagIds
@@ -66,7 +76,7 @@ export default async function addHandler(
       .filter((t): t is TagModel => !!t)
 
     console.log(
-      `Successfully added ${allAddedTags.length} tags (including ancestors) to ${imagesIds?.length || 0} images`,
+      `Successfully added ${allAddedTags.length} tags (including ancestors) to ${resolvedImageIds.length} images`,
     )
 
     return allAddedTags

@@ -129,13 +129,13 @@ export function useAppHotkeys() {
         const allIds = images.map(img => img.id)
         if (!isSelectionMode) {
           toggleSelectionMode(true)
-          selectAll(allIds)
+          selectAll(allIds, filter)
         } else {
           const isAllSelected = images.every(img => selectedItems.has(img.id))
           if (isAllSelected) {
             clearSelection()
           } else {
-            selectAll(allIds)
+            selectAll(allIds, filter)
           }
         }
       }

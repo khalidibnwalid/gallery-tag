@@ -1,14 +1,24 @@
 import { TagModel } from '@main/types/models.shared'
-import { SuggestedTag } from '@main/types/api.shared'
+import { SuggestedTag, SearchFilter } from '@main/types/api.shared'
 import { ipcRenderer } from 'electron'
 
 const tagsApi = {
-  add(folderPath: string, tags: TagModel[], imagesIds: number[]): Promise<TagModel[]> {
-    return ipcRenderer.invoke('tags:add', folderPath, { tags, imagesIds })
+  add(
+    folderPath: string,
+    tags: TagModel[],
+    imagesIds?: number[],
+    filter?: SearchFilter,
+  ): Promise<TagModel[]> {
+    return ipcRenderer.invoke('tags:add', folderPath, { tags, imagesIds, filter })
   },
 
-  remove(folderPath: string, tagIds: number[], imagesIds: number[]) {
-    return ipcRenderer.invoke('tags:remove', folderPath, { tagIds, imagesIds })
+  remove(
+    folderPath: string,
+    tagIds: number[],
+    imagesIds?: number[],
+    filter?: SearchFilter,
+  ) {
+    return ipcRenderer.invoke('tags:remove', folderPath, { tagIds, imagesIds, filter })
   },
 
   rename(folderPath: string, tagId: number, newName: string): Promise<TagModel> {

@@ -1,20 +1,35 @@
-import { ImageUpdatePayload } from '@main/types/api.shared'
+import { ImageUpdatePayload, SearchFilter } from '@main/types/api.shared'
 import { EVENTS } from '@main/types/constants.shared'
 import { getAndInitConfig } from '@main/utils/files/config'
 import { deleteFileToTrash } from '@main/utils/files/delete'
 import { ImageRepository } from '@main/utils/repositories/Image'
+import { resolveImageIdsFromFilter } from '@main/utils/queryHelper'
 import { BrowserWindow } from 'electron'
 
 export default async function deleteImagesHandler(
   event: Electron.IpcMainInvokeEvent,
   folderPath: string,
-  imageIds: number | number[],
+  imageIdsOrFilter: number | number[] | { filter: SearchFilter },
 ): Promise<void> {
   const { db: database } = await getAndInitConfig(folderPath)
   const rootPath = folderPath
   const imageRepo = new ImageRepository(database, rootPath)
 
-  const ids = Array.isArray(imageIds) ? imageIds : [imageIds]
+  let ids: number[]
+  if (
+    imageIdsOrFilter &&
+    typeof imageIdsOrFilter === 'object' &&
+    !Array.isArray(imageIdsOrFilter) &&
+    'filter' in imageIdsOrFilter
+  ) {
+    ids = await resolveImageIdsFromFilter(folderPath, imageIdsOrFilter.filter)
+  } else {
+    ids = Array.isArray(imageIdsOrFilter)
+      ? imageIdsOrFilter
+      : typeof imageIdsOrFilter === 'number'
+        ? [imageIdsOrFilter]
+        : []
+  }
   const deletedImages: { id: number; filePath: string }[] = []
 
   for (const id of ids) {

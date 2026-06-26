@@ -8,6 +8,7 @@ import { ImageData } from '@/lib/types/image'
 import { TagData } from '@/lib/types/tag'
 import { PlusIcon, SparkleIcon, TagIcon } from '@phosphor-icons/react'
 import { useQueryClient } from '@tanstack/react-query'
+import { SearchFilter } from '@main/types/api.shared'
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../ui/button'
@@ -20,6 +21,7 @@ interface Props {
   children: React.ReactNode
   imageIds: ImageData['id'] | ImageData['id'][]
   currentTags?: TagData['name'][]
+  filter?: SearchFilter
 }
 
 const getAncestors = (tagId: number, allTags: TagData[]): number[] => {
@@ -34,7 +36,7 @@ const getAncestors = (tagId: number, allTags: TagData[]): number[] => {
   return ancestors
 }
 
-export function TagSelector({ children, currentTags = [], imageIds }: Props) {
+export function TagSelector({ children, currentTags = [], imageIds, filter }: Props) {
   imageIds = Array.isArray(imageIds) ? imageIds : [imageIds]
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
   const queryClient = useQueryClient()
@@ -138,17 +140,19 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
       )
       await addTagsAsync({
         tags: tagsPayload,
-        imageIds: currentImageIds,
+        imageIds: filter ? undefined : currentImageIds,
+        filter: filter || undefined,
       })
     }
 
     if (removals.length > 0) {
       await removeTagsAsync({
         tagIds: removals,
-        imageIds: currentImageIds,
+        imageIds: filter ? undefined : currentImageIds,
+        filter: filter || undefined,
       })
     }
-  }, [addTagsAsync, removeTagsAsync])
+  }, [addTagsAsync, removeTagsAsync, filter])
 
   const optimisticallyUpdateImageTags = useCallback(
     (tag: TagData | string, isAdding: boolean) => {

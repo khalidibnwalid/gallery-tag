@@ -52,7 +52,10 @@ declare global {
           imageId: number,
           newName: string,
         ) => Promise<ImageModel>
-        delete: (folderPath: string, imageId: number | number[]) => Promise<void>
+        delete: (
+          folderPath: string,
+          imageIdOrFilter: number | number[] | { filter: SearchFilter },
+        ) => Promise<void>
       }
 
       folders: {
@@ -94,9 +97,15 @@ declare global {
         add: (
           folderPath: string,
           tags: (TagModel | Pick<TagModel, 'name' | 'color'>)[],
-          imagesIds: number[],
+          imagesIds?: number[],
+          filter?: SearchFilter,
         ) => Promise<TagModel[]>
-        remove: (folderPath: string, tagIds: number[], imagesIds: number[]) => Promise<void>
+        remove: (
+          folderPath: string,
+          tagIds: number[],
+          imagesIds?: number[],
+          filter?: SearchFilter,
+        ) => Promise<void>
         rename: (folderPath: string, tagId: number, newName: string) => Promise<TagModel>
         setParent: (folderPath: string, tagId: number, parentId: number | null) => Promise<TagModel>
         delete: (folderPath: string, tagId: number) => Promise<void>
