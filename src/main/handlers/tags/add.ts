@@ -17,7 +17,9 @@ export default async function addHandler(
 ): Promise<TagModel[]> {
   if (!tags || tags.length === 0 || tags.some(tag => !tag.name)) return []
   try {
-    console.log(`Adding tags to ${imagesIds?.length || 0} images for folder: ${folderPath}`)
+    console.log(
+      `Adding tags to ${imagesIds?.length || 0} images for folder: ${folderPath}`,
+    )
 
     if (!folderPath) {
       throw new Error('folderPath is required')
@@ -41,7 +43,7 @@ export default async function addHandler(
         newTags.push({
           name: tag.name.trim(),
           color: tag.color,
-          parentId: (tag as any).parentId,
+          parentId: (tag as TagModel).parentId,
         })
       }
     }

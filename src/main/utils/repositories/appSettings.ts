@@ -38,13 +38,15 @@ export class AppSettingsRepository {
   ): T | undefined {
     const setting = this.getSetting(key)
     if (!setting) return undefined
-    return this.parseValue(setting.settingValue, setting.valueType) as any
+    return this.parseValue(setting.settingValue, setting.valueType) as
+      | T
+      | undefined
   }
 
   setSetting<T extends SettingValue>(
     key: string,
     value: T,
-    valueType: InferValueTypeKey<T> = 'string' as any,
+    valueType: InferValueTypeKey<T> = 'string' as InferValueTypeKey<T>,
   ): void {
     let stringValue = ''
     if (value === null || value === undefined) {

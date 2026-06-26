@@ -1,20 +1,21 @@
-import watcher from '@parcel/watcher'
-import { join } from 'path'
-import { ImageRepository } from '@main/utils/repositories/Image'
-import { FolderRepository } from '@main/utils/repositories/Folder'
 import { notifier } from '@main/services/notifier.service'
-import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
-import { getAndInitConfig, CONFIG_DIR } from '@main/utils/files/config'
+import { EVENTS } from '@main/types/constants.shared'
+import { ImageModel } from '@main/types/models.shared'
+import { CONFIG_DIR, getAndInitConfig } from '@main/utils/files/config'
 import { EXTENSIONS, getFilesByExtension } from '@main/utils/files/getFiles'
-import { toAbsolutePath } from '@main/utils/pathUtils'
-import fs from 'fs/promises'
 import {
-  scanNewFiles,
-  scanHashes,
   scanColors,
   scanEmbeddings,
+  scanHashes,
+  scanNewFiles,
 } from '@main/utils/files/scan'
+import { toAbsolutePath } from '@main/utils/pathUtils'
+import { FolderRepository } from '@main/utils/repositories/Folder'
+import { ImageRepository } from '@main/utils/repositories/Image'
+import watcher from '@parcel/watcher'
+import fs from 'fs/promises'
+import { join } from 'path'
 import { runExclusiveSync } from '../utils/locks'
 
 class WatcherService {
@@ -142,7 +143,10 @@ class WatcherService {
         imageRepo.getSoftDeletedImagesAtPaths(currentPaths)
       if (softDeletedAtCurrentPaths.length > 0) {
         const currentFileMap = new Map(imageFiles.map(f => [f.fullPath, f]))
-        const recoveredImages: any[] = []
+        const recoveredImages: Pick<
+          ImageModel,
+          'id' | 'filePath' | 'fileName'
+        >[] = []
         for (const img of softDeletedAtCurrentPaths) {
           const fileInfo = currentFileMap.get(img.filePath)
           if (fileInfo) {

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
 import { useFolder } from '@/components/providers/FolderProvider'
-import { useKeybindsStore } from '@/lib/store/keybindsStore'
-import { Keybinds, KEYBIND_LABELS, DEFAULT_HOTKEYS } from '@/lib/types/keybinds'
 import { Button } from '@/components/ui/button'
-import { KeyboardIcon, ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
+import { useKeybindsStore } from '@/lib/store/keybindsStore'
+import { DEFAULT_HOTKEYS, KEYBIND_LABELS, Keybinds } from '@/lib/types/keybinds'
+import { SettingValue } from '@main/types/models.shared'
+import { ArrowCounterClockwiseIcon, KeyboardIcon } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 export function KeybindingsSettingsCard() {
@@ -19,7 +20,8 @@ export function KeybindingsSettingsCard() {
       e.stopPropagation()
 
       // Skip naked modifier presses
-      if (['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return
+      if (['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'].includes(e.key))
+        return
 
       const keys: string[] = []
       // Standardize modifier order: Shift + Control + Alt + Meta
@@ -40,7 +42,9 @@ export function KeybindingsSettingsCard() {
       const combo = keys.join('+')
 
       updateKeybind(listeningKey, combo, folderPath).then(() => {
-        toast.success(`Updated shortcut for ${KEYBIND_LABELS[listeningKey]} to ${combo}`)
+        toast.success(
+          `Updated shortcut for ${KEYBIND_LABELS[listeningKey]} to ${combo}`,
+        )
       })
       setListeningKey(null)
     }
@@ -52,13 +56,21 @@ export function KeybindingsSettingsCard() {
   const handleResetToDefaults = async () => {
     if (window.api?.settings?.set && folderPath) {
       try {
-        await window.api.settings.set(folderPath, 'keybinds', DEFAULT_HOTKEYS as any, 'json')
+        await window.api.settings.set(
+          folderPath,
+          'keybinds',
+          DEFAULT_HOTKEYS as unknown as SettingValue,
+          'json',
+        )
       } catch (err) {
         console.error(err)
       }
     }
     setKeybinds(DEFAULT_HOTKEYS)
-    localStorage.setItem('gallery_global_keybinds', JSON.stringify(DEFAULT_HOTKEYS))
+    localStorage.setItem(
+      'gallery_global_keybinds',
+      JSON.stringify(DEFAULT_HOTKEYS),
+    )
     toast.success('Reset all keybindings to defaults.')
   }
 
@@ -71,7 +83,8 @@ export function KeybindingsSettingsCard() {
             Keyboard Shortcuts
           </h2>
           <p className="text-sm text-muted-foreground">
-            Configure global application hotkeys. Click a hotkey button to record a new key combination.
+            Configure global application hotkeys. Click a hotkey button to
+            record a new key combination.
           </p>
         </div>
 
@@ -87,7 +100,7 @@ export function KeybindingsSettingsCard() {
       </div>
 
       <div className="border border-border/40 rounded-xl divide-y divide-border/40 overflow-hidden bg-background/30">
-        {(Object.keys(KEYBIND_LABELS) as Array<keyof Keybinds>).map((key) => {
+        {(Object.keys(KEYBIND_LABELS) as Array<keyof Keybinds>).map(key => {
           const isListening = listeningKey === key
           const combo = keybinds[key]
 

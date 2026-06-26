@@ -1,5 +1,10 @@
 import { useFolder } from '@/components/providers/FolderProvider'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { ImageData } from '../types/image'
 import { SuggestedTagData, TagData } from '../types/tag'
 import QUERIES from './constants'
@@ -47,7 +52,11 @@ export function useSuggestedTagsQuery({
 }) {
   const { folderPath } = useFolder()
   return useQuery<SuggestedTagData[]>({
-    queryKey: QUERIES.TAGS_SUGGESTIONS(folderPath ?? undefined, imageId, currentTags),
+    queryKey: QUERIES.TAGS_SUGGESTIONS(
+      folderPath ?? undefined,
+      imageId,
+      currentTags,
+    ),
     queryFn: async () => {
       if (!imageId) return []
       if (!window.api || !window.api.tags.getSuggestions) {
@@ -84,7 +93,11 @@ export function useCreateTagMutation() {
         throw new Error('Add tags API not available')
       }
 
-      const newTags = await window.api.tags.add(folderPath, [{ name, color }], [])
+      const newTags = await window.api.tags.add(
+        folderPath,
+        [{ name, color }],
+        [],
+      )
       return newTags
     },
     onSuccess: () => {
@@ -117,7 +130,7 @@ export function useRenameTagMutation() {
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SEARCH() })
       queryClient.invalidateQueries({ queryKey: QUERIES.TAGS_SUGGESTIONS() })
-      queryClient.setQueriesData({ queryKey: ['images'] }, (oldData: any) => {
+      queryClient.setQueriesData({ queryKey: ['images'] }, oldData => {
         if (!oldData) return oldData
         // Tag rename doesn't change tags on images directly; just invalidate
         return oldData
@@ -148,14 +161,14 @@ export function useDeleteTagMutation() {
 }
 
 function updateTagsInQueryCache(
-  queryClient: any,
+  queryClient: QueryClient,
   imageIds: number[],
   tags: { name: string; color?: string }[],
   action: 'add' | 'remove',
 ) {
   const ids = new Set(imageIds)
 
-  queryClient.setQueriesData({ queryKey: ['images'] }, (oldData: any) => {
+  queryClient.setQueriesData({ queryKey: ['images'] }, oldData => {
     if (!oldData) return oldData
 
     const updateImage = (image: ImageData) => {
@@ -200,7 +213,7 @@ function updateTagsInQueryCache(
     ) {
       return {
         ...oldData,
-        pages: oldData.pages.map((page: any) => {
+        pages: oldData.pages.map((page) => {
           if (Array.isArray(page)) {
             return page.map(updateImage)
           } else if (

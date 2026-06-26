@@ -6,8 +6,8 @@ export async function moveFile(
 ): Promise<void> {
   try {
     await fs.rename(source, destination)
-  } catch (error: any) {
-    if (error.code === 'EXDEV') {
+  } catch (error: unknown) {
+    if ((error as { code: string }).code === 'EXDEV') {
       await fs.copyFile(source, destination)
       await fs.unlink(source)
     } else {

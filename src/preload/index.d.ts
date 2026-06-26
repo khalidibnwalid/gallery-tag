@@ -122,7 +122,7 @@ declare global {
       settings: {
         getAll: (folderPath: string) => Promise<AppSettingModel[]>
         get: (folderPath: string, key: string) => Promise<AppSettingModel | undefined>
-        getValue<T extends SettingValue = SettingValue>(
+        getValue<T  = SettingValue>(
           folderPath: string,
           key: string,
         ): Promise<T | undefined>

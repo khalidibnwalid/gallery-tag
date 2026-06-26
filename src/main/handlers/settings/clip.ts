@@ -1,10 +1,3 @@
-import { ipcMain } from 'electron'
-import { join } from 'path'
-import { deleteFileToTrash } from '@main/utils/files/delete'
-import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
-import { ImageRepository } from '@main/utils/repositories/Image'
-import { scanEmbeddings } from '@main/utils/files/scan/scanEmbeddings'
-import { CONFIG_DIR } from '@main/utils/files/config'
 import { clipService } from '@main/services/clip.service'
 import {
   APP_SETTING_KEYS,
@@ -12,6 +5,14 @@ import {
   CLIP_DEFAULT_MODEL,
   ClipModelConfig,
 } from '@main/utils/appSettingsKeys'
+import { CONFIG_DIR } from '@main/utils/files/config'
+import { deleteFileToTrash } from '@main/utils/files/delete'
+import { scanEmbeddings } from '@main/utils/files/scan/scanEmbeddings'
+import { AppSettingsRepository } from '@main/utils/repositories/appSettings'
+import { ImageRepository } from '@main/utils/repositories/Image'
+import { Database } from 'better-sqlite3'
+import { ipcMain } from 'electron'
+import { join } from 'path'
 import { getActiveDb } from './utils'
 
 // Helper to sanitize table name
@@ -21,7 +22,7 @@ function getTableName(modelId: string): string {
 
 // Helper to recreate table if dimensions mismatch or if recreating active model
 function ensureVectorTable(
-  database: any,
+  database: Database,
   tableName: string,
   dimension: number,
 ) {
@@ -128,9 +129,10 @@ export function registerClipHandlers() {
 
         // 2. Remove it from CLIP_AVAILABLE_MODELS setting
         const repo = new AppSettingsRepository(database)
-        const models = (repo.getParsedValue<any[]>(
-          APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
-        ) || CLIP_AVAILABLE_MODELS_DEFAULT) as ClipModelConfig[]
+        const models =
+          repo.getParsedValue<ClipModelConfig[]>(
+            APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
+          ) || CLIP_AVAILABLE_MODELS_DEFAULT
         const updatedModels = models.filter(m => m.id !== modelId)
 
         repo.setSetting(
@@ -225,16 +227,18 @@ export function registerClipHandlers() {
     },
   )
 
-  ipcMain.handle('settings:get-indexed-models', async (_event, folderPath: string): Promise<string[]> => {
-    try {
-      const { database } = getActiveDb(folderPath)
-      const rows = database
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'vec_images_%'",
-        )
-        .all() as { name: string }[]
+  ipcMain.handle(
+    'settings:get-indexed-models',
+    async (_event, folderPath: string): Promise<string[]> => {
+      try {
+        const { database } = getActiveDb(folderPath)
+        const rows = database
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'vec_images_%'",
+          )
+          .all() as { name: string }[]
 
-      const mainTables = rows
+        const mainTables = rows
           .map(r => r.name)
           .filter(
             name =>
@@ -244,10 +248,11 @@ export function registerClipHandlers() {
               !name.endsWith('_properties'),
           )
 
-      return mainTables
-    } catch (e) {
-      console.error('Error getting indexed models:', e)
-      return []
-    }
-  })
+        return mainTables
+      } catch (e) {
+        console.error('Error getting indexed models:', e)
+        return []
+      }
+    },
+  )
 }

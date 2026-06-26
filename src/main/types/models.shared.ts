@@ -116,8 +116,8 @@ export type ValueTypeMap = {
   string: string
   number: number
   boolean: boolean
-  json: { [key: string]: any }
-  json_array: any[]
+  json: { [key: string]: unknown }
+  json_array: unknown[]
 }
 
 export type InferValueTypeKey<T> =

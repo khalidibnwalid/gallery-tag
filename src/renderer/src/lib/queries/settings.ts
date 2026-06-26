@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { useFolder } from '@/components/providers/FolderProvider'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 export function useIndexedModels() {
   const { folderPath } = useFolder()
@@ -34,8 +34,8 @@ export function useClearModelIndexMutation(folderPath: string) {
       })
       queryClient.invalidateQueries({ queryKey: ['images'] })
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to clear model index')
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to clear model index')
     },
   })
 }
@@ -56,8 +56,8 @@ export function useDeleteModelMutation(folderPath: string) {
       })
       queryClient.invalidateQueries({ queryKey: ['images'] })
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to delete model')
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to delete model')
     },
   })
 }
@@ -86,8 +86,10 @@ export function usePartialReindexMutation(folderPath: string) {
         )
       }
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to start background indexing')
+    onError: (err: unknown) => {
+      toast.error(
+        (err as Error).message || 'Failed to start background indexing',
+      )
     },
   })
 }
@@ -110,8 +112,8 @@ export function useReindexClipMutation(folderPath: string) {
       })
       queryClient.invalidateQueries({ queryKey: ['images'] })
     },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to trigger AI re-indexing')
+    onError: (err: unknown) => {
+      toast.error((err as Error).message || 'Failed to trigger AI re-indexing')
     },
   })
 }
@@ -120,18 +122,23 @@ import {
   APP_SETTING_KEYS,
   CLIP_AVAILABLE_MODELS_DEFAULT,
   CLIP_DEFAULT_MODEL,
-  CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT,
   CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT,
-  THUMBNAIL_QUALITY_DEFAULT,
+  CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT,
   ClipModelConfig,
+  THUMBNAIL_QUALITY_DEFAULT,
 } from '@/lib/types/appSettingsKeys'
+import { SettingValue } from '@main/types/models.shared'
 
 export function useClipEnabled(folderPath: string | null) {
   return useQuery<boolean>({
     queryKey: ['settings', APP_SETTING_KEYS.CLIP_ENABLED, folderPath],
     queryFn: async () => {
-      if (!folderPath || !window.api || !window.api.settings.getValue) return true
-      const val = await window.api.settings.getValue<boolean>(folderPath, APP_SETTING_KEYS.CLIP_ENABLED)
+      if (!folderPath || !window.api || !window.api.settings.getValue)
+        return true
+      const val = await window.api.settings.getValue<boolean>(
+        folderPath,
+        APP_SETTING_KEYS.CLIP_ENABLED,
+      )
       return val !== undefined ? val : true
     },
     enabled: !!folderPath,
@@ -154,7 +161,7 @@ export function useClipModels(folderPath: string | null) {
         await window.api.settings.set(
           folderPath,
           APP_SETTING_KEYS.CLIP_AVAILABLE_MODELS,
-          CLIP_AVAILABLE_MODELS_DEFAULT,
+          CLIP_AVAILABLE_MODELS_DEFAULT as unknown as SettingValue[],
           'json_array',
         )
         return CLIP_AVAILABLE_MODELS_DEFAULT
@@ -186,7 +193,11 @@ export function useClipCurrentModel(folderPath: string | null) {
 
 export function useClipTextThreshold(folderPath: string | null) {
   return useQuery<number>({
-    queryKey: ['settings', APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD, folderPath],
+    queryKey: [
+      'settings',
+      APP_SETTING_KEYS.CLIP_TEXT_TO_IMAGE_THRESHOLD,
+      folderPath,
+    ],
     queryFn: async () => {
       if (!folderPath || !window.api || !window.api.settings.getValue) {
         return CLIP_TEXT_TO_IMAGE_THRESHOLD_DEFAULT
@@ -204,7 +215,11 @@ export function useClipTextThreshold(folderPath: string | null) {
 
 export function useClipImageThreshold(folderPath: string | null) {
   return useQuery<number>({
-    queryKey: ['settings', APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD, folderPath],
+    queryKey: [
+      'settings',
+      APP_SETTING_KEYS.CLIP_IMAGE_TO_IMAGE_THRESHOLD,
+      folderPath,
+    ],
     queryFn: async () => {
       if (!folderPath || !window.api || !window.api.settings.getValue) {
         return CLIP_IMAGE_TO_IMAGE_THRESHOLD_DEFAULT
@@ -265,4 +280,3 @@ export function useUpdateSettingMutation(folderPath: string) {
     },
   })
 }
-

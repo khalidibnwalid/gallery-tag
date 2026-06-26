@@ -173,7 +173,7 @@ export function TagSelector({ children, currentTags = [], imageIds }: Props) {
           : [imageIdsRef.current],
       )
 
-      queryClient.setQueriesData({ queryKey: ['images'] }, (oldData: any) => {
+      queryClient.setQueriesData({ queryKey: ['images'] }, (oldData) => {
         if (!oldData) return oldData
 
         const updateImage = (image: ImageData) => {

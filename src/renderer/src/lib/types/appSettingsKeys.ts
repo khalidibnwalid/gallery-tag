@@ -25,7 +25,7 @@ export interface ClipModelConfig {
   name: string
   dimension: number
   processor?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export type AppSettingKey =

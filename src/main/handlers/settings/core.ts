@@ -1,21 +1,32 @@
 import { ipcMain } from 'electron'
-import { AppSettingModel, SettingValue } from '@main/types/models.shared'
+import {
+  AppSettingModel,
+  InferValueTypeKey,
+  SettingValue,
+} from '@main/types/models.shared'
 import { getSettingsRepo } from './utils'
 
 export function registerCoreHandlers() {
-  ipcMain.handle('settings:get-all', async (_event, folderPath: string): Promise<AppSettingModel[]> => {
-    try {
-      const repo = getSettingsRepo(folderPath)
-      return repo.getAllSettings()
-    } catch (e) {
-      console.error('Error getting settings:', e)
-      throw e
-    }
-  })
+  ipcMain.handle(
+    'settings:get-all',
+    async (_event, folderPath: string): Promise<AppSettingModel[]> => {
+      try {
+        const repo = getSettingsRepo(folderPath)
+        return repo.getAllSettings()
+      } catch (e) {
+        console.error('Error getting settings:', e)
+        throw e
+      }
+    },
+  )
 
   ipcMain.handle(
     'settings:get',
-    async (_event, folderPath: string, key: string): Promise<AppSettingModel | undefined> => {
+    async (
+      _event,
+      folderPath: string,
+      key: string,
+    ): Promise<AppSettingModel | undefined> => {
       try {
         const repo = getSettingsRepo(folderPath)
         return repo.getSetting(key)
@@ -28,7 +39,11 @@ export function registerCoreHandlers() {
 
   ipcMain.handle(
     'settings:get-value',
-    async (_event, folderPath: string, key: string): Promise<SettingValue | undefined> => {
+    async (
+      _event,
+      folderPath: string,
+      key: string,
+    ): Promise<SettingValue | undefined> => {
       try {
         const repo = getSettingsRepo(folderPath)
         return repo.getParsedValue(key)
@@ -55,7 +70,11 @@ export function registerCoreHandlers() {
     ): Promise<void> => {
       try {
         const repo = getSettingsRepo(folderPath)
-        repo.setSetting(key, value, valueType as any)
+        repo.setSetting(
+          key,
+          value,
+          valueType as InferValueTypeKey<SettingValue>,
+        )
       } catch (e) {
         console.error(`Error setting setting ${key}:`, e)
         throw e

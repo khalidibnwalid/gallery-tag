@@ -1,11 +1,16 @@
+import { SettingValue } from '@main/types/models.shared'
 import { create } from 'zustand'
-import { Keybinds, DEFAULT_HOTKEYS } from '../types/keybinds'
+import { DEFAULT_HOTKEYS, Keybinds } from '../types/keybinds'
 
 interface KeybindsState {
   keybinds: Keybinds
   isLoading: boolean
   setKeybinds: (keybinds: Keybinds) => void
-  updateKeybind: (key: keyof Keybinds, combo: string, folderPath: string | null) => Promise<void>
+  updateKeybind: (
+    key: keyof Keybinds,
+    combo: string,
+    folderPath: string | null,
+  ) => Promise<void>
   loadKeybinds: (folderPath: string | null) => Promise<void>
 }
 
@@ -15,7 +20,7 @@ export const useKeybindsStore = create<KeybindsState>((set, get) => ({
   keybinds: DEFAULT_HOTKEYS,
   isLoading: false,
 
-  setKeybinds: (keybinds) => set({ keybinds }),
+  setKeybinds: keybinds => set({ keybinds }),
 
   updateKeybind: async (key, combo, folderPath) => {
     const updated = { ...get().keybinds, [key]: combo }
@@ -27,14 +32,22 @@ export const useKeybindsStore = create<KeybindsState>((set, get) => ({
     // Save to current active folder settings DB if available
     if (folderPath && window.api?.settings?.set) {
       try {
-        await window.api.settings.set(folderPath, 'keybinds', updated as any, 'json')
+        await window.api.settings.set(
+          folderPath,
+          'keybinds',
+          updated,
+          'json',
+        )
       } catch (err) {
-        console.error('Failed to save keybindings to folder settings database:', err)
+        console.error(
+          'Failed to save keybindings to folder settings database:',
+          err,
+        )
       }
     }
   },
 
-  loadKeybinds: async (folderPath) => {
+  loadKeybinds: async folderPath => {
     set({ isLoading: true })
     try {
       // 1. If no folder open, check localstorage or fallback to defaults
@@ -57,15 +70,27 @@ export const useKeybindsStore = create<KeybindsState>((set, get) => ({
       // 2. Folder is open. First check DB
       if (window.api?.settings?.getValue) {
         try {
-          const dbVal = await window.api.settings.getValue<any>(folderPath, 'keybinds')
-          if (dbVal && typeof dbVal === 'object' && Object.keys(dbVal).length > 0) {
+          const dbVal = await window.api.settings.getValue<{
+            [key: string]: string
+          }>(
+            folderPath,
+            'keybinds',
+          )
+          if (
+            dbVal &&
+            typeof dbVal === 'object' &&
+            Object.keys(dbVal).length > 0
+          ) {
             // Ensure all keys are populated in case of updates, fallback missing ones to default
             const merged = { ...DEFAULT_HOTKEYS, ...dbVal }
             set({ keybinds: merged })
             return
           }
         } catch (err) {
-          console.error('Failed to read keybindings from folder settings database:', err)
+          console.error(
+            'Failed to read keybindings from folder settings database:',
+            err,
+          )
         }
       }
 
@@ -79,11 +104,19 @@ export const useKeybindsStore = create<KeybindsState>((set, get) => ({
 
           // Copy to settings DB
           if (window.api?.settings?.set) {
-            await window.api.settings.set(folderPath, 'keybinds', merged as any, 'json')
+            await window.api.settings.set(
+              folderPath,
+              'keybinds',
+              merged,
+              'json',
+            )
           }
           return
         } catch (e) {
-          console.error('Failed to parse global keybinds fallback from localStorage:', e)
+          console.error(
+            'Failed to parse global keybinds fallback from localStorage:',
+            e,
+          )
         }
       }
 
@@ -92,9 +125,17 @@ export const useKeybindsStore = create<KeybindsState>((set, get) => ({
       localStorage.setItem(GLOBAL_STORAGE_KEY, JSON.stringify(DEFAULT_HOTKEYS))
       if (window.api?.settings?.set) {
         try {
-          await window.api.settings.set(folderPath, 'keybinds', DEFAULT_HOTKEYS as any, 'json')
+          await window.api.settings.set(
+            folderPath,
+            'keybinds',
+            DEFAULT_HOTKEYS as unknown as SettingValue,
+            'json',
+          )
         } catch (err) {
-          console.error('Failed to write default keybinds to folder settings database:', err)
+          console.error(
+            'Failed to write default keybinds to folder settings database:',
+            err,
+          )
         }
       }
     } finally {

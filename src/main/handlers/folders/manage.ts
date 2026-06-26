@@ -190,9 +190,9 @@ export async function deleteFolderHandler(
   // 1. Move physical directory to OS trash/recycle bin first
   try {
     await deleteFileToTrash(absFolderPath)
-  } catch (err: any) {
+  } catch (err) {
     console.error(`Failed to move folder to trash: ${absFolderPath}`, err)
-    throw new Error(`Failed to trash folder: ${err.message}`)
+    throw new Error(`Failed to trash folder: ${(err as Error).message}`)
   }
 
   // 2. Soft delete inside database
@@ -250,6 +250,14 @@ export async function initWithSettingsHandler(
   const { db: database } = await getAndInitConfig(folderPath)
   const repo = new AppSettingsRepository(database)
   repo.setSetting(APP_SETTING_KEYS.CLIP_ENABLED, settings.aiEnabled, 'boolean')
-  repo.setSetting(APP_SETTING_KEYS.CLIP_CURRENT_MODEL, settings.clipModel, 'string')
-  repo.setSetting(APP_SETTING_KEYS.THUMBNAIL_QUALITY, settings.thumbnailQuality, 'number')
+  repo.setSetting(
+    APP_SETTING_KEYS.CLIP_CURRENT_MODEL,
+    settings.clipModel,
+    'string',
+  )
+  repo.setSetting(
+    APP_SETTING_KEYS.THUMBNAIL_QUALITY,
+    settings.thumbnailQuality,
+    'number',
+  )
 }

@@ -1,8 +1,8 @@
-import { ImageRepository } from '@main/utils/repositories/Image'
-import { EVENTS } from '@main/types/constants.shared'
 import { ImageUpdatePayload } from '@main/types/api.shared'
-import { deleteFileToTrash } from '@main/utils/files/delete'
+import { EVENTS } from '@main/types/constants.shared'
 import { getAndInitConfig } from '@main/utils/files/config'
+import { deleteFileToTrash } from '@main/utils/files/delete'
+import { ImageRepository } from '@main/utils/repositories/Image'
 import { BrowserWindow } from 'electron'
 
 export default async function deleteImagesHandler(
@@ -24,9 +24,11 @@ export default async function deleteImagesHandler(
     // Move to trash
     try {
       await deleteFileToTrash(image.filePath)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Failed to move file to trash: ${image.filePath}`, err)
-      throw new Error(`Failed to trash file: ${image.fileName}. ${err.message}`)
+      throw new Error(
+        `Failed to trash file: ${image.fileName}. ${(err as Error).message}`,
+      )
     }
 
     deletedImages.push({ id, filePath: image.filePath })

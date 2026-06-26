@@ -51,8 +51,8 @@ export default async function renameHandler(
     throw new Error(
       `A file named "${finalFileName}" already exists in this directory.`,
     )
-  } catch (err: any) {
-    if (err.message.includes('already exists')) {
+  } catch (err: unknown) {
+    if ((err as Error).message.includes('already exists')) {
       throw err
     }
     // Destination doesn't exist, which is what we want
