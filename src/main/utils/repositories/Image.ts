@@ -638,7 +638,7 @@ export class ImageRepository {
       )
       const vecTables = this.db
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND (name = 'vec_images' OR name LIKE 'vec_images_%')",
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' AND (name = 'vec_images' OR name LIKE 'vec_images_%')",
         )
         .all() as { name: string }[]
       const deleteVecStmts = vecTables.map(t =>

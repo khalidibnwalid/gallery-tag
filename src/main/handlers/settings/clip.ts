@@ -234,7 +234,7 @@ export function registerClipHandlers() {
         const { database } = getActiveDb(folderPath)
         const rows = database
           .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'vec_images_%'",
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' AND name LIKE 'vec_images_%'",
           )
           .all() as { name: string }[]
 
